@@ -1,0 +1,419 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+:root {
+  color-scheme: dark;
+  --bg: #07110f;
+  --panel: rgba(12, 26, 22, 0.84);
+  --panel-strong: rgba(8, 18, 15, 0.95);
+  --border: rgba(148, 201, 171, 0.18);
+  --text: #edf6ef;
+  --muted: #9cb4a7;
+  --accent: #38d08f;
+  --accent-2: #f6c96b;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+  /* Playing card face colors */
+  --card-face: #fff8f0;
+  --card-edge: #b8a89a;
+  --suit-red: #d0131a;
+  --suit-black: #1a1a1a;
+  /* GBA-style palette additions */
+  --gba-blue: #2b93ff;
+  --gba-red: #f04f4c;
+  --gba-gold: #f2c93b;
+  --gba-green: #3aa35a;
+}
+
+* {
+  box-sizing: border-box;
+  touch-action: manipulation; /* Prevents double-tap zoom delay on mobile */
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: #000;
+  color: var(--text);
+  font-family: 'VT323', monospace;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: 'VT323', monospace;
+  -webkit-font-smoothing: none;
+}
+
+.font-pixel {
+  font-family: 'VT323', monospace;
+  letter-spacing: 0.05em;
+}
+
+.font-pixel-fat {
+  font-family: 'VT323', monospace;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+/* GBA-style felt background with subtle animated rotating gradient */
+.felt-bg {
+  background:
+    radial-gradient(circle at top, rgba(34, 90, 73, 0.45), transparent 42%),
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.04), transparent 20%),
+    linear-gradient(180deg, #15392f 0%, #0c1c18 100%);
+  position: relative;
+}
+
+
+
+.panel {
+  background: linear-gradient(180deg, rgba(22, 42, 36, 0.95), rgba(11, 24, 20, 0.98));
+  border: 2px solid rgba(148, 201, 171, 0.22);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.panel-inset {
+  background: #101614;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* Chunky button styles from user template */
+.btn-chunky {
+  font-family: 'VT323', monospace;
+  border-radius: 8px;
+  text-transform: uppercase;
+  font-weight: bold;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.05s, box-shadow 0.05s;
+  color: white;
+  text-shadow: 1.5px 1.5px 0 #000;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  user-select: none;
+}
+
+.btn-orange {
+  background-color: #f7931a;
+  box-shadow: 0 5px 0 #b35900, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-orange:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #b35900, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-red {
+  background-color: #f04f4c;
+  box-shadow: 0 5px 0 #9a1a1e, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-red:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #9a1a1e, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-blue {
+  background-color: #2b93ff;
+  box-shadow: 0 5px 0 #155bb5, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-blue:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #155bb5, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-green {
+  background-color: #3aa35a;
+  box-shadow: 0 5px 0 #236d3c, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-green:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 #236d3c, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn-dark {
+  background-color: #3b4249;
+  box-shadow: 0 3px 0 #1e2226, inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+}
+.btn-dark:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #1e2226;
+}
+
+.btn-chunky:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Stat boxes from user template */
+.stat-box {
+  background-color: #2b3035;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 0 #1a1d20;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Inner dark recess panel inside stat boxes */
+.stat-inner {
+  background: #1a1d20;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 2px;
+  padding: 1px 2px;
+}
+
+.txt-shadow {
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.txt-outline {
+  text-shadow:
+    -1.5px -1.5px 0 rgba(0, 0, 0, 0.6),
+    1.5px -1.5px 0 rgba(0, 0, 0, 0.6),
+    -1.5px 1.5px 0 rgba(0, 0, 0, 0.6),
+    1.5px 1.5px 0 rgba(0, 0, 0, 0.6);
+}
+
+.bevel {
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* ─── Animations ─── */
+
+.anim-pop {
+  animation: pop 180ms ease-out;
+}
+
+.anim-scorefly {
+  animation: scorefly 650ms ease-out forwards;
+}
+
+.anim-bob {
+  animation: bob 2.8s ease-in-out infinite;
+}
+
+/* GBA-style card draw from deck */
+.anim-deal-in {
+  animation: dealIn 200ms ease-out forwards;
+}
+
+/* GBA-style card shake on scoring */
+.anim-shake {
+  animation: cardShake 200ms ease-in-out;
+}
+
+/* GBA-style flaming score */
+.anim-flame {
+  animation: flame 400ms ease-in-out infinite alternate;
+}
+
+/* Card slide into play zone */
+.anim-slide-up {
+  animation: slideUp 220ms ease-out forwards;
+}
+
+/* GBA shuffle deck animation */
+.anim-shuffle {
+  animation: shuffleDeck 400ms ease-in-out;
+}
+
+/* Score counter tick */
+.anim-score-tick {
+  animation: scoreTick 100ms ease-out;
+}
+
+/* Joker glow when active */
+.anim-joker-active {
+  animation: jokerGlow 500ms ease-in-out;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes scorefly {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-22px);
+    opacity: 0;
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes dealIn {
+  from {
+    transform: translateX(60px) translateY(-20px) scale(0.7) rotate(15deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes cardShake {
+  0% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-3px) rotate(-2deg); }
+  30% { transform: translateX(3px) rotate(2deg); }
+  45% { transform: translateX(-2px) rotate(-1deg); }
+  60% { transform: translateX(2px) rotate(1deg); }
+  75% { transform: translateX(-1px) rotate(0deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+
+@keyframes flame {
+  from {
+    text-shadow:
+      0 0 4px #ff6b00,
+      0 0 8px #ff4500,
+      0 -2px 12px rgba(255, 69, 0, 0.5);
+    filter: brightness(1.1);
+  }
+  to {
+    text-shadow:
+      0 0 8px #ff8c00,
+      0 0 16px #ff4500,
+      0 -4px 20px rgba(255, 69, 0, 0.7);
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shuffleDeck {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-8deg) scale(0.95); }
+  50% { transform: rotate(5deg) scale(1.02); }
+  75% { transform: rotate(-3deg) scale(0.98); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes scoreTick {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes jokerGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(210, 59, 210, 0);
+  }
+  50% {
+    box-shadow: 0 0 12px 3px rgba(210, 59, 210, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(210, 59, 210, 0);
+  }
+}
+
+/* Shop overlay styles */
+.shop-panel {
+  background: linear-gradient(180deg, #1c2833 0%, #0e1a24 100%);
+  border: 2px solid rgba(43, 147, 255, 0.3);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Joker rarity colors (from GBA card_rarity_pal_gfx) */
+.rarity-common { color: #94b4a7; }
+.rarity-uncommon { color: #3aa35a; }
+.rarity-rare { color: #2b93ff; }
+.rarity-legendary { color: #9b59b6; }
+
+/* Edition card styling */
+.edition-foil {
+  background-image: linear-gradient(
+    135deg,
+    rgba(180, 200, 220, 0.15) 0%,
+    rgba(220, 240, 255, 0.25) 50%,
+    rgba(180, 200, 220, 0.15) 100%
+  );
+}
+
+.edition-holo {
+  background-image: linear-gradient(
+    135deg,
+    rgba(100, 200, 255, 0.2) 0%,
+    rgba(255, 100, 200, 0.2) 33%,
+    rgba(100, 255, 150, 0.2) 66%,
+    rgba(100, 200, 255, 0.2) 100%
+  );
+}
+
+.edition-polychrome {
+  animation: polychrome 3s ease-in-out infinite;
+}
+
+@keyframes polychrome {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@layer components {
+  .glass-panel {
+    background: linear-gradient(180deg, rgba(18, 32, 28, 0.9), rgba(7, 16, 13, 0.9));
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(20px);
+  }
+}

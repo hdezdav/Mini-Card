@@ -1,0 +1,14 @@
+{
+  "name": "minicard",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "lint": "pnpm --filter web lint"
+  },
+  "workspaces": [
+    "apps/*"
+  ]
+}
