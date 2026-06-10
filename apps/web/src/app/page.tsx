@@ -2,12 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PlayingCard } from "@/components/PlayingCard";
-import { DeckBack, EmptySlot, JokerCard, SpectralCard } from "@/components/Specials";
+import { DeckBack, EmptySlot } from "@/components/Specials";
 import { GbaBackground } from "@/components/GbaBackground";
+import { Shop } from "@/components/Shop";
+import { RunInfo } from "@/components/RunInfo";
+import { JokerArt } from "@/components/PixelSprite";
 import {
   type Blind,
   type Card,
   type HandType,
+  type OwnedJoker,
+  type JokerDef,
+  type JokerCtx,
   RANK_CHIPS,
   RANK_ORDER,
   SUITS,
@@ -15,14 +21,15 @@ import {
   createDeck,
   evaluate,
   handScore,
+  jokerBaseCost,
   shuffle,
 } from "@/lib/game";
 
 const HAND_SIZE = 8;
 const MAX_SELECT = 5;
-const JOKER_MULT = 4;
+const MAX_JOKER_SLOTS = 5;
 
-type Phase = "playing" | "scoring" | "won" | "lost";
+type Phase = "playing" | "scoring" | "won" | "lost" | "shop";
 
 interface FloatText {
   id: number;
@@ -53,6 +60,8 @@ export default function HomePage() {
   const [jokerFlash, setJokerFlash] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string>("");
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showRunInfo, setShowRunInfo] = useState(false);
+  const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
 
   // Auto-connect Celo / MiniPay
   useEffect(() => {
@@ -195,6 +204,12 @@ export default function HomePage() {
     const ev = evaluate(played);
     const base = handScore(ev.type, levels.current);
 
+    // Level up the played hand type
+    levels.current = {
+      ...levels.current,
+      [ev.type]: (levels.current[ev.type] ?? 1) + 1,
+    };
+
     setPhase("scoring");
     setPlayZone(played);
     setSelected([]);
@@ -205,8 +220,9 @@ export default function HomePage() {
     await delay(300);
 
     let chips = base.chips;
-    const mult = base.mult;
+    let mult = base.mult;
 
+    // Score each card
     for (const card of played) {
       if (!ev.scoringIds.includes(card.id)) continue;
       const add = RANK_CHIPS[card.rank];
@@ -216,20 +232,46 @@ export default function HomePage() {
       pushFloat(card.id, `+${add}`, "#2fb8ff");
       await delay(280);
     }
-
     setScoringId(null);
 
-    setJokerFlash(true);
-    const finalMult = mult + JOKER_MULT;
-    setAnimMult(finalMult);
-    await delay(360);
-    setJokerFlash(false);
+    // Apply joker effects
+    const jokerCtxBase: JokerCtx = {
+      chips,
+      mult,
+      playedCards: played,
+      handType: ev.type,
+      scoringIds: ev.scoringIds,
+      money,
+      handsLeft,
+      discardsLeft,
+      state: {},
+    };
 
-    const gained = chips * finalMult;
+    let jokerCtx = { ...jokerCtxBase };
+    for (const oj of ownedJokers) {
+      const ctx: JokerCtx = { ...jokerCtx, state: oj.state };
+      const result = oj.def.effect(ctx);
+      const prevMult = jokerCtx.mult;
+      jokerCtx = { ...jokerCtx, chips: result.chips, mult: result.xMult ? jokerCtx.mult * result.xMult : result.mult };
+      if (result.mult !== prevMult || result.xMult) {
+        setJokerFlash(true);
+        pushFloat(played[0]?.id ?? "", result.xMult ? `x${result.xMult}` : `+${result.mult - prevMult}`, "#d23bd2");
+        setAnimMult(jokerCtx.mult);
+        await delay(300);
+        setJokerFlash(false);
+      }
+    }
+    chips = jokerCtx.chips;
+    mult = jokerCtx.mult;
+    setAnimChips(chips);
+    setAnimMult(mult);
+    await delay(200);
+
+    const gained = Math.floor(chips * mult);
     const start = roundScore;
     const end = start + gained;
     const steps = 16;
-    for (let i = 1; i <= steps; i += 1) {
+    for (let i = 1; i <= steps; i++) {
       setRoundScore(Math.round(start + ((end - start) * i) / steps));
       await delay(22);
     }
@@ -250,7 +292,7 @@ export default function HomePage() {
     if (end >= blind.target) {
       await delay(200);
       setMoney((current) => current + blind.reward + Math.min(newHands, 5));
-      setPhase("won");
+      setPhase("shop");
     } else if (newHands <= 0) {
       setPhase("lost");
       saveScore(end);
@@ -261,7 +303,21 @@ export default function HomePage() {
     busy.current = false;
   };
 
-  const nextBlind = () => {
+  const handleBuyJoker = (def: JokerDef) => {
+    const cost = jokerBaseCost(def);
+    if (money < cost || ownedJokers.length >= MAX_JOKER_SLOTS) return;
+    setMoney(m => m - cost);
+    setOwnedJokers(prev => [...prev, { def, edition: "base", state: {} }]);
+  };
+
+  const handleSellJoker = (idx: number) => {
+    const oj = ownedJokers[idx];
+    if (!oj) return;
+    setMoney(m => m + Math.floor(jokerBaseCost(oj.def) / 2));
+    setOwnedJokers(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const enterNextBlind = () => {
     const nextRound = round + 1;
     setRound(nextRound);
     startRound();
@@ -270,6 +326,8 @@ export default function HomePage() {
   const restart = () => {
     setRound(1);
     setMoney(4);
+    setOwnedJokers([]);
+    levels.current = {};
     startRound();
   };
 
@@ -286,17 +344,32 @@ export default function HomePage() {
           <MoneyBox money={money} />
         </div>
 
-        {/* Top Slots Groups */}
-        <div className="relative z-10 flex gap-2 px-2 items-start justify-between mt-1">
-          <SlotGroup label="1/5" align="left">
-            <JokerCard className="h-[54px] w-[38px]" />
-            {[0, 1, 2, 3].map((index) => (
-              <EmptySlot key={index} className="h-[54px] w-[38px]" />
-            ))}
-          </SlotGroup>
-          <SlotGroup label="1/2" align="right">
-            <SpectralCard className="h-[54px] w-[38px]" />
-            <EmptySlot className="h-[54px] w-[38px]" />
+        {/* Joker Slots */}
+        <div className="relative z-10 flex px-2 items-start mt-1">
+          <SlotGroup label={`${ownedJokers.length}/${MAX_JOKER_SLOTS}`} align="left">
+            {Array.from({ length: MAX_JOKER_SLOTS }).map((_, i) => {
+              const oj = ownedJokers[i];
+              return oj ? (
+                <div key={i} className="relative h-[54px] w-[38px] group">
+                  <button
+                    type="button"
+                    className="relative overflow-hidden rounded-[9px] border-[2.5px] border-[#2a2a2a] h-full w-full"
+                    style={{ background: "linear-gradient(160deg,#fbf7ec 0%,#f4eee0 60%,#e7ddc6 100%)", boxShadow: "inset 0 2px 0 rgba(255,255,255,0.7),0 6px 10px rgba(0,0,0,0.5)" }}
+                    title={`${oj.def.name}: ${oj.def.desc}`}
+                  >
+                    <span className="font-pixel absolute left-0.5 top-0 text-[0.55rem] leading-none text-[#d23bd2] truncate w-full px-0.5">{oj.def.name}</span>
+                    <div className="absolute inset-[18%_10%] flex items-center justify-center"><JokerArt /></div>
+                  </button>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex z-30 w-36 bg-black/90 border border-white/20 rounded-lg p-1.5 text-left pointer-events-none flex-col gap-0.5">
+                    <div className="font-pixel-fat text-[10px] text-white">{oj.def.name}</div>
+                    <div className="font-pixel text-[9px] text-[#94b4a7] capitalize">{oj.def.rarity}</div>
+                    <div className="font-pixel text-[9px] text-gray-300">{oj.def.desc}</div>
+                  </div>
+                </div>
+              ) : (
+                <EmptySlot key={i} className="h-[54px] w-[38px]" />
+              );
+            })}
           </SlotGroup>
         </div>
 
@@ -378,7 +451,7 @@ export default function HomePage() {
                   </button>
                 </div>
               </div>
-              <button type="button" className="btn-chunky btn-red flex-1 text-base flex flex-col justify-center leading-none py-1 min-h-[36px]">
+              <button type="button" onClick={() => setShowRunInfo(true)} className="btn-chunky btn-red flex-1 text-base flex flex-col justify-center leading-none py-1 min-h-[36px]">
                 <span>Run</span>
                 <span className="mt-[1px]">Info</span>
               </button>
@@ -466,8 +539,27 @@ export default function HomePage() {
           </div>
         </footer>
 
-        {phase === "won" && <Overlay title="Blind Defeated!" color="#f5d048" sub={`+${blind.reward} cash out`} btn="Next Blind" onClick={nextBlind} />}
-        {phase === "lost" && <Overlay title="Game Over" color="#fe5f55" sub={`You reached ${roundScore} / ${blind.target}`} btn="Play Again" onClick={restart} />}
+        {phase === "shop" && (
+          <Shop
+            money={money}
+            ownedJokers={ownedJokers}
+            onBuy={handleBuyJoker}
+            onSell={handleSellJoker}
+            onClose={enterNextBlind}
+          />
+        )}
+        {phase === "lost" && <Overlay title="Game Over" color="#fe5f55" sub={`Round ${round} — Score: ${roundScore}`} btn="Play Again" onClick={restart} />}
+
+        {showRunInfo && (
+          <RunInfo
+            levels={levels.current}
+            jokers={ownedJokers}
+            money={money}
+            round={round}
+            ante={ante}
+            onClose={() => setShowRunInfo(false)}
+          />
+        )}
 
         {showLeaderboard && (
           <LeaderboardOverlay
