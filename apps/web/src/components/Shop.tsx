@@ -20,7 +20,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-function getOffers(excludeIds: Set<string>): JokerDef[] {
+function getOffers(excludeIds: Set<number>): JokerDef[] {
   return shuffle(JOKER_DEFS.filter((j) => !excludeIds.has(j.id))).slice(0, 3);
 }
 
