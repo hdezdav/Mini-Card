@@ -1,5 +1,5 @@
 {
-  "name": "web",
+  "name": "minicard",
   "private": true,
   "version": "0.1.0",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:deploy": "pnpm pages:build && npx wrangler pages deploy .cloudflare"
+    "pages:deploy": "pnpm pages:build && pnpm exec wrangler pages deploy .cloudflare"
   },
   "dependencies": {
     "next": "^14.2.30",
