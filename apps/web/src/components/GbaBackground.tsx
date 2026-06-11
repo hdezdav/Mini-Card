@@ -169,21 +169,21 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
     const palettes = {
       small: {
         // Psychedelic Emerald green
-        c1: [0.15, 0.65, 0.35, 1.0],
-        c2: [0.03, 0.22, 0.12, 1.0],
-        c3: [0.01, 0.08, 0.04, 1.0],
+        c1: [0.2, 0.75, 0.45, 1.0],
+        c2: [0.06, 0.4, 0.22, 1.0],
+        c3: [0.02, 0.22, 0.12, 1.0],
       },
       big: {
         // Sapphire Blue & Royal Blue
-        c1: [0.12, 0.45, 0.85, 1.0],
-        c2: [0.04, 0.16, 0.36, 1.0],
-        c3: [0.01, 0.05, 0.12, 1.0],
+        c1: [0.18, 0.55, 0.9, 1.0],
+        c2: [0.08, 0.3, 0.6, 1.0],
+        c3: [0.03, 0.15, 0.35, 1.0],
       },
       boss: {
         // Flame Crimson red & dark purple
-        c1: [0.871, 0.267, 0.231, 1.0], // exact Red property from prompt
-        c2: [0.0, 0.42, 0.706, 1.0],    // exact Blue property from prompt
-        c3: [0.086, 0.137, 0.145, 1.0], // exact Slate property from prompt
+        c1: [0.9, 0.35, 0.3, 1.0],
+        c2: [0.1, 0.55, 0.85, 1.0],
+        c3: [0.2, 0.22, 0.28, 1.0],
       },
     };
 
@@ -225,10 +225,10 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
       gl.uniform4fv(uniforms.colour3, palette.c3);
       
       // Default parameters from Properties section
-      gl.uniform1f(uniforms.contrast, 3.5);
-      gl.uniform1f(uniforms.lighting, 0.4);
+      gl.uniform1f(uniforms.contrast, 2.5);
+      gl.uniform1f(uniforms.lighting, 0.55);
       gl.uniform1f(uniforms.spinAmount, 0.25);
-      gl.uniform1f(uniforms.pixelFilter, 500.0); // Make it a bit more pixelated/retro than 745.0
+      gl.uniform1f(uniforms.pixelFilter, 1400.0); // Make pixelation much finer and cleaner
       gl.uniform1f(uniforms.spinRotation, -0.15); // Much slower spin rotation
       gl.uniform1f(uniforms.spinSpeed, 0.006); // Much slower wave progression speed
       gl.uniform1f(uniforms.spinEase, 1.0);

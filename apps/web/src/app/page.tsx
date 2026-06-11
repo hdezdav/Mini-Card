@@ -24,6 +24,7 @@ import {
   jokerBaseCost,
   shuffle,
 } from "@/lib/game";
+import { submitScoreToCelo, getScoresFromCelo } from "@/lib/web3";
 
 const HAND_SIZE = 8;
 const MAX_SELECT = 5;
@@ -88,8 +89,16 @@ export default function HomePage() {
     initWeb3();
   }, []);
 
-  const saveScore = useCallback((score: number) => {
+  const saveScore = useCallback(async (score: number) => {
     if (score <= 0) return;
+
+    // Try submitting to Celo leaderboard contract in the background
+    if (walletAddress && !walletAddress.startsWith("0xceloGuest")) {
+      submitScoreToCelo(score, round).catch((err) => {
+        console.warn("Background Celo score submission failed:", err);
+      });
+    }
+
     const key = "minicard_leaderboard";
     const raw = localStorage.getItem(key);
     let list: LeaderboardEntry[] = [];
@@ -668,31 +677,55 @@ interface LeaderboardEntry {
 
 function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; walletAddress: string }) {
   const [scores, setScores] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const key = "minicard_leaderboard";
-    const raw = localStorage.getItem(key);
-    let list: LeaderboardEntry[] = [];
-    if (raw) {
+    const loadLeaderboard = async () => {
+      setLoading(true);
+      // Try fetching scores from Celo smart contract first
+      let contractScores: LeaderboardEntry[] = [];
       try {
-        list = JSON.parse(raw);
-      } catch (e) {
-        list = [];
+        contractScores = await getScoresFromCelo();
+      } catch (err) {
+        console.warn("Failed to retrieve on-chain scores:", err);
       }
-    }
-    
-    // If empty, add mock default scores for aesthetics
-    if (list.length === 0) {
-      list = [
-        { address: "0xcelo...8d1a", score: 12500, round: 9, date: new Date().toLocaleDateString() },
-        { address: "0xmini...e4c9", score: 8750, round: 6, date: new Date().toLocaleDateString() },
-        { address: "0xbalatro...88f0", score: 6200, round: 5, date: new Date().toLocaleDateString() },
-        { address: "0xceloGuest889", score: 4100, round: 3, date: new Date().toLocaleDateString() },
-        { address: "0xplay...77bc", score: 1800, round: 2, date: new Date().toLocaleDateString() }
-      ];
-      localStorage.setItem(key, JSON.stringify(list));
-    }
-    setScores(list);
+
+      if (contractScores && contractScores.length > 0) {
+        // Sort and slice contract scores
+        contractScores.sort((a, b) => b.score - a.score);
+        setScores(contractScores.slice(0, 10));
+        setLoading(false);
+        return;
+      }
+
+      // Fallback to local storage if no contract scores are returned
+      const key = "minicard_leaderboard";
+      const raw = localStorage.getItem(key);
+      let list: LeaderboardEntry[] = [];
+      if (raw) {
+        try {
+          list = JSON.parse(raw);
+        } catch (e) {
+          list = [];
+        }
+      }
+      
+      // If empty, add mock default scores for aesthetics
+      if (list.length === 0) {
+        list = [
+          { address: "0xcelo...8d1a", score: 12500, round: 9, date: new Date().toLocaleDateString() },
+          { address: "0xmini...e4c9", score: 8750, round: 6, date: new Date().toLocaleDateString() },
+          { address: "0xminicard...88f0", score: 6200, round: 5, date: new Date().toLocaleDateString() },
+          { address: "0xceloGuest889", score: 4100, round: 3, date: new Date().toLocaleDateString() },
+          { address: "0xplay...77bc", score: 1800, round: 2, date: new Date().toLocaleDateString() }
+        ];
+        localStorage.setItem(key, JSON.stringify(list));
+      }
+      setScores(list);
+      setLoading(false);
+    };
+
+    loadLeaderboard();
   }, []);
 
   const clearLeaderboard = () => {
@@ -716,7 +749,9 @@ function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; w
 
         {/* Scores Table */}
         <div className="w-full flex-1 bg-[#1a1d20] border-2 border-black/40 rounded-lg p-1.5 mb-4 max-h-[220px] overflow-y-auto">
-          {scores.length === 0 ? (
+          {loading ? (
+            <div className="text-center text-xs text-gray-500 font-pixel py-8 animate-pulse">LOADING SCORES...</div>
+          ) : scores.length === 0 ? (
             <div className="text-center text-xs text-gray-500 font-pixel py-8">NO SCORES YET</div>
           ) : (
             <table className="w-full text-left font-pixel text-xs border-collapse">
