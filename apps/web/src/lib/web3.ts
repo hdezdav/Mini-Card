@@ -8,7 +8,7 @@ export const TARGET_CHAIN = celo;
 // ─── Leaderboard Contract ───
 // Deploy via:  cd contracts && npm run deploy:mainnet
 // Then paste the deployed address here:
-export const LEADERBOARD_CONTRACT_ADDRESS = "0xC16Aa3a4C57E3A7fE4730B8746F530778B13645d";
+export const LEADERBOARD_CONTRACT_ADDRESS: string = "0xC16Aa3a4C57E3A7fE4730B8746F530778B13645d";
 
 export const MINICARD_LEADERBOARD_ABI = [
   {
