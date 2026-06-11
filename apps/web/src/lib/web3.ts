@@ -159,6 +159,71 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
   }
 }
 
+// cUSD contract on Celo Mainnet & Alfajores/Sepolia testnets
+const CUSD_ADDRESS_MAINNET = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
+const CUSD_ADDRESS_TESTNET = "0x874069Fa1Eb16D44d622F2e0Ca25eeA172369bC1";
+
+// Fee receiver — change to your own wallet
+const REROLL_FEE_RECEIVER = "0x0000000000000000000000000000000000000001";
+
+// $0.01 cUSD — cUSD has 18 decimals
+const REROLL_FEE_AMOUNT = BigInt("10000000000000000"); // 0.01 * 10^18
+
+const ERC20_TRANSFER_ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
+
+/**
+ * Pays $0.01 cUSD (MiniPay stablecoin) to reroll the shop offers.
+ * Returns true if payment succeeds, false if skipped / failed.
+ */
+export async function payRerollWithMiniPay(): Promise<boolean> {
+  if (typeof window === "undefined" || !(window as any).ethereum) {
+    // No wallet — allow free reroll in dev/guest mode
+    return true;
+  }
+
+  try {
+    const walletClient = createWalletClient({
+      chain: TARGET_CHAIN,
+      transport: custom((window as any).ethereum),
+    });
+
+    const [address] = await walletClient.requestAddresses();
+    if (!address) return false;
+
+    const cusdAddress =
+      TARGET_CHAIN.id === celo.id ? CUSD_ADDRESS_MAINNET : CUSD_ADDRESS_TESTNET;
+
+    const publicClient = getPublicClient();
+
+    const { request } = await publicClient.simulateContract({
+      account: address,
+      address: cusdAddress as `0x${string}`,
+      abi: ERC20_TRANSFER_ABI,
+      functionName: "transfer",
+      args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
+    });
+
+    const hash = await walletClient.writeContract(request);
+    console.info("Reroll payment hash:", hash);
+    await publicClient.waitForTransactionReceipt({ hash });
+    return true;
+  } catch (err) {
+    console.warn("Reroll payment failed or rejected:", err);
+    return false;
+  }
+}
+
 /**
  * Fetches all scores from the Celo MiniCardLeaderboard contract.
  */

@@ -518,15 +518,8 @@ export default function HomePage() {
 
             {/* Right Column: Deck & Actions */}
             <div className="w-[84px] shrink-0 flex flex-col gap-1.5">
-              <div className="h-6 flex items-center justify-center gap-1">
-                <div className="relative" style={{ transform: "rotate(-4deg)" }}>
-                  <DeckBack className="h-[20px] w-[14px]" />
-                  <DeckBack className="absolute top-[0.5px] left-[0.5px] -z-10 h-[20px] w-[14px]" style={{ filter: "brightness(0.7)" }} />
-                </div>
-                <div className="font-pixel-fat text-center text-xs leading-none text-white flex flex-col justify-center">
-                  <span>{deck.length}</span>
-                </div>
-              </div>
+              {/* Balatro-style stacked deck */}
+              <DeckPile count={deck.length} total={52} />
               <button
                 type="button"
                 onClick={doPlay}
@@ -618,7 +611,10 @@ function SlotGroup({ label, align, children }: { label: string; align: "left" | 
   return (
     <div className={`flex flex-col ${align === "right" ? "items-end" : "items-start"}`}>
       <span className="font-pixel mb-[2px] px-1 text-[11px] leading-none text-white/75">{label}</span>
-      <div className="panel-inset flex gap-[3px] overflow-hidden rounded-lg p-[3px]">{children}</div>
+      <div
+        className="flex gap-[3px] overflow-hidden rounded-lg p-[3px]"
+        style={{ background: "rgba(0,0,0,0.22)", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "inset 0 1px 4px rgba(0,0,0,0.3)" }}
+      >{children}</div>
     </div>
   );
 }
@@ -628,6 +624,80 @@ function ScoreStar({ className }: { className?: string }) {
     <svg viewBox="0 0 24 24" className={className}>
       <path d="M12 1l2.2 6.4L21 8l-5 4.3L18 21l-6-3.6L6 21l2-8.7L3 8l6.8-.6z" fill="#eef3f5" stroke="#9fb3bd" strokeWidth="1" />
     </svg>
+  );
+}
+
+function DeckPile({ count, total }: { count: number; total: number }) {
+  // Build a small stack of 4 card backs to simulate the Balatro deck pile
+  const layers = Math.min(4, Math.max(1, Math.ceil(count / (total / 4))));
+  const empty = count === 0;
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-[3px] py-[2px]">
+      {/* Card stack */}
+      <div className="relative" style={{ width: 34, height: 48 }}>
+        {/* Shadow layers (bottom of stack) */}
+        {Array.from({ length: layers }).map((_, i) => {
+          const reverseIdx = layers - 1 - i;
+          const offsetY = reverseIdx * 1.5;
+          const offsetX = reverseIdx * 0.5;
+          const brightness = 0.45 + (i / Math.max(layers - 1, 1)) * 0.55;
+          return (
+            <div
+              key={i}
+              className="absolute rounded-[6px] border-[2px] border-[#e9e2cf]"
+              style={{
+                width: 34,
+                height: 48,
+                bottom: offsetY,
+                left: offsetX,
+                background: `radial-gradient(120% 120% at 35% 25%, hsl(220, 50%, ${Math.round(30 + brightness * 22)}%) 0%, hsl(220, 55%, ${Math.round(18 + brightness * 12)}%) 45%, hsl(220, 60%, ${Math.round(10 + brightness * 8)}%) 100%)`,
+                boxShadow: i === layers - 1 ? "0 4px 10px rgba(0,0,0,0.6), 0 0 6px rgba(43,147,255,0.18)" : undefined,
+                filter: empty ? "grayscale(1) brightness(0.4)" : undefined,
+                zIndex: i,
+              }}
+            >
+              {/* Top card gets the SVG art */}
+              {i === layers - 1 && !empty && (
+                <svg viewBox="0 0 60 84" className="absolute inset-0 h-full w-full opacity-70 deck-float">
+                  <defs>
+                    <linearGradient id="dp1" x1="0" x2="1" y1="0" y2="1">
+                      <stop offset="0" stopColor="#f0c84a" />
+                      <stop offset="1" stopColor="#b9852a" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M6,70 C20,40 10,30 30,20 C46,12 40,40 54,30" fill="none" stroke="url(#dp1)" strokeWidth="3" opacity="0.6" strokeLinecap="round" />
+                  <path d="M8,18 C24,30 30,52 50,60" fill="none" stroke="url(#dp1)" strokeWidth="2" opacity="0.4" strokeLinecap="round" />
+                  <rect x="3" y="3" width="54" height="78" rx="5" fill="none" stroke="#dfe7ff" strokeWidth="1.5" opacity="0.45" />
+                </svg>
+              )}
+              {/* Shimmer overlay on top card */}
+              {i === layers - 1 && !empty && (
+                <div
+                  className="absolute inset-0 rounded-[5px] deck-shimmer"
+                  style={{ pointerEvents: "none" }}
+                />
+              )}
+            </div>
+          );
+        })}
+        {/* Empty deck placeholder */}
+        {empty && (
+          <div
+            className="absolute inset-0 rounded-[6px] border-2 border-dashed border-white/20 flex items-center justify-center"
+            style={{ background: "rgba(0,0,0,0.3)" }}
+          >
+            <span className="font-pixel text-[9px] text-white/30 text-center leading-tight">EMPTY</span>
+          </div>
+        )}
+      </div>
+      {/* Count label */}
+      <div className="panel-inset rounded-full px-2 py-[1px]">
+        <span className="font-pixel-fat text-[12px] leading-none text-white">
+          {count}<span className="text-white/40 font-pixel text-[10px]">/{total}</span>
+        </span>
+      </div>
+    </div>
   );
 }
 
