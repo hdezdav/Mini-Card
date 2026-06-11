@@ -4,13 +4,17 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter web build",
-    "build:pages": "pnpm --filter web pages:build",
-    "lint": "pnpm --filter web lint"
+    "dev": "pnpm --filter ./apps/web dev",
+    "build": "pnpm --filter ./apps/web pages:build",
+    "build:pages": "pnpm --filter ./apps/web pages:build",
+    "lint": "pnpm --filter ./apps/web lint"
   },
   "workspaces": [
     "apps/*",
     "contracts"
-  ]
+  ],
+  "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.13.16",
+    "wrangler": "^4.100.0"
+  }
 }
