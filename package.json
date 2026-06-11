@@ -5,7 +5,7 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "dev": "pnpm --filter ./apps/web dev",
-    "build": "pnpm --filter ./apps/web pages:build",
+    "build": "pnpm --filter ./apps/web pages:build && node -e \"const fs = require('fs'); if (fs.existsSync('pnpm-workspace.yaml')) fs.renameSync('pnpm-workspace.yaml', 'pnpm-workspace.yaml.bak')\"",
     "build:pages": "pnpm --filter ./apps/web pages:build",
     "lint": "pnpm --filter ./apps/web lint"
   },
