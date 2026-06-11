@@ -24,7 +24,7 @@ import {
   jokerBaseCost,
   shuffle,
 } from "@/lib/game";
-import { submitScoreToCelo, getScoresFromCelo } from "@/lib/web3";
+import { autoConnect, submitScoreToCelo, getScoresFromCelo } from "@/lib/web3";
 
 const HAND_SIZE = 8;
 const MAX_SELECT = 5;
@@ -64,29 +64,11 @@ export default function HomePage() {
   const [showRunInfo, setShowRunInfo] = useState(false);
   const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
 
-  // Auto-connect Celo / MiniPay
+  // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
   useEffect(() => {
-    const initWeb3 = async () => {
-      if (typeof window !== "undefined") {
-        const eth = (window as any).ethereum;
-        if (eth) {
-          try {
-            // Auto request accounts inside MiniPay
-            const accounts = await eth.request({ method: "eth_requestAccounts" });
-            if (accounts && accounts[0]) {
-              setWalletAddress(accounts[0]);
-            }
-          } catch (err) {
-            console.warn("MiniPay auto-connect error:", err);
-            // Local fallback
-            setWalletAddress("0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
-          }
-        } else {
-          setWalletAddress("0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
-        }
-      }
-    };
-    initWeb3();
+    autoConnect().then((addr) => {
+      setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
+    });
   }, []);
 
   const saveScore = useCallback(async (score: number) => {

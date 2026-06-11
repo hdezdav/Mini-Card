@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
+    "build:pages": "pnpm --filter web pages:build",
     "lint": "pnpm --filter web lint"
   },
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "contracts"
   ]
 }

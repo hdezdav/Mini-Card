@@ -1,0 +1,16 @@
+{
+  "name": "minicard-contracts",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "deploy:mainnet": "npx hardhat run scripts/deploy.js --network celo",
+    "deploy:testnet": "npx hardhat run scripts/deploy.js --network celoSepolia",
+    "verify": "npx hardhat verify --network celo"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.0"
+  }
+}
