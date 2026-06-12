@@ -162,6 +162,7 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "submitScore",
       args: [BigInt(score), BigInt(round)],
+      feeCurrency: CUSD_ADDRESS as `0x${string}`,
     });
 
     const hash = await walletClient.writeContract(request);
@@ -231,6 +232,7 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
       abi: ERC20_TRANSFER_ABI,
       functionName: "transfer",
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
+      feeCurrency: CUSD_ADDRESS as `0x${string}`,
     });
 
     const hash = await walletClient.writeContract(request);
