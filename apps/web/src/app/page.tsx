@@ -65,6 +65,12 @@ export default function HomePage() {
   const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
   const [detectedMiniPay, setDetectedMiniPay] = useState(false);
 
+  // Score states for manual Celo submission
+  const [lastScore, setLastScore] = useState<number>(0);
+  const [lastRound, setLastRound] = useState<number>(1);
+  const [scoreSubmitted, setScoreSubmitted] = useState<boolean>(false);
+  const [submittingScore, setSubmittingScore] = useState<boolean>(false);
+
   // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
   useEffect(() => {
     autoConnect().then((addr) => {
@@ -76,12 +82,9 @@ export default function HomePage() {
   const saveScore = useCallback(async (score: number) => {
     if (score <= 0) return;
 
-    // Try submitting to Celo leaderboard contract in the background
-    if (walletAddress && !walletAddress.startsWith("0xceloGuest")) {
-      submitScoreToCelo(score, round).catch((err) => {
-        console.warn("Background Celo score submission failed:", err);
-      });
-    }
+    setLastScore(score);
+    setLastRound(round);
+    setScoreSubmitted(false);
 
     const key = "minicard_leaderboard";
     const raw = localStorage.getItem(key);
@@ -98,12 +101,46 @@ export default function HomePage() {
       score,
       round,
       date: new Date().toLocaleDateString(),
+      timestamp: Date.now(),
     };
     list.push(entry);
-    list.sort((a, b) => b.score - a.score);
-    list = list.slice(0, 10);
-    localStorage.setItem(key, JSON.stringify(list));
+
+    // Keep only the latest entry per user address (or unique guest)
+    const latestMap: Record<string, LeaderboardEntry & { timestamp?: number }> = {};
+    const sortedChrono = [...list].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    for (const item of sortedChrono) {
+      latestMap[item.address.toLowerCase()] = item;
+    }
+
+    let uniqueList = Object.values(latestMap);
+    uniqueList.sort((a, b) => b.score - a.score);
+    uniqueList = uniqueList.slice(0, 10);
+    localStorage.setItem(key, JSON.stringify(uniqueList));
   }, [walletAddress, round]);
+
+  const handleSubmitLastScore = useCallback(async () => {
+    if (lastScore <= 0 || submittingScore || scoreSubmitted) return;
+    if (!walletAddress || walletAddress.startsWith("0xceloGuest")) {
+      alert("Please connect a real Celo wallet (like MiniPay) to submit scores on-chain.");
+      return;
+    }
+
+    setSubmittingScore(true);
+    try {
+      const success = await submitScoreToCelo(lastScore, lastRound);
+      if (success) {
+        setScoreSubmitted(true);
+        alert("Score successfully saved to the blockchain leaderboard!");
+      } else {
+        alert("Failed to submit score. Make sure you approved the transaction in your wallet.");
+      }
+    } catch (err) {
+      console.error("Score submission error:", err);
+      alert("Error submitting score to the blockchain.");
+    } finally {
+      setSubmittingScore(false);
+    }
+  }, [lastScore, lastRound, submittingScore, scoreSubmitted, walletAddress]);
 
   const levels = useRef<Partial<Record<HandType, number>>>({});
   const floatId = useRef(0);
@@ -535,7 +572,33 @@ export default function HomePage() {
             onClose={enterNextBlind}
           />
         )}
-        {phase === "lost" && <Overlay title="Game Over" color="#fe5f55" sub={`Round ${round} — Score: ${roundScore}`} btn="Play Again" onClick={restart} />}
+        {phase === "lost" && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="panel anim-pop rounded-xl px-6 py-5 text-center max-w-[280px] flex flex-col gap-3">
+              <div className="font-pixel-fat text-3xl txt-outline text-[#fe5f55]">
+                Game Over
+              </div>
+              <div className="font-pixel text-base text-white/85 leading-tight">
+                Round {round} — Score: {roundScore}
+              </div>
+              
+              {!walletAddress.startsWith("0xceloGuest") && lastScore > 0 && (
+                <button
+                  type="button"
+                  onClick={handleSubmitLastScore}
+                  disabled={submittingScore || scoreSubmitted}
+                  className="btn-chunky btn-orange w-full py-2 text-sm leading-none flex items-center justify-center gap-1.5"
+                >
+                  {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SAVE SCORE TO CELO"}
+                </button>
+              )}
+              
+              <button type="button" onClick={restart} className="btn-chunky btn-blue w-full py-2 text-lg">
+                Play Again
+              </button>
+            </div>
+          </div>
+        )}
 
         {showRunInfo && (
           <RunInfo
@@ -553,6 +616,11 @@ export default function HomePage() {
             onClose={() => setShowLeaderboard(false)}
             walletAddress={walletAddress}
             isMiniPayUser={detectedMiniPay}
+            lastScore={lastScore}
+            lastRound={lastRound}
+            scoreSubmitted={scoreSubmitted}
+            submittingScore={submittingScore}
+            onSubmitScore={handleSubmitLastScore}
           />
         )}
       </div>
@@ -730,9 +798,30 @@ interface LeaderboardEntry {
   score: number;
   round: number;
   date: string;
+  timestamp?: number;
 }
 
-function LeaderboardOverlay({ onClose, walletAddress, isMiniPayUser }: { onClose: () => void; walletAddress: string; isMiniPayUser: boolean }) {
+interface LeaderboardOverlayProps {
+  onClose: () => void;
+  walletAddress: string;
+  isMiniPayUser: boolean;
+  lastScore: number;
+  lastRound: number;
+  scoreSubmitted: boolean;
+  submittingScore: boolean;
+  onSubmitScore: () => Promise<void>;
+}
+
+function LeaderboardOverlay({
+  onClose,
+  walletAddress,
+  isMiniPayUser,
+  lastScore,
+  lastRound,
+  scoreSubmitted,
+  submittingScore,
+  onSubmitScore,
+}: LeaderboardOverlayProps) {
   const [scores, setScores] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [usernameInput, setUsernameInput] = useState("");
@@ -866,6 +955,25 @@ function LeaderboardOverlay({ onClose, walletAddress, isMiniPayUser }: { onClose
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Save score section if user has a score that hasn't been submitted yet */}
+        {!walletAddress.startsWith("0xceloGuest") && lastScore > 0 && (
+          <div className="w-full bg-[#1b251d] border border-[#38d08f]/20 rounded-lg p-2 mb-3 flex flex-col gap-1.5 font-pixel text-xs">
+            <div className="text-gray-400 text-[9px] uppercase tracking-wider text-center">Current Session Score</div>
+            <div className="flex justify-between items-center px-1">
+              <span className="text-gray-300">Round {lastRound}</span>
+              <span className="text-[#38d08f] font-pixel-fat text-sm">{lastScore} pts</span>
+            </div>
+            <button
+              type="button"
+              onClick={onSubmitScore}
+              disabled={submittingScore || scoreSubmitted}
+              className="btn-chunky btn-orange w-full py-1 text-[10px] leading-none flex items-center justify-center gap-1"
+            >
+              {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SUBMIT SCORE TO CELO"}
+            </button>
           </div>
         )}
 

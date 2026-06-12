@@ -197,7 +197,6 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
     }
 
     const publicClient = getPublicClient();
-    const gasPrice = await publicClient.getGasPrice();
 
     const hash = await walletClient.writeContract({
       account: address,
@@ -205,9 +204,6 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "submitScore",
       args: [BigInt(score), BigInt(round)],
-      type: "legacy",
-      gasPrice,
-      feeCurrency: "0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72",
     });
 
     console.info("Score TX submitted:", hash);
@@ -259,12 +255,30 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
       }
     });
 
-    return result.map((entry: any) => ({
+    const mapped = result.map((entry: any) => ({
       address: entry.player,
       username: usernameMap[entry.player.toLowerCase()] || undefined,
       score: Number(entry.score),
       round: Number(entry.round),
       date: new Date(Number(entry.timestamp) * 1000).toLocaleDateString(),
+      timestamp: Number(entry.timestamp),
+    }));
+
+    // Keep only the latest score entry for each player address
+    const uniqueMap: Record<string, LeaderboardEntry & { timestamp?: number }> = {};
+    for (const entry of mapped) {
+      const playerKey = entry.address.toLowerCase();
+      if (!uniqueMap[playerKey] || (entry.timestamp && entry.timestamp > (uniqueMap[playerKey].timestamp || 0))) {
+        uniqueMap[playerKey] = entry;
+      }
+    }
+
+    return Object.values(uniqueMap).map(({ address, username, score, round, date }) => ({
+      address,
+      username,
+      score,
+      round,
+      date,
     }));
   } catch (err) {
     console.error("Failed to read scores:", err);
@@ -366,7 +380,6 @@ export async function registerUsernameToCelo(username: string): Promise<boolean>
     }
 
     const publicClient = getPublicClient();
-    const gasPrice = await publicClient.getGasPrice();
 
     const hash = await walletClient.writeContract({
       account: address,
@@ -374,9 +387,6 @@ export async function registerUsernameToCelo(username: string): Promise<boolean>
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "setUsername",
       args: [username],
-      type: "legacy",
-      gasPrice,
-      feeCurrency: "0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72",
     });
 
     console.info("Username TX submitted:", hash);
@@ -417,7 +427,6 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
     }
 
     const publicClient = getPublicClient();
-    const gasPrice = await publicClient.getGasPrice();
 
     const hash = await walletClient.writeContract({
       account: address,
@@ -425,9 +434,6 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
       abi: ERC20_TRANSFER_ABI,
       functionName: "transfer",
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
-      type: "legacy",
-      gasPrice,
-      feeCurrency: "0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72",
     });
 
     console.info("Reroll payment TX:", hash);
