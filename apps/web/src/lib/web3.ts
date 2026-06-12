@@ -444,3 +444,46 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Pays $0.01 USDT to restart the game immediately (bypassing the 24h cooldown).
+ */
+export async function payRestartWithMiniPay(): Promise<boolean> {
+  const walletClient = getWalletClient();
+  if (!walletClient) {
+    return false;
+  }
+
+  try {
+    const [address] = await walletClient.requestAddresses();
+    if (!address) return false;
+
+    // Switch network to Celo Mainnet if necessary
+    try {
+      const chainId = await walletClient.getChainId();
+      if (chainId !== celo.id) {
+        await walletClient.switchChain({ id: celo.id });
+      }
+    } catch (switchErr) {
+      console.warn("Network switch skipped/failed:", switchErr);
+    }
+
+    const publicClient = getPublicClient();
+
+    const hash = await walletClient.writeContract({
+      account: address,
+      address: USDT_ADDRESS as `0x${string}`,
+      abi: ERC20_TRANSFER_ABI,
+      functionName: "transfer",
+      args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
+    });
+
+    console.info("Restart payment TX:", hash);
+    await publicClient.waitForTransactionReceipt({ hash });
+    return true;
+  } catch (err) {
+    console.warn("Restart payment failed:", err);
+    return false;
+  }
+}
+

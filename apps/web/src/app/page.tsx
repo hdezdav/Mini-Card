@@ -24,7 +24,7 @@ import {
   jokerBaseCost,
   shuffle,
 } from "@/lib/game";
-import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo } from "@/lib/web3";
+import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay } from "@/lib/web3";
 
 const HAND_SIZE = 8;
 const MAX_SELECT = 5;
@@ -70,6 +70,8 @@ export default function HomePage() {
   const [lastRound, setLastRound] = useState<number>(1);
   const [scoreSubmitted, setScoreSubmitted] = useState<boolean>(false);
   const [submittingScore, setSubmittingScore] = useState<boolean>(false);
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
+  const [payingRestart, setPayingRestart] = useState(false);
 
   // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
   useEffect(() => {
@@ -166,7 +168,19 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    startRound();
+    const stored = localStorage.getItem("minicard_cooldown_end");
+    if (stored) {
+      const end = Number(stored);
+      if (end > Date.now()) {
+        setCooldownEnd(end);
+        setPhase("lost");
+      } else {
+        localStorage.removeItem("minicard_cooldown_end");
+        startRound();
+      }
+    } else {
+      startRound();
+    }
   }, [startRound]);
 
   const selCards = useMemo(() => hand.filter((card) => selected.includes(card.id)), [hand, selected]);
@@ -327,6 +341,9 @@ export default function HomePage() {
     } else if (newHands <= 0) {
       setPhase("lost");
       saveScore(end);
+      const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
+      localStorage.setItem("minicard_cooldown_end", String(endCooldown));
+      setCooldownEnd(endCooldown);
     } else {
       setPhase("playing");
     }
@@ -360,6 +377,32 @@ export default function HomePage() {
     setOwnedJokers([]);
     levels.current = {};
     startRound();
+  };
+
+  const handleFreeRestart = () => {
+    localStorage.removeItem("minicard_cooldown_end");
+    setCooldownEnd(null);
+    restart();
+  };
+
+  const handlePaidRestart = async () => {
+    if (payingRestart) return;
+    setPayingRestart(true);
+    try {
+      const success = await payRestartWithMiniPay();
+      if (success) {
+        localStorage.removeItem("minicard_cooldown_end");
+        setCooldownEnd(null);
+        restart();
+      } else {
+        alert("Payment failed or rejected. Please try again to play immediately.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error processing payment.");
+    } finally {
+      setPayingRestart(false);
+    }
   };
 
   return (
@@ -576,11 +619,13 @@ export default function HomePage() {
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
             <div className="panel anim-pop rounded-xl px-6 py-5 text-center max-w-[280px] flex flex-col gap-3">
               <div className="font-pixel-fat text-3xl txt-outline text-[#fe5f55]">
-                Game Over
+                {cooldownEnd && cooldownEnd > Date.now() ? "Cooldown Active" : "Game Over"}
               </div>
-              <div className="font-pixel text-base text-white/85 leading-tight">
-                Round {round} — Score: {roundScore}
-              </div>
+              {roundScore > 0 && (
+                <div className="font-pixel text-base text-white/85 leading-tight">
+                  Round {round} — Score: {roundScore}
+                </div>
+              )}
               
               {!walletAddress.startsWith("0xceloGuest") && lastScore > 0 && (
                 <button
@@ -592,10 +637,42 @@ export default function HomePage() {
                   {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SAVE SCORE TO CELO"}
                 </button>
               )}
-              
-              <button type="button" onClick={restart} className="btn-chunky btn-blue w-full py-2 text-lg">
-                Play Again
-              </button>
+
+              {cooldownEnd && cooldownEnd > Date.now() ? (
+                <div className="flex flex-col gap-2.5 mt-1">
+                  <button
+                    type="button"
+                    onClick={handlePaidRestart}
+                    disabled={payingRestart}
+                    className="btn-chunky btn-orange w-full py-2 text-base flex items-center justify-center gap-1.5"
+                  >
+                    {payingRestart ? (
+                      <>
+                        <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        <span>PAYING...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>PLAY AGAIN</span>
+                        <span className="bg-black/25 rounded px-1.5 py-0.5 font-pixel text-[10px] text-[#facc15]">$0.01</span>
+                      </>
+                    )}
+                  </button>
+                  <CooldownCountdown
+                    cooldownEnd={cooldownEnd}
+                    onExpired={() => setCooldownEnd(null)}
+                  />
+                  {walletAddress.startsWith("0xceloGuest") && (
+                    <div className="font-pixel text-[9px] text-[#ff8b85] mt-1 leading-tight">
+                      Guest mode: Connect Celo/MiniPay wallet to pay and bypass, or wait 24h.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button type="button" onClick={handleFreeRestart} className="btn-chunky btn-blue w-full py-2 text-lg">
+                  Play Again
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -897,11 +974,6 @@ function LeaderboardOverlay({
     setRegistering(false);
   };
 
-  const clearLeaderboard = () => {
-    localStorage.removeItem("minicard_leaderboard");
-    setScores([]);
-  };
-
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="panel anim-pop rounded-xl px-4 py-4 w-full max-w-[310px] flex flex-col items-center">
@@ -1020,23 +1092,46 @@ function LeaderboardOverlay({
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-2 w-full mt-auto">
-          <button 
-            type="button" 
-            onClick={clearLeaderboard} 
-            className="btn-chunky btn-red py-1.5 text-xs flex-1"
-          >
-            RESET
-          </button>
+        <div className="w-full mt-auto">
           <button 
             type="button" 
             onClick={onClose} 
-            className="btn-chunky btn-blue py-1.5 text-xs flex-1"
+            className="btn-chunky btn-blue py-1.5 text-xs w-full"
           >
             CLOSE
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CooldownCountdown({ cooldownEnd, onExpired }: { cooldownEnd: number; onExpired: () => void }) {
+  const [timeLeft, setTimeLeft] = useState("");
+
+  useEffect(() => {
+    const update = () => {
+      const diff = cooldownEnd - Date.now();
+      if (diff <= 0) {
+        onExpired();
+        return;
+      }
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setTimeLeft(`${pad(h)}h ${pad(m)}m ${pad(s)}s`);
+    };
+
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownEnd, onExpired]);
+
+  return (
+    <div className="font-pixel text-[11px] text-gray-400 mt-1">
+      Free play in: <span className="text-white font-mono">{timeLeft || "--:--:--"}</span>
     </div>
   );
 }
