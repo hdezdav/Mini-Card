@@ -124,7 +124,20 @@ function getWalletClient() {
  * MiniPay docs say: always auto-connect, never show a connect button.
  */
 export async function autoConnect(): Promise<string | null> {
-  const provider = getProvider();
+  let provider = getProvider();
+  if (!provider && typeof window !== "undefined") {
+    // Wait for window load or a short timeout for async injection
+    await new Promise((resolve) => {
+      if (document.readyState === "complete") {
+        resolve(null);
+      } else {
+        window.addEventListener("load", () => resolve(null), { once: true });
+        setTimeout(() => resolve(null), 1000);
+      }
+    });
+    provider = getProvider();
+  }
+
   if (!provider) return null;
 
   try {
@@ -154,9 +167,17 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
     const [address] = await walletClient.requestAddresses();
     if (!address) return false;
 
-    const publicClient = getPublicClient();
+    // Switch network to Celo Mainnet if necessary
+    try {
+      const chainId = await walletClient.getChainId();
+      if (chainId !== celo.id) {
+        await walletClient.switchChain({ id: celo.id });
+      }
+    } catch (switchErr) {
+      console.warn("Network switch skipped/failed:", switchErr);
+    }
 
-    const { request } = await publicClient.simulateContract({
+    const hash = await walletClient.writeContract({
       account: address,
       address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
       abi: MINICARD_LEADERBOARD_ABI,
@@ -165,8 +186,8 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
       feeCurrency: CUSD_ADDRESS as `0x${string}`,
     });
 
-    const hash = await walletClient.writeContract(request);
     console.info("Score TX submitted:", hash);
+    const publicClient = getPublicClient();
     await publicClient.waitForTransactionReceipt({ hash });
     return true;
   } catch (err) {
@@ -224,9 +245,17 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
     const [address] = await walletClient.requestAddresses();
     if (!address) return false;
 
-    const publicClient = getPublicClient();
+    // Switch network to Celo Mainnet if necessary
+    try {
+      const chainId = await walletClient.getChainId();
+      if (chainId !== celo.id) {
+        await walletClient.switchChain({ id: celo.id });
+      }
+    } catch (switchErr) {
+      console.warn("Network switch skipped/failed:", switchErr);
+    }
 
-    const { request } = await publicClient.simulateContract({
+    const hash = await walletClient.writeContract({
       account: address,
       address: CUSD_ADDRESS as `0x${string}`,
       abi: ERC20_TRANSFER_ABI,
@@ -235,8 +264,8 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
       feeCurrency: CUSD_ADDRESS as `0x${string}`,
     });
 
-    const hash = await walletClient.writeContract(request);
     console.info("Reroll payment TX:", hash);
+    const publicClient = getPublicClient();
     await publicClient.waitForTransactionReceipt({ hash });
     return true;
   } catch (err) {
