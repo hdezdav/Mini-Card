@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <!-- Balatro-style neon pink to neon orange gradient -->
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff007f" />
+      <stop offset="100%" stop-color="#ffaa00" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer card body with rounded corners -->
+  <rect x="4" y="2" width="24" height="28" rx="3" fill="#0c0f12" stroke="url(#cardGrad)" stroke-width="2" />
+  
+  <!-- Inset card border -->
+  <rect x="6" y="4" width="20" height="24" rx="2" fill="#12161b" />
+  
+  <!-- Stylized Pixel-art Diamond Suit in the center -->
+  <path d="M16 8 L21 14 L16 20 L11 14 Z" fill="url(#cardGrad)" />
+  
+  <!-- Extra neon accent dots (pixel style) -->
+  <rect x="9" y="7" width="2" height="2" fill="#ffaa00" opacity="0.8" />
+  <rect x="21" y="23" width="2" height="2" fill="#ff007f" opacity="0.8" />
+</svg>

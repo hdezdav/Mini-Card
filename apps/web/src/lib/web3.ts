@@ -8,7 +8,7 @@ export const TARGET_CHAIN = celo;
 // ─── Leaderboard Contract ───
 // Deploy via:  cd contracts && npm run deploy:mainnet
 // Then paste the deployed address here:
-export const LEADERBOARD_CONTRACT_ADDRESS: string = "0xC16Aa3a4C57E3A7fE4730B8746F530778B13645d";
+export const LEADERBOARD_CONTRACT_ADDRESS: string = "0xfB897EC446b737A99ba8404FCb64821eD2207AeB";
 
 export const MINICARD_LEADERBOARD_ABI = [
   {
@@ -19,6 +19,24 @@ export const MINICARD_LEADERBOARD_ABI = [
     name: "submitScore",
     outputs: [],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "string", name: "_username", type: "string" },
+    ],
+    name: "setUsername",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address[]", name: "_players", type: "address[]" },
+    ],
+    name: "getUsernames",
+    outputs: [{ internalType: "string[]", name: "", type: "string[]" }],
+    stateMutability: "view",
     type: "function",
   },
   {
@@ -58,20 +76,21 @@ export const MINICARD_LEADERBOARD_ABI = [
 
 export interface LeaderboardEntry {
   address: string;
+  username?: string;
   score: number;
   round: number;
   date: string;
 }
 
-// ─── cUSD on Celo Mainnet ───
-// MiniPay uses cUSD as primary stablecoin
-const CUSD_ADDRESS = "0x765DE816845861e75A25fCA122bb6898B8B1282a";
+// ─── USDT on Celo Mainnet ───
+// USDT contract address: 0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e
+const USDT_ADDRESS = "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e";
 
 // Fee receiver for reroll payments — change to your own wallet!
 const REROLL_FEE_RECEIVER = "0x0419F23541408EEcab6EC4Bd96a454EE8A1dD1BE";
 
-// $0.01 cUSD (18 decimals)
-const REROLL_FEE_AMOUNT = BigInt("10000000000000000"); // 0.01 * 10^18
+// $0.01 USDT (USDT has 6 decimals, so 0.01 * 10^6 = 10,000)
+const REROLL_FEE_AMOUNT = BigInt("10000");
 
 const ERC20_TRANSFER_ABI = [
   {
@@ -216,10 +235,32 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
       functionName: "getAllScores",
     })) as any[];
 
-    if (!result) return [];
+    if (!result || result.length === 0) return [];
+
+    // Batch resolve usernames
+    const players = Array.from(new Set(result.map((entry: any) => entry.player as string))) as `0x${string}`[];
+    let usernamesList: string[] = [];
+    try {
+      usernamesList = (await publicClient.readContract({
+        address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
+        abi: MINICARD_LEADERBOARD_ABI,
+        functionName: "getUsernames",
+        args: [players],
+      })) as string[];
+    } catch (err) {
+      console.warn("Failed to batch fetch usernames:", err);
+    }
+
+    const usernameMap: Record<string, string> = {};
+    players.forEach((player, index) => {
+      if (usernamesList[index]) {
+        usernameMap[player.toLowerCase()] = usernamesList[index];
+      }
+    });
 
     return result.map((entry: any) => ({
       address: entry.player,
+      username: usernameMap[entry.player.toLowerCase()] || undefined,
       score: Number(entry.score),
       round: Number(entry.round),
       date: new Date(Number(entry.timestamp) * 1000).toLocaleDateString(),
@@ -227,6 +268,49 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
   } catch (err) {
     console.error("Failed to read scores:", err);
     return [];
+  }
+}
+
+/**
+ * Sets the username on-chain for the connected player address.
+ */
+export async function registerUsernameToCelo(username: string): Promise<boolean> {
+  const walletClient = getWalletClient();
+  if (!walletClient) return false;
+
+  try {
+    const [address] = await walletClient.requestAddresses();
+    if (!address) return false;
+
+    // Switch network to Celo Mainnet if necessary
+    try {
+      const chainId = await walletClient.getChainId();
+      if (chainId !== celo.id) {
+        await walletClient.switchChain({ id: celo.id });
+      }
+    } catch (switchErr) {
+      console.warn("Network switch skipped/failed:", switchErr);
+    }
+
+    const publicClient = getPublicClient();
+    const gasPrice = await publicClient.getGasPrice();
+
+    const hash = await walletClient.writeContract({
+      account: address,
+      address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
+      abi: MINICARD_LEADERBOARD_ABI,
+      functionName: "setUsername",
+      args: [username],
+      type: "legacy",
+      gasPrice,
+    });
+
+    console.info("Username TX submitted:", hash);
+    await publicClient.waitForTransactionReceipt({ hash });
+    return true;
+  } catch (err) {
+    console.error("Failed to register username:", err);
+    return false;
   }
 }
 
@@ -240,8 +324,8 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
 export async function payRerollWithMiniPay(): Promise<boolean> {
   const walletClient = getWalletClient();
   if (!walletClient) {
-    // No wallet — free reroll in guest/dev mode
-    return true;
+    // No wallet — do not allow free rerolls anymore
+    return false;
   }
 
   try {
@@ -263,7 +347,7 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
 
     const hash = await walletClient.writeContract({
       account: address,
-      address: CUSD_ADDRESS as `0x${string}`,
+      address: USDT_ADDRESS as `0x${string}`,
       abi: ERC20_TRANSFER_ABI,
       functionName: "transfer",
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],

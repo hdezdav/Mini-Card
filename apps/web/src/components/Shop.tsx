@@ -77,7 +77,7 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
             btn-chunky px-2.5 py-1 text-[11px] leading-none flex items-center gap-1.5 shrink-0
             ${rerollState === "error" ? "btn-red" : rerollState === "success" ? "btn-green" : "btn-orange"}
           `}
-          title="Pay $0.01 cUSD to reroll shop offers"
+          title="Pay $0.01 USDT to reroll shop offers"
         >
           {rerollState === "pending" ? (
             <>
@@ -157,7 +157,7 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
 
       {/* Info note about the $0.01 fee */}
       <div className="font-pixel text-[9px] text-white/25 text-center mb-2 leading-tight px-2">
-        🎲 Reroll costs $0.01 cUSD via MiniPay
+        🎲 Reroll costs $0.01 USDT via MiniPay
         {typeof window !== "undefined" && !(window as any).ethereum && " (free in guest mode)"}
       </div>
 

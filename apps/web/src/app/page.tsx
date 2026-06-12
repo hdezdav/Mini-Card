@@ -24,7 +24,7 @@ import {
   jokerBaseCost,
   shuffle,
 } from "@/lib/game";
-import { autoConnect, submitScoreToCelo, getScoresFromCelo } from "@/lib/web3";
+import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo } from "@/lib/web3";
 
 const HAND_SIZE = 8;
 const MAX_SELECT = 5;
@@ -722,6 +722,7 @@ function Overlay({ title, sub, btn, color, onClick }: { title: string; sub: stri
 
 interface LeaderboardEntry {
   address: string;
+  username?: string;
   score: number;
   round: number;
   date: string;
@@ -730,55 +731,62 @@ interface LeaderboardEntry {
 function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; walletAddress: string }) {
   const [scores, setScores] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [registering, setRegistering] = useState(false);
+
+  const loadLeaderboard = useCallback(async () => {
+    setLoading(true);
+    // Try fetching scores from Celo smart contract first
+    let contractScores: LeaderboardEntry[] = [];
+    try {
+      contractScores = await getScoresFromCelo();
+    } catch (err) {
+      console.warn("Failed to retrieve on-chain scores:", err);
+    }
+
+    if (contractScores && contractScores.length > 0) {
+      // Sort and slice contract scores
+      contractScores.sort((a, b) => b.score - a.score);
+      setScores(contractScores.slice(0, 10));
+      setLoading(false);
+      return;
+    }
+
+    // Fallback to local storage if no contract scores are returned
+    const key = "minicard_leaderboard";
+    const raw = localStorage.getItem(key);
+    let list: LeaderboardEntry[] = [];
+    if (raw) {
+      try {
+        list = JSON.parse(raw);
+      } catch (e) {
+        list = [];
+      }
+    }
+    
+    // Sort and slice local scores
+    list.sort((a, b) => b.score - a.score);
+    setScores(list.slice(0, 10));
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const loadLeaderboard = async () => {
-      setLoading(true);
-      // Try fetching scores from Celo smart contract first
-      let contractScores: LeaderboardEntry[] = [];
-      try {
-        contractScores = await getScoresFromCelo();
-      } catch (err) {
-        console.warn("Failed to retrieve on-chain scores:", err);
-      }
-
-      if (contractScores && contractScores.length > 0) {
-        // Sort and slice contract scores
-        contractScores.sort((a, b) => b.score - a.score);
-        setScores(contractScores.slice(0, 10));
-        setLoading(false);
-        return;
-      }
-
-      // Fallback to local storage if no contract scores are returned
-      const key = "minicard_leaderboard";
-      const raw = localStorage.getItem(key);
-      let list: LeaderboardEntry[] = [];
-      if (raw) {
-        try {
-          list = JSON.parse(raw);
-        } catch (e) {
-          list = [];
-        }
-      }
-      
-      // If empty, add mock default scores for aesthetics
-      if (list.length === 0) {
-        list = [
-          { address: "0xcelo...8d1a", score: 12500, round: 9, date: new Date().toLocaleDateString() },
-          { address: "0xmini...e4c9", score: 8750, round: 6, date: new Date().toLocaleDateString() },
-          { address: "0xminicard...88f0", score: 6200, round: 5, date: new Date().toLocaleDateString() },
-          { address: "0xceloGuest889", score: 4100, round: 3, date: new Date().toLocaleDateString() },
-          { address: "0xplay...77bc", score: 1800, round: 2, date: new Date().toLocaleDateString() }
-        ];
-        localStorage.setItem(key, JSON.stringify(list));
-      }
-      setScores(list);
-      setLoading(false);
-    };
-
     loadLeaderboard();
-  }, []);
+  }, [loadLeaderboard]);
+
+  const handleRegisterUsername = async () => {
+    if (!usernameInput.trim()) return;
+    setRegistering(true);
+    const success = await registerUsernameToCelo(usernameInput.trim());
+    if (success) {
+      alert("Username set successfully!");
+      setUsernameInput("");
+      loadLeaderboard();
+    } else {
+      alert("Failed to set username. Ensure you have gas fees (CELO) and a wallet connected.");
+    }
+    setRegistering(false);
+  };
 
   const clearLeaderboard = () => {
     localStorage.removeItem("minicard_leaderboard");
@@ -799,8 +807,34 @@ function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; w
           <span>CELO: {walletAddress.startsWith("0xceloGuest") ? walletAddress : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}</span>
         </div>
 
+        {/* Username Registration Form (if connected to a wallet) */}
+        {!walletAddress.startsWith("0xceloGuest") && (
+          <div className="w-full bg-black/20 border border-white/5 rounded-lg p-2 mb-3 flex flex-col gap-1.5 font-pixel text-xs">
+            <div className="text-gray-400 text-[10px]">REGISTER UNIQUE USERNAME:</div>
+            <div className="flex gap-1.5 w-full">
+              <input
+                type="text"
+                placeholder="Username (max 20 chars)"
+                maxLength={20}
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value)}
+                disabled={registering}
+                className="bg-black/50 border border-white/10 rounded px-2 py-1 flex-1 font-pixel text-[11px] text-white focus:outline-none focus:border-[#facc15]"
+              />
+              <button
+                type="button"
+                onClick={handleRegisterUsername}
+                disabled={registering || !usernameInput.trim()}
+                className="btn-chunky btn-orange px-3 py-1 text-[10px] leading-none shrink-0"
+              >
+                {registering ? "..." : "SET"}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Scores Table */}
-        <div className="w-full flex-1 bg-[#1a1d20] border-2 border-black/40 rounded-lg p-1.5 mb-4 max-h-[220px] overflow-y-auto">
+        <div className="w-full flex-1 bg-[#1a1d20] border-2 border-black/40 rounded-lg p-1.5 mb-4 max-h-[200px] overflow-y-auto">
           {loading ? (
             <div className="text-center text-xs text-gray-500 font-pixel py-8 animate-pulse">LOADING SCORES...</div>
           ) : scores.length === 0 ? (
@@ -827,9 +861,9 @@ function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; w
                     >
                       <td className={`py-1 font-bold ${rankColor}`}>{index + 1}</td>
                       <td className="py-1 font-mono text-[11px] text-gray-300">
-                        {entry.address.startsWith("0xceloGuest") 
+                        {entry.username ? entry.username : (entry.address.startsWith("0xceloGuest") 
                           ? entry.address 
-                          : `${entry.address.slice(0, 6)}...${entry.address.slice(-4)}`}
+                          : `${entry.address.slice(0, 6)}...${entry.address.slice(-4)}`)}
                       </td>
                       <td className="py-1 text-right text-gray-400">{entry.round}</td>
                       <td className="py-1 text-right font-pixel-fat text-[#38d08f]">{entry.score}</td>
@@ -842,7 +876,7 @@ function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; w
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-2 w-full">
+        <div className="flex gap-2 w-full mt-auto">
           <button 
             type="button" 
             onClick={clearLeaderboard} 
