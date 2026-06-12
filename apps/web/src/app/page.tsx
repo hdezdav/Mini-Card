@@ -24,7 +24,7 @@ import {
   jokerBaseCost,
   shuffle,
 } from "@/lib/game";
-import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo } from "@/lib/web3";
+import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores } from "@/lib/web3";
 
 const HAND_SIZE = 8;
 const MAX_SELECT = 5;
@@ -63,12 +63,14 @@ export default function HomePage() {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRunInfo, setShowRunInfo] = useState(false);
   const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
+  const [detectedMiniPay, setDetectedMiniPay] = useState(false);
 
   // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
   useEffect(() => {
     autoConnect().then((addr) => {
       setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
     });
+    setDetectedMiniPay(isMiniPay());
   }, []);
 
   const saveScore = useCallback(async (score: number) => {
@@ -549,6 +551,7 @@ export default function HomePage() {
           <LeaderboardOverlay
             onClose={() => setShowLeaderboard(false)}
             walletAddress={walletAddress}
+            isMiniPayUser={detectedMiniPay}
           />
         )}
       </div>
@@ -728,7 +731,7 @@ interface LeaderboardEntry {
   date: string;
 }
 
-function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; walletAddress: string }) {
+function LeaderboardOverlay({ onClose, walletAddress, isMiniPayUser }: { onClose: () => void; walletAddress: string; isMiniPayUser: boolean }) {
   const [scores, setScores] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [usernameInput, setUsernameInput] = useState("");
@@ -766,7 +769,10 @@ function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; w
     
     // Sort and slice local scores
     list.sort((a, b) => b.score - a.score);
-    setScores(list.slice(0, 10));
+    
+    // Resolve usernames for local scores from contract
+    const resolvedList = await resolveUsernamesForScores(list.slice(0, 10));
+    setScores(resolvedList);
     setLoading(false);
   }, []);
 
@@ -804,7 +810,7 @@ function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; w
         {/* Celo connection info */}
         <div className="text-[10px] text-gray-300 font-pixel mb-3 flex items-center justify-center gap-1.5 bg-black/40 px-2.5 py-0.5 rounded-full border border-white/5">
           <div className="w-1.5 h-1.5 rounded-full bg-[#38d08f] animate-pulse"></div>
-          <span>CELO: {walletAddress.startsWith("0xceloGuest") ? walletAddress : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}</span>
+          <span>{isMiniPayUser ? "MINIPAY" : "CELO"}: {walletAddress.startsWith("0xceloGuest") ? walletAddress : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}</span>
         </div>
 
         {/* Username Registration Form (if connected to a wallet) */}
@@ -851,7 +857,7 @@ function LeaderboardOverlay({ onClose, walletAddress }: { onClose: () => void; w
               </thead>
               <tbody>
                 {scores.map((entry, index) => {
-                  const isCurrentPlayer = entry.address === walletAddress;
+                  const isCurrentPlayer = entry.address.toLowerCase() === walletAddress.toLowerCase();
                   const rankColors = ["text-[#ffd700]", "text-[#c0c0c0]", "text-[#cd7f32]"];
                   const rankColor = rankColors[index] || "text-white";
                   return (

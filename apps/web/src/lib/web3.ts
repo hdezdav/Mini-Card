@@ -207,6 +207,7 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
       args: [BigInt(score), BigInt(round)],
       type: "legacy",
       gasPrice,
+      feeCurrency: "0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72",
     });
 
     console.info("Score TX submitted:", hash);
@@ -272,6 +273,54 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
 }
 
 /**
+ * Resolves usernames for a list of leaderboard entries by querying the smart contract.
+ */
+export async function resolveUsernamesForScores(entries: LeaderboardEntry[]): Promise<LeaderboardEntry[]> {
+  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000" || !entries || entries.length === 0) {
+    return entries;
+  }
+
+  try {
+    const publicClient = getPublicClient();
+    
+    // Extract non-guest addresses
+    const playerAddresses = Array.from(
+      new Set(
+        entries
+          .map((e) => e.address)
+          .filter((addr) => addr && !addr.startsWith("0xceloGuest"))
+      )
+    ) as `0x${string}`[];
+
+    if (playerAddresses.length === 0) return entries;
+
+    const usernamesList = (await publicClient.readContract({
+      address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
+      abi: MINICARD_LEADERBOARD_ABI,
+      functionName: "getUsernames",
+      args: [playerAddresses],
+    })) as string[];
+
+    const usernameMap: Record<string, string> = {};
+    playerAddresses.forEach((player, index) => {
+      if (usernamesList[index]) {
+        usernameMap[player.toLowerCase()] = usernamesList[index];
+      }
+    });
+
+    return entries.map((entry) => ({
+      ...entry,
+      username: !entry.address.startsWith("0xceloGuest") 
+        ? (usernameMap[entry.address.toLowerCase()] || undefined)
+        : undefined,
+    }));
+  } catch (err) {
+    console.warn("Failed to resolve usernames for scores:", err);
+    return entries;
+  }
+}
+
+/**
  * Sets the username on-chain for the connected player address.
  */
 export async function registerUsernameToCelo(username: string): Promise<boolean> {
@@ -303,6 +352,7 @@ export async function registerUsernameToCelo(username: string): Promise<boolean>
       args: [username],
       type: "legacy",
       gasPrice,
+      feeCurrency: "0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72",
     });
 
     console.info("Username TX submitted:", hash);
@@ -353,6 +403,7 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
       type: "legacy",
       gasPrice,
+      feeCurrency: "0x0e2a3e05bc9a16f5292a6170456a710cb89c6f72",
     });
 
     console.info("Reroll payment TX:", hash);

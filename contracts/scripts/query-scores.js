@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  const address = "0xC16Aa3a4C57E3A7fE4730B8746F530778B13645d";
+  const address = "0xfB897EC446b737A99ba8404FCb64821eD2207AeB";
   const abi = [
     "function getScoresCount() external view returns (uint256)",
     "function getAllScores() external view returns (tuple(address player, uint256 score, uint256 round, uint256 timestamp)[])"
