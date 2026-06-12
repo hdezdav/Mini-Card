@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "pages:build": "npx @cloudflare/next-on-pages",
-    "pages:deploy": "pnpm pages:build && pnpm exec wrangler pages deploy .cloudflare"
+    "pages:deploy": "pnpm pages:build && pnpm exec wrangler pages deploy .vercel/output/static"
   },
   "dependencies": {
     "next": "^14.2.30",
