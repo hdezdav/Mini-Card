@@ -177,17 +177,20 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
       console.warn("Network switch skipped/failed:", switchErr);
     }
 
+    const publicClient = getPublicClient();
+    const gasPrice = await publicClient.getGasPrice();
+
     const hash = await walletClient.writeContract({
       account: address,
       address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "submitScore",
       args: [BigInt(score), BigInt(round)],
-      feeCurrency: CUSD_ADDRESS as `0x${string}`,
+      type: "legacy",
+      gasPrice,
     });
 
     console.info("Score TX submitted:", hash);
-    const publicClient = getPublicClient();
     await publicClient.waitForTransactionReceipt({ hash });
     return true;
   } catch (err) {
@@ -255,17 +258,20 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
       console.warn("Network switch skipped/failed:", switchErr);
     }
 
+    const publicClient = getPublicClient();
+    const gasPrice = await publicClient.getGasPrice();
+
     const hash = await walletClient.writeContract({
       account: address,
       address: CUSD_ADDRESS as `0x${string}`,
       abi: ERC20_TRANSFER_ABI,
       functionName: "transfer",
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
-      feeCurrency: CUSD_ADDRESS as `0x${string}`,
+      type: "legacy",
+      gasPrice,
     });
 
     console.info("Reroll payment TX:", hash);
-    const publicClient = getPublicClient();
     await publicClient.waitForTransactionReceipt({ hash });
     return true;
   } catch (err) {
