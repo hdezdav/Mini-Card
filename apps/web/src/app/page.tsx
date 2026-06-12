@@ -24,7 +24,7 @@ import {
   jokerBaseCost,
   shuffle,
 } from "@/lib/game";
-import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores } from "@/lib/web3";
+import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo } from "@/lib/web3";
 
 const HAND_SIZE = 8;
 const MAX_SELECT = 5;
@@ -285,6 +285,7 @@ export default function HomePage() {
     if (end >= blind.target) {
       await delay(200);
       setMoney((current) => current + blind.reward + Math.min(newHands, 5));
+      saveScore(end);
       setPhase("shop");
     } else if (newHands <= 0) {
       setPhase("lost");
@@ -325,8 +326,8 @@ export default function HomePage() {
   };
 
   return (
-    <main className="flex h-screen w-full justify-center overflow-hidden bg-[#070b09]">
-      <div className="felt-bg relative flex h-full w-full max-w-[360px] flex-col overflow-hidden">
+    <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-[#070b09]">
+      <div className="felt-bg relative flex h-full w-full max-w-[480px] flex-col overflow-hidden">
         <GbaBackground blindKind={blind.kind} />
         {/* Top Stats Bar */}
         <div className="relative z-10 flex gap-[5px] px-2 pb-1 pt-1.5 items-stretch">
@@ -736,6 +737,18 @@ function LeaderboardOverlay({ onClose, walletAddress, isMiniPayUser }: { onClose
   const [loading, setLoading] = useState(false);
   const [usernameInput, setUsernameInput] = useState("");
   const [registering, setRegistering] = useState(false);
+  const [registeredUsername, setRegisteredUsername] = useState<string | null>(null);
+
+  // Fetch current user's registered username on-chain
+  useEffect(() => {
+    if (walletAddress && !walletAddress.startsWith("0xceloGuest")) {
+      getUsernameFromCelo(walletAddress).then((uname) => {
+        if (uname) {
+          setRegisteredUsername(uname);
+        }
+      });
+    }
+  }, [walletAddress]);
 
   const loadLeaderboard = useCallback(async () => {
     setLoading(true);
@@ -786,10 +799,11 @@ function LeaderboardOverlay({ onClose, walletAddress, isMiniPayUser }: { onClose
     const success = await registerUsernameToCelo(usernameInput.trim());
     if (success) {
       alert("Username set successfully!");
+      setRegisteredUsername(usernameInput.trim());
       setUsernameInput("");
       loadLeaderboard();
     } else {
-      alert("Failed to set username. Ensure you have gas fees (CELO) and a wallet connected.");
+      alert("Failed to set username. Ensure you have gas fees (USDT/CELO) and a wallet connected.");
     }
     setRegistering(false);
   };
@@ -816,26 +830,42 @@ function LeaderboardOverlay({ onClose, walletAddress, isMiniPayUser }: { onClose
         {/* Username Registration Form (if connected to a wallet) */}
         {!walletAddress.startsWith("0xceloGuest") && (
           <div className="w-full bg-black/20 border border-white/5 rounded-lg p-2 mb-3 flex flex-col gap-1.5 font-pixel text-xs">
-            <div className="text-gray-400 text-[10px]">REGISTER UNIQUE USERNAME:</div>
-            <div className="flex gap-1.5 w-full">
-              <input
-                type="text"
-                placeholder="Username (max 20 chars)"
-                maxLength={20}
-                value={usernameInput}
-                onChange={(e) => setUsernameInput(e.target.value)}
-                disabled={registering}
-                className="bg-black/50 border border-white/10 rounded px-2 py-1 flex-1 font-pixel text-[11px] text-white focus:outline-none focus:border-[#facc15]"
-              />
-              <button
-                type="button"
-                onClick={handleRegisterUsername}
-                disabled={registering || !usernameInput.trim()}
-                className="btn-chunky btn-orange px-3 py-1 text-[10px] leading-none shrink-0"
-              >
-                {registering ? "..." : "SET"}
-              </button>
-            </div>
+            {registeredUsername ? (
+              <div className="text-center py-1">
+                <span className="text-gray-400 text-[10px] block">YOUR USERNAME:</span>
+                <span className="text-[#facc15] font-pixel-fat text-sm">{registeredUsername}</span>
+                <button
+                  type="button"
+                  onClick={() => setRegisteredUsername(null)}
+                  className="text-gray-500 hover:text-gray-300 text-[9px] block mx-auto mt-1 underline font-pixel"
+                >
+                  Change Username
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-gray-400 text-[10px]">REGISTER UNIQUE USERNAME:</div>
+                <div className="flex gap-1.5 w-full">
+                  <input
+                    type="text"
+                    placeholder="Username (max 20 chars)"
+                    maxLength={20}
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value)}
+                    disabled={registering}
+                    className="bg-black/50 border border-white/10 rounded px-2 py-1 flex-1 font-pixel text-[11px] text-white focus:outline-none focus:border-[#facc15]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRegisterUsername}
+                    disabled={registering || !usernameInput.trim()}
+                    className="btn-chunky btn-orange px-3 py-1 text-[10px] leading-none shrink-0"
+                  >
+                    {registering ? "..." : "SET"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 

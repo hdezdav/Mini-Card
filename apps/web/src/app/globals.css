@@ -476,3 +476,26 @@ select {
 .deck-float {
   animation: deckFloat 3s ease-in-out infinite;
 }
+
+/* ─── Mobile Viewport Height Adaptation (MiniPay / Celopedia) ─── */
+@media (max-height: 720px) {
+  /* Scale down spacing on shorter viewports to fit without vertical scrolling */
+  .stat-box {
+    padding: 2px !important;
+  }
+  .stat-inner {
+    margin-top: 1px !important;
+  }
+  footer {
+    padding-bottom: 6px !important;
+    padding-top: 4px !important;
+    gap: 4px !important;
+  }
+  .btn-chunky {
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35) !important;
+  }
+  .btn-chunky:active:not(:disabled) {
+    transform: translateY(2px) !important;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35) !important;
+  }
+}

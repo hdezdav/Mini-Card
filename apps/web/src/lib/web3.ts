@@ -321,6 +321,30 @@ export async function resolveUsernamesForScores(entries: LeaderboardEntry[]): Pr
 }
 
 /**
+ * Fetches the registered username for a given wallet address.
+ */
+export async function getUsernameFromCelo(address: string): Promise<string> {
+  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000" || !address || address.startsWith("0xceloGuest")) {
+    return "";
+  }
+
+  try {
+    const publicClient = getPublicClient();
+    const usernamesList = (await publicClient.readContract({
+      address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
+      abi: MINICARD_LEADERBOARD_ABI,
+      functionName: "getUsernames",
+      args: [[address as `0x${string}`]],
+    })) as string[];
+
+    return usernamesList?.[0] || "";
+  } catch (err) {
+    console.warn("Failed to fetch username for address:", err);
+    return "";
+  }
+}
+
+/**
  * Sets the username on-chain for the connected player address.
  */
 export async function registerUsernameToCelo(username: string): Promise<boolean> {
