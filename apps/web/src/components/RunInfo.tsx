@@ -1,5 +1,5 @@
 "use client";
-import { HAND_BASE, HAND_LEVEL_BUMP, type HandType, type OwnedJoker } from "@/lib/game";
+import { HAND_BASE, HAND_LEVEL_BUMP, type HandType, type OwnedJoker, type DeckType } from "@/lib/game";
 import { JokerArt } from "@/components/PixelSprite";
 
 const ALL_HANDS: HandType[] = [
@@ -21,10 +21,21 @@ interface RunInfoProps {
   money: number;
   round: number;
   ante: number;
+  deckType: DeckType;
+  onSelectDeck: (type: DeckType) => void;
   onClose: () => void;
 }
 
-export function RunInfo({ levels, jokers, money, round, ante, onClose }: RunInfoProps) {
+export function RunInfo({
+  levels,
+  jokers,
+  money,
+  round,
+  ante,
+  deckType,
+  onSelectDeck,
+  onClose,
+}: RunInfoProps) {
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm p-3 overflow-y-auto">
       <div className="font-pixel-fat text-2xl text-[#f7931a] txt-outline text-center mb-3">RUN INFO</div>
@@ -41,6 +52,35 @@ export function RunInfo({ levels, jokers, money, round, ante, onClose }: RunInfo
         <div className="panel flex-1 rounded-lg p-2">
           <div className="font-pixel text-[10px] text-gray-400">Money</div>
           <div className="font-pixel-fat text-lg text-[#facc15]">${money}</div>
+        </div>
+      </div>
+
+      <div className="font-pixel text-xs text-gray-400 mb-1">— Deck Theme —</div>
+      <div className="panel rounded-lg p-2 flex items-center justify-between gap-2 mb-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-pixel-fat text-[11px] text-white capitalize">{deckType} Deck</span>
+          <span className="font-pixel text-[9px] text-gray-400">Select deck back style</span>
+        </div>
+        <div className="flex gap-1.5">
+          {(["red", "blue", "yellow", "green", "black"] as DeckType[]).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => onSelectDeck(type)}
+              className={`w-7 h-10 rounded border-2 overflow-hidden transition-all duration-100 ${
+                deckType === type
+                  ? "border-[#facc15] scale-110 shadow-[0_0_8px_#facc15]"
+                  : "border-transparent opacity-60 hover:opacity-100"
+              }`}
+            >
+              <img
+                src={`/assets/cards/back-${type}.png`}
+                alt={type}
+                className="w-full h-full object-cover pixelated"
+                style={{ imageRendering: "pixelated" }}
+              />
+            </button>
+          ))}
         </div>
       </div>
 

@@ -14,6 +14,7 @@ import {
   type OwnedJoker,
   type JokerDef,
   type JokerCtx,
+  type DeckType,
   RANK_CHIPS,
   RANK_ORDER,
   SUITS,
@@ -47,6 +48,9 @@ export default function HomePage() {
   const [handsLeft, setHandsLeft] = useState(4);
   const [discardsLeft, setDiscardsLeft] = useState(3);
   const [roundScore, setRoundScore] = useState(0);
+  const [deckType, setDeckType] = useState<DeckType>("red");
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(60);
 
   const [deck, setDeck] = useState<Card[]>([]);
   const [hand, setHand] = useState<Card[]>([]);
@@ -79,7 +83,17 @@ export default function HomePage() {
       setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
     });
     setDetectedMiniPay(isMiniPay());
+
+    const savedDeck = localStorage.getItem("minicard_selected_deck") as DeckType | null;
+    if (savedDeck && ["red", "blue", "yellow", "green", "black", "painted"].includes(savedDeck)) {
+      setDeckType(savedDeck);
+    }
   }, []);
+
+  const handleSelectDeck = (type: DeckType) => {
+    setDeckType(type);
+    localStorage.setItem("minicard_selected_deck", type);
+  };
 
   const saveScore = useCallback(async (score: number) => {
     if (score <= 0) return;
@@ -165,6 +179,7 @@ export default function HomePage() {
     setAnimMult(null);
     setFloats([]);
     setScoringId(null);
+    setTimeLeft(60);
   }, []);
 
   useEffect(() => {
@@ -182,6 +197,27 @@ export default function HomePage() {
       startRound();
     }
   }, [startRound]);
+
+  useEffect(() => {
+    if (phase !== "playing") return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setPhase("lost");
+          saveScore(roundScore);
+          const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
+          localStorage.setItem("minicard_cooldown_end", String(endCooldown));
+          setCooldownEnd(endCooldown);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [phase, roundScore, round, saveScore]);
 
   const selCards = useMemo(() => hand.filter((card) => selected.includes(card.id)), [hand, selected]);
   const evalResult = useMemo(() => evaluate(selCards), [selCards]);
@@ -245,6 +281,7 @@ export default function HomePage() {
     busy.current = true;
 
     const played = hand.filter((card) => selected.includes(card.id));
+    const remaining = hand.filter((card) => !selected.includes(card.id));
     const ev = evaluate(played);
     const base = handScore(ev.type, levels.current);
 
@@ -256,6 +293,7 @@ export default function HomePage() {
 
     setPhase("scoring");
     setPlayZone(played);
+    setHand(remaining); // Immediately remove played cards from the player's hand
     setSelected([]);
     setScoringId(null);
     setAnimChips(base.chips);
@@ -322,7 +360,6 @@ export default function HomePage() {
 
     await delay(250);
 
-    const remaining = hand.filter((card) => !selected.includes(card.id) && !played.includes(card));
     const { newHand, rest } = drawTo(remaining, deck);
     const newHands = handsLeft - 1;
 
@@ -416,6 +453,12 @@ export default function HomePage() {
           <AnteBox ante={ante} />
           <StatBox label="Round" value={round} color="#f5a623" />
           <MoneyBox money={money} />
+          <StatBox
+            label="Time"
+            value={timeLeft}
+            color={timeLeft <= 15 ? "#f04f4c" : "#38d08f"}
+            className={timeLeft <= 15 ? "animate-pulse" : ""}
+          />
         </div>
 
         {/* Joker Slots */}
@@ -451,7 +494,7 @@ export default function HomePage() {
         <div className="relative z-10 flex flex-1 min-h-0 items-center justify-center py-2">
           {playZone.length > 0 && (
             <div className="flex items-end gap-[4px]">
-              {playZone.map((card) => {
+              {playZone.map((card, idx) => {
                 const isScoring = scoringId === card.id;
                 const ev = evaluate(playZone);
                 const inHand = ev.scoringIds.includes(card.id);
@@ -468,10 +511,16 @@ export default function HomePage() {
                       card={card}
                       scoring={inHand}
                       dimmed={!inHand}
-                      className="h-[74px] w-[52px]"
+                      deckType={deckType}
+                      className={`h-[74px] w-[52px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
                       style={{
-                        transform: isScoring ? "translateY(-10px) scale(1.05)" : "none",
+                        transform: isScoring
+                          ? "translateY(-18px) scale(1.1)"
+                          : inHand
+                          ? "translateY(-10px) scale(1.05)"
+                          : "none",
                         transition: "transform 0.15s ease",
+                        animationDelay: isScoring ? "0ms" : `${idx * 90}ms`,
                       }}
                     />
                   </div>
@@ -480,25 +529,44 @@ export default function HomePage() {
             </div>
           )}
         </div>
-
+ 
         {/* Player Hand */}
         <div className="relative z-10 flex flex-col items-center px-2 pb-1.5 pt-2">
-          <div className="flex min-h-[80px] items-end justify-center w-full pl-[18px]">
+          <div className="flex min-h-[80px] items-end justify-center w-full pl-[16px]">
             {hand.map((card, idx) => {
               const isSelected = selected.includes(card.id);
+              const isHovered = hoveredIdx === idx;
+              const x = idx - (hand.length - 1) / 2;
+              const rot = x * 2.8; // Fan rotation angle factor
+              const fanY = Math.abs(x) * 1.5;
+              const selectY = isSelected ? -16 : 0;
+              const hoverY = isHovered ? -12 : 0;
+              const translateY = fanY + selectY + hoverY;
+
               return (
-                <PlayingCard
+                <div
                   key={card.id}
-                  card={card}
-                  selected={isSelected}
-                  onClick={() => toggleSelect(card.id)}
-                  className="h-[74px] w-[52px] transition-transform duration-100 hover:-translate-y-2"
                   style={{
-                    marginLeft: idx > 0 ? "-18px" : "0px",
-                    transform: isSelected ? "translateY(-14px)" : undefined,
-                    zIndex: isSelected ? 30 + idx : idx,
+                    marginLeft: idx > 0 ? "-16px" : "0px",
+                    transform: `rotate(${rot}deg) translateY(${translateY}px)`,
+                    transformOrigin: "bottom center",
+                    zIndex: isHovered ? 100 : isSelected ? 50 + idx : 10 + idx,
+                    transition: "transform 0.15s cubic-bezier(0.25, 1, 0.5, 1)",
                   }}
-                />
+                >
+                  <PlayingCard
+                    card={card}
+                    selected={isSelected}
+                    onClick={() => toggleSelect(card.id)}
+                    onMouseEnter={() => setHoveredIdx(idx)}
+                    onMouseLeave={() => setHoveredIdx(null)}
+                    deckType={deckType}
+                    className="h-[74px] w-[52px] anim-draw-card"
+                    style={{
+                      animationDelay: `${idx * 80}ms`,
+                    }}
+                  />
+                </div>
               );
             })}
           </div>
@@ -584,7 +652,7 @@ export default function HomePage() {
             {/* Right Column: Deck & Actions */}
             <div className="w-[84px] shrink-0 flex flex-col gap-1.5">
               {/* Balatro-style stacked deck */}
-              <DeckPile count={deck.length} total={52} />
+              <DeckPile count={deck.length} total={52} deckType={deckType} />
               <button
                 type="button"
                 onClick={doPlay}
@@ -684,6 +752,8 @@ export default function HomePage() {
             money={money}
             round={round}
             ante={ante}
+            deckType={deckType}
+            onSelectDeck={handleSelectDeck}
             onClose={() => setShowRunInfo(false)}
           />
         )}
@@ -705,9 +775,9 @@ export default function HomePage() {
   );
 }
 
-function StatBox({ label, value, color }: { label: string; value: number; color: string }) {
+function StatBox({ label, value, color, className = "" }: { label: string; value: number | string; color: string; className?: string }) {
   return (
-    <div className="stat-box flex-1 py-1 px-1">
+    <div className={`stat-box flex-1 py-1 px-1 ${className}`}>
       <span className="text-[11px] text-gray-300 leading-none">{label}</span>
       <div className="stat-inner">
         <span className="text-lg font-pixel-fat leading-none" style={{ color }}>
@@ -758,10 +828,21 @@ function ScoreStar({ className }: { className?: string }) {
   );
 }
 
-function DeckPile({ count, total }: { count: number; total: number }) {
+function DeckPile({ count, total, deckType = "red" }: { count: number; total: number; deckType?: DeckType }) {
   // Build a small stack of 4 card backs to simulate the Balatro deck pile
   const layers = Math.min(4, Math.max(1, Math.ceil(count / (total / 4))));
   const empty = count === 0;
+
+  const backColor =
+    deckType === "black"
+      ? "black"
+      : deckType === "blue"
+      ? "blue"
+      : deckType === "green"
+      ? "green"
+      : deckType === "yellow"
+      ? "yellow"
+      : "red";
 
   return (
     <div className="flex flex-col items-center justify-center gap-[3px] py-[2px]">
@@ -776,31 +857,28 @@ function DeckPile({ count, total }: { count: number; total: number }) {
           return (
             <div
               key={i}
-              className="absolute rounded-[6px] border-[2px] border-[#e9e2cf]"
+              className="absolute rounded-[6px] border-[2px] border-[#e9e2cf] overflow-hidden bg-[#2d241e]"
               style={{
                 width: 34,
                 height: 48,
                 bottom: offsetY,
                 left: offsetX,
-                background: `radial-gradient(120% 120% at 35% 25%, hsl(220, 50%, ${Math.round(30 + brightness * 22)}%) 0%, hsl(220, 55%, ${Math.round(18 + brightness * 12)}%) 45%, hsl(220, 60%, ${Math.round(10 + brightness * 8)}%) 100%)`,
                 boxShadow: i === layers - 1 ? "0 4px 10px rgba(0,0,0,0.6), 0 0 6px rgba(43,147,255,0.18)" : undefined,
-                filter: empty ? "grayscale(1) brightness(0.4)" : undefined,
+                filter: empty
+                  ? "grayscale(1) brightness(0.4)"
+                  : i < layers - 1
+                  ? `brightness(${brightness})`
+                  : undefined,
                 zIndex: i,
               }}
             >
-              {/* Top card gets the SVG art */}
-              {i === layers - 1 && !empty && (
-                <svg viewBox="0 0 60 84" className="absolute inset-0 h-full w-full opacity-70 deck-float">
-                  <defs>
-                    <linearGradient id="dp1" x1="0" x2="1" y1="0" y2="1">
-                      <stop offset="0" stopColor="#f0c84a" />
-                      <stop offset="1" stopColor="#b9852a" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M6,70 C20,40 10,30 30,20 C46,12 40,40 54,30" fill="none" stroke="url(#dp1)" strokeWidth="3" opacity="0.6" strokeLinecap="round" />
-                  <path d="M8,18 C24,30 30,52 50,60" fill="none" stroke="url(#dp1)" strokeWidth="2" opacity="0.4" strokeLinecap="round" />
-                  <rect x="3" y="3" width="54" height="78" rx="5" fill="none" stroke="#dfe7ff" strokeWidth="1.5" opacity="0.45" />
-                </svg>
+              {!empty && (
+                <img
+                  src={`/assets/cards/back-${backColor}.png`}
+                  alt="Deck Back"
+                  className="h-full w-full object-cover pixelated"
+                  style={{ imageRendering: "pixelated" }}
+                />
               )}
               {/* Shimmer overlay on top card */}
               {i === layers - 1 && !empty && (

@@ -61,27 +61,40 @@ export function SpectralCard({ label = "HEX", className, onClick }: { label?: st
   );
 }
 
-export function DeckBack({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function DeckBack({
+  className,
+  style,
+  deckType = "red",
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+  deckType?: string;
+}) {
+  const backColor =
+    deckType === "black"
+      ? "black"
+      : deckType === "blue"
+      ? "blue"
+      : deckType === "green"
+      ? "green"
+      : deckType === "yellow"
+      ? "yellow"
+      : "red";
+
   return (
     <div
-      className={`relative overflow-hidden rounded-[9px] border-[2.5px] border-[#e9e2cf] ${className ?? ""}`}
+      className={`relative overflow-hidden rounded-[9px] border-[2.5px] border-[#e9e2cf] bg-[#2d241e] ${className ?? ""}`}
       style={{
-        background: "radial-gradient(120% 120% at 35% 25%, #4a6fae 0%, #28407e 45%, #14224b 100%)",
         boxShadow: "0 5px 8px rgba(0,0,0,0.5)",
         ...style,
       }}
     >
-      <svg viewBox="0 0 60 84" className="absolute inset-0 h-full w-full opacity-80">
-        <defs>
-          <linearGradient id="g1" x1="0" x2="1" y1="0" y2="1">
-            <stop offset="0" stopColor="#f0c84a" />
-            <stop offset="1" stopColor="#b9852a" />
-          </linearGradient>
-        </defs>
-        <path d="M6,70 C20,40 10,30 30,20 C46,12 40,40 54,30" fill="none" stroke="url(#g1)" strokeWidth="3" opacity="0.55" strokeLinecap="round" />
-        <path d="M8,18 C24,30 30,52 50,60" fill="none" stroke="url(#g1)" strokeWidth="2" opacity="0.4" strokeLinecap="round" />
-        <rect x="4" y="4" width="52" height="76" rx="6" fill="none" stroke="#dfe7ff" strokeWidth="1.5" opacity="0.5" />
-      </svg>
+      <img
+        src={`/assets/cards/back-${backColor}.png`}
+        alt="Deck Back"
+        className="h-full w-full object-cover pixelated"
+        style={{ imageRendering: "pixelated" }}
+      />
     </div>
   );
 }
