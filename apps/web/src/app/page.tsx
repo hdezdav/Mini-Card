@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { PlayingCard } from "@/components/PlayingCard";
 import { DeckBack, EmptySlot } from "@/components/Specials";
 import { GbaBackground } from "@/components/GbaBackground";
@@ -68,6 +69,8 @@ export default function HomePage() {
   const [showRunInfo, setShowRunInfo] = useState(false);
   const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
   const [detectedMiniPay, setDetectedMiniPay] = useState(false);
+  const [lang, setLang] = useState<"en" | "es">("en");
+  const [activeTooltipIdx, setActiveTooltipIdx] = useState<number | null>(null);
 
   // Score states for manual Celo submission
   const [lastScore, setLastScore] = useState<number>(0);
@@ -79,6 +82,9 @@ export default function HomePage() {
 
   // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
   useEffect(() => {
+    const nav = navigator.language || (navigator as any).userLanguage || "en";
+    setLang(nav.toLowerCase().startsWith("es") ? "es" : "en");
+
     autoConnect().then((addr) => {
       setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
     });
@@ -89,6 +95,18 @@ export default function HomePage() {
       setDeckType(savedDeck);
     }
   }, []);
+
+  // Global click listener to close Joker tooltips when clicking elsewhere
+  useEffect(() => {
+    if (activeTooltipIdx === null) return;
+    const handleGlobalClick = () => {
+      setActiveTooltipIdx(null);
+    };
+    document.addEventListener("click", handleGlobalClick);
+    return () => {
+      document.removeEventListener("click", handleGlobalClick);
+    };
+  }, [activeTooltipIdx]);
 
   const handleSelectDeck = (type: DeckType) => {
     setDeckType(type);
@@ -478,21 +496,27 @@ export default function HomePage() {
                 <div key={i} className="relative h-[54px] w-[38px] group">
                   <button
                     type="button"
-                    className={`relative overflow-hidden rounded-[9px] border-[2.5px] h-full w-full ${
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTooltipIdx(activeTooltipIdx === i ? null : i);
+                    }}
+                    className={`relative overflow-hidden rounded-[9px] border-[2.5px] h-full w-full outline-none focus:ring-1 focus:ring-[#38d08f]/50 ${
                       oj.def.rarity === "uncommon" ? "joker-shiny border-[#2a2a2a]" :
                       oj.def.rarity === "rare" ? "joker-rare-metallic" :
                       oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border-[#2a2a2a]"
                     }`}
-                    style={{ background: "linear-gradient(160deg,#fbf7ec 0%,#f4eee0 60%,#e7ddc6 100%)", boxShadow: "inset 0 2px 0 rgba(255,255,255,0.7),0 6px 10px rgba(0,0,0,0.5)" }}
-                    title={`${oj.def.name}: ${oj.def.desc}`}
+                    style={{ background: "linear-gradient(160deg,#fbf7ec 0%,#f4eee0 60%,#e7ddc6 100%)", boxShadow: "0 6px 10px rgba(0,0,0,0.5)" }}
                   >
-                    <span className="font-pixel absolute left-0.5 top-0 text-[0.55rem] leading-none text-[#d23bd2] truncate w-full px-0.5">{oj.def.name}</span>
-                    <div className="absolute inset-[18%_10%] flex items-center justify-center"><JokerArt /></div>
+                    <div className="absolute inset-[10%] flex items-center justify-center"><JokerArt /></div>
                   </button>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:flex z-30 w-36 bg-black/90 border border-white/20 rounded-lg p-1.5 text-left pointer-events-none flex-col gap-0.5">
-                    <div className="font-pixel-fat text-[10px] text-white">{oj.def.name}</div>
-                    <div className="font-pixel text-[9px] text-[#94b4a7] capitalize">{oj.def.rarity}</div>
-                    <div className="font-pixel text-[9px] text-gray-300">{oj.def.desc}</div>
+                  <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-36 bg-black/95 border border-white/20 rounded-lg p-2 text-left pointer-events-none flex flex-col gap-0.5 shadow-xl transition-all duration-200 origin-bottom transform ${
+                    activeTooltipIdx === i
+                      ? "opacity-100 scale-100 translate-y-0 visible"
+                      : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
+                  }`}>
+                    <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{oj.def.name}</div>
+                    <div className="font-pixel text-[8px] text-[#94b4a7] capitalize leading-none mb-1">{oj.def.rarity}</div>
+                    <div className="font-pixel text-[9px] text-gray-300 leading-tight">{oj.def.desc}</div>
                   </div>
                 </div>
               ) : (
@@ -641,6 +665,16 @@ export default function HomePage() {
                     {showMult}
                   </div>
                 </div>
+              </div>
+
+              <div className="flex justify-center">
+                <Link 
+                  href="/stats" 
+                  className="font-sans text-[9px] font-bold uppercase tracking-wider text-[#38d08f] hover:text-[#facc15] transition-all select-none flex items-center gap-1.5 hover:underline"
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#38d08f] animate-pulse" />
+                  Live Stats
+                </Link>
               </div>
             </div>
 
