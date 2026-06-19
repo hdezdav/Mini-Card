@@ -199,7 +199,7 @@ export default function HomePage() {
   }, [startRound]);
 
   useEffect(() => {
-    if (phase !== "playing") return;
+    if (phase !== "playing" || round === 1) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -453,13 +453,21 @@ export default function HomePage() {
           <AnteBox ante={ante} />
           <StatBox label="Round" value={round} color="#f5a623" />
           <MoneyBox money={money} />
-          <StatBox
-            label="Time"
-            value={timeLeft}
-            color={timeLeft <= 15 ? "#f04f4c" : "#38d08f"}
-            className={timeLeft <= 15 ? "animate-pulse" : ""}
-          />
         </div>
+
+        {/* Floating Timer Widget (Active from Round 2+) */}
+        {round > 1 && phase === "playing" && (
+          <div className="absolute top-[76px] right-0 z-30 anim-pop">
+            <div className={`flex flex-col items-center justify-center min-w-[48px] px-2 py-1 rounded-l-lg border-y-2 border-l-2 border-black/50 text-center shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
+              timeLeft <= 15
+                ? "bg-[#ec4899] text-white animate-pulse scale-105 border-[#be185d]"
+                : "bg-black text-[#ec4899] border-[#ec4899]/85"
+            }`}>
+              <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">Time</span>
+              <span className="font-pixel-fat text-sm leading-none mt-0.5">{timeLeft}s</span>
+            </div>
+          </div>
+        )}
 
         {/* Joker Slots */}
         <div className="relative z-10 flex px-2 items-start mt-1">
@@ -622,14 +630,14 @@ export default function HomePage() {
               <div className="flex-1 bg-[#1f2429] rounded-lg p-1.5 flex flex-col items-center justify-center border-b-4 border-black/40">
                 <div className="text-[16px] font-pixel mb-1.5 leading-none">
                   <span className="text-white txt-outline">{showHandType || "\u00A0"}</span>
-                  {showHandType && <span className="ml-1.5 text-xs text-[#6fa8c8]">lvl.{displayLevel}</span>}
+                  {showHandType && <span className="ml-1.5 text-xs text-[#fbbf24]">lvl.{displayLevel}</span>}
                 </div>
                 <div className="flex w-full gap-1 h-7 items-stretch">
-                  <div className="flex-1 bg-[#2b93ff] rounded flex items-center justify-end pr-2 text-base font-pixel-fat shadow-[0_2px_0_#155bb5] border border-black/10">
+                  <div className="flex-1 bg-[#00b4d8] rounded flex items-center justify-end pr-2 text-base font-pixel-fat shadow-[0_2px_0_#0077b6] border border-black/10">
                     {showChips}
                   </div>
-                  <div className="w-4 flex items-center justify-center text-[#f04f4c] font-pixel-fat text-sm">X</div>
-                  <div className={`flex-1 bg-[#f04f4c] rounded flex items-center justify-start pl-2 text-base font-pixel-fat shadow-[0_2px_0_#9a1a1e] border border-black/10 transition-transform ${jokerFlash ? "scale-110" : ""}`}>
+                  <div className="w-4 flex items-center justify-center text-[#ec4899] font-pixel-fat text-sm">X</div>
+                  <div className={`flex-1 bg-[#ec4899] rounded flex items-center justify-start pl-2 text-base font-pixel-fat shadow-[0_2px_0_#be185d] border border-black/10 transition-transform ${jokerFlash ? "scale-110" : ""}`}>
                     {showMult}
                   </div>
                 </div>
@@ -671,7 +679,7 @@ export default function HomePage() {
           />
         )}
         {phase === "lost" && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-[3px] overflow-hidden">
             <div className="panel anim-pop rounded-xl px-6 py-5 text-center max-w-[280px] flex flex-col gap-3">
               <div className="font-pixel-fat text-3xl txt-outline text-[#fe5f55]">
                 {cooldownEnd && cooldownEnd > Date.now() ? "Cooldown Active" : "Game Over"}

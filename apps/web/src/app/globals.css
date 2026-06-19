@@ -21,8 +21,8 @@
   --suit-red: #d0131a;
   --suit-black: #1a1a1a;
   /* GBA-style palette additions */
-  --gba-blue: #2b93ff;
-  --gba-red: #f04f4c;
+  --gba-blue: #00b4d8;
+  --gba-red: #ec4899;
   --gba-gold: #f2c93b;
   --gba-green: #3aa35a;
 }
@@ -123,21 +123,21 @@ select {
 }
 
 .btn-red {
-  background-color: #f04f4c;
-  box-shadow: 0 5px 0 #9a1a1e, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  background-color: #ec4899;
+  box-shadow: 0 5px 0 #be185d, inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 .btn-red:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #9a1a1e, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 0 #be185d, inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 
 .btn-blue {
-  background-color: #2b93ff;
-  box-shadow: 0 5px 0 #155bb5, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  background-color: #00b4d8;
+  box-shadow: 0 5px 0 #0077b6, inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 .btn-blue:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #155bb5, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 0 #0077b6, inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 
 .btn-green {
@@ -377,7 +377,7 @@ select {
 /* Joker rarity colors (from GBA card_rarity_pal_gfx) */
 .rarity-common { color: #94b4a7; }
 .rarity-uncommon { color: #3aa35a; }
-.rarity-rare { color: #2b93ff; }
+.rarity-rare { color: #00b4d8; }
 .rarity-legendary { color: #9b59b6; }
 
 /* Edition card styling */

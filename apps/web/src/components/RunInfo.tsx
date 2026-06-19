@@ -119,10 +119,10 @@ export function RunInfo({
           return (
             <div key={type} className="flex items-center gap-1.5 bg-[#1a1d20] rounded px-2 py-1">
               <div className="font-pixel text-[10px] text-white flex-1">{type}</div>
-              <div className="font-pixel text-[9px] text-[#6fa8c8]">lvl.{lvl}</div>
-              <div className="font-pixel-fat text-[10px] text-[#2b93ff] w-8 text-right">{chips}</div>
+              <div className="font-pixel text-[9px] text-[#fbbf24]">lvl.{lvl}</div>
+              <div className="font-pixel-fat text-[10px] text-[#00b4d8] w-8 text-right">{chips}</div>
               <div className="font-pixel text-[9px] text-gray-400">x</div>
-              <div className="font-pixel-fat text-[10px] text-[#f04f4c] w-5 text-right">{mult}</div>
+              <div className="font-pixel-fat text-[10px] text-[#ec4899] w-5 text-right">{mult}</div>
             </div>
           );
         })}

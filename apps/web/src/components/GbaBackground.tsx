@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { type BlindKind } from "@/lib/game";
 
 interface GbaBackgroundProps {
-  blindKind: BlindKind;
+  blindKind: BlindKind | "shop" | "lost";
 }
 
 export function GbaBackground({ blindKind }: GbaBackgroundProps) {
@@ -165,25 +165,37 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
       isRotate: gl.getUniformLocation(program, "u_isRotate"),
     };
 
-    // Color palettes matching Balatro's custom shader feel
+    // Beautiful original color palettes distinct from Balatro
     const palettes = {
       small: {
-        // Psychedelic Emerald green
-        c1: [0.2, 0.75, 0.45, 1.0],
-        c2: [0.06, 0.4, 0.22, 1.0],
-        c3: [0.02, 0.22, 0.12, 1.0],
+        // Amethyst Violet / Lavender (Original)
+        c1: [0.65, 0.25, 0.85, 1.0],
+        c2: [0.35, 0.12, 0.55, 1.0],
+        c3: [0.18, 0.05, 0.32, 1.0],
       },
       big: {
-        // Sapphire Blue & Royal Blue
-        c1: [0.18, 0.55, 0.9, 1.0],
-        c2: [0.08, 0.3, 0.6, 1.0],
-        c3: [0.03, 0.15, 0.35, 1.0],
+        // Amber Gold / Copper (Original)
+        c1: [0.95, 0.55, 0.15, 1.0],
+        c2: [0.65, 0.32, 0.08, 1.0],
+        c3: [0.35, 0.15, 0.02, 1.0],
       },
       boss: {
-        // Flame Crimson red & dark purple
-        c1: [0.9, 0.35, 0.3, 1.0],
-        c2: [0.1, 0.55, 0.85, 1.0],
-        c3: [0.2, 0.22, 0.28, 1.0],
+        // Electric Teal & Cyan / Navy (Original)
+        c1: [0.12, 0.85, 0.75, 1.0],
+        c2: [0.05, 0.45, 0.52, 1.0],
+        c3: [0.02, 0.18, 0.28, 1.0],
+      },
+      shop: {
+        // Dark Forest Sage & Emerald Green
+        c1: [0.18, 0.35, 0.22, 1.0],
+        c2: [0.08, 0.18, 0.12, 1.0],
+        c3: [0.03, 0.07, 0.05, 1.0],
+      },
+      lost: {
+        // Somber Deep Crimson Red & Dark Charcoal
+        c1: [0.38, 0.08, 0.08, 1.0],
+        c2: [0.18, 0.03, 0.03, 1.0],
+        c3: [0.07, 0.01, 0.01, 1.0],
       },
     };
 
@@ -224,13 +236,29 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
       gl.uniform4fv(uniforms.colour2, palette.c2);
       gl.uniform4fv(uniforms.colour3, palette.c3);
       
-      // Default parameters from Properties section
-      gl.uniform1f(uniforms.contrast, 2.5);
+      // Dynamic parameters based on background type
+      let contrast = 2.5;
+      let pixelFilter = 1400.0;
+      let spinRotation = -0.15;
+      let spinSpeed = 0.006;
+
+      if (blindKind === "shop") {
+        spinSpeed = 0.003;
+        spinRotation = 0.05;
+        pixelFilter = 2000.0;
+      } else if (blindKind === "lost") {
+        spinSpeed = 0.002;
+        spinRotation = -0.05;
+        pixelFilter = 1000.0;
+        contrast = 3.0;
+      }
+      
+      gl.uniform1f(uniforms.contrast, contrast);
       gl.uniform1f(uniforms.lighting, 0.55);
       gl.uniform1f(uniforms.spinAmount, 0.25);
-      gl.uniform1f(uniforms.pixelFilter, 1400.0); // Make pixelation much finer and cleaner
-      gl.uniform1f(uniforms.spinRotation, -0.15); // Much slower spin rotation
-      gl.uniform1f(uniforms.spinSpeed, 0.006); // Much slower wave progression speed
+      gl.uniform1f(uniforms.pixelFilter, pixelFilter);
+      gl.uniform1f(uniforms.spinRotation, spinRotation);
+      gl.uniform1f(uniforms.spinSpeed, spinSpeed);
       gl.uniform1f(uniforms.spinEase, 1.0);
       gl.uniform1f(uniforms.isRotate, 1.0); // Turn rotation on
 

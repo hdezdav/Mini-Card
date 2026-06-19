@@ -1,6 +1,7 @@
 "use client";
 import { JOKER_DEFS, jokerBaseCost, type OwnedJoker, type JokerDef } from "@/lib/game";
 import { JokerArt } from "@/components/PixelSprite";
+import { GbaBackground } from "./GbaBackground";
 import { useState, useCallback } from "react";
 import { payRerollWithMiniPay } from "@/lib/web3";
 
@@ -61,9 +62,11 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
   }, [rerollState, ownedJokers]);
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm p-3 overflow-y-auto">
-      <div className="font-pixel-fat text-2xl text-[#facc15] txt-outline text-center mb-2">SHOP</div>
-      <div className="font-pixel text-sm text-[#facc15] text-center mb-3">💰 ${money}</div>
+    <div className="absolute inset-0 z-50 flex flex-col bg-black/50 backdrop-blur-[2px] overflow-hidden">
+      <GbaBackground blindKind="shop" />
+      <div className="flex-1 flex flex-col p-3 overflow-y-auto relative z-10">
+        <div className="font-pixel-fat text-2xl text-[#facc15] txt-outline text-center mb-2">SHOP</div>
+        <div className="font-pixel text-sm text-[#facc15] text-center mb-3">💰 ${money}</div>
 
       {/* For Sale header + Reroll button */}
       <div className="flex items-center justify-between mb-1">
@@ -169,9 +172,10 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
         {typeof window !== "undefined" && !(window as any).ethereum && " (free in guest mode)"}
       </div>
 
-      <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base mt-auto">
-        Next Blind →
-      </button>
+        <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base mt-auto">
+          Next Blind →
+        </button>
+      </div>
     </div>
   );
 }

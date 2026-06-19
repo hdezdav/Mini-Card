@@ -321,8 +321,8 @@ export const DECK_TYPES: Record<DeckType, DeckInfo> = {
   },
   blue: {
     name: "Blue Deck",
-    color: "#2b93ff",
-    borderColor: "#155bb5",
+    color: "#00b4d8",
+    borderColor: "#0077b6",
     desc: "+1 Hand every round",
     bonusHands: 1,
     bonusDiscards: 0,
