@@ -173,9 +173,18 @@ export function createDeck(): Card[] {
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
-  for (let i = a.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+  if (typeof window !== "undefined" && window.crypto && window.crypto.getRandomValues) {
+    const randomBuffer = new Uint32Array(a.length);
+    window.crypto.getRandomValues(randomBuffer);
+    for (let i = a.length - 1; i > 0; i -= 1) {
+      const j = randomBuffer[i] % (i + 1);
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+  } else {
+    for (let i = a.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
   }
   return a;
 }
@@ -406,109 +415,109 @@ export const JOKER_DEFS: JokerDef[] = [
     id: 1,
     name: "Joker",
     rarity: "common",
-    desc: "+4 Mult",
-    effect: (ctx) => ({ chips: ctx.chips, mult: ctx.mult + 4 }),
+    desc: "+2 Mult",
+    effect: (ctx) => ({ chips: ctx.chips, mult: ctx.mult + 2 }),
   },
   {
     id: 2,
     name: "Greedy",
     rarity: "common",
-    desc: "+3 Mult if played hand has a ♦ card",
+    desc: "+2 Mult if played hand has a ♦ card",
     effect: (ctx) => {
       const hasDiamond = ctx.playedCards.some((c) => c.suit === "diamonds" && ctx.scoringIds.includes(c.id));
-      return { chips: ctx.chips, mult: ctx.mult + (hasDiamond ? 3 : 0) };
+      return { chips: ctx.chips, mult: ctx.mult + (hasDiamond ? 2 : 0) };
     },
   },
   {
     id: 3,
     name: "Lusty",
     rarity: "common",
-    desc: "+3 Mult if played hand has a ♥ card",
+    desc: "+2 Mult if played hand has a ♥ card",
     effect: (ctx) => {
       const hasHeart = ctx.playedCards.some((c) => c.suit === "hearts" && ctx.scoringIds.includes(c.id));
-      return { chips: ctx.chips, mult: ctx.mult + (hasHeart ? 3 : 0) };
+      return { chips: ctx.chips, mult: ctx.mult + (hasHeart ? 2 : 0) };
     },
   },
   {
     id: 4,
     name: "Wrathful",
     rarity: "common",
-    desc: "+3 Mult if played hand has a ♠ card",
+    desc: "+2 Mult if played hand has a ♠ card",
     effect: (ctx) => {
       const hasSpade = ctx.playedCards.some((c) => c.suit === "spades" && ctx.scoringIds.includes(c.id));
-      return { chips: ctx.chips, mult: ctx.mult + (hasSpade ? 3 : 0) };
+      return { chips: ctx.chips, mult: ctx.mult + (hasSpade ? 2 : 0) };
     },
   },
   {
     id: 5,
     name: "Glutton",
     rarity: "common",
-    desc: "+3 Mult if played hand has a ♣ card",
+    desc: "+2 Mult if played hand has a ♣ card",
     effect: (ctx) => {
       const hasClub = ctx.playedCards.some((c) => c.suit === "clubs" && ctx.scoringIds.includes(c.id));
-      return { chips: ctx.chips, mult: ctx.mult + (hasClub ? 3 : 0) };
+      return { chips: ctx.chips, mult: ctx.mult + (hasClub ? 2 : 0) };
     },
   },
   {
     id: 6,
     name: "Jolly",
     rarity: "common",
-    desc: "+8 Mult if hand contains a Pair",
+    desc: "+5 Mult if hand contains a Pair",
     effect: (ctx) => {
       const ev = evaluate(ctx.playedCards);
       const isPair = ev.type === "Pair" || ev.type === "Two Pair" || ev.type === "Full House" || ev.type === "Four of a Kind" || ev.type === "Five of a Kind" || ev.type === "Flush House" || ev.type === "Flush Five";
-      return { chips: ctx.chips, mult: ctx.mult + (isPair ? 8 : 0) };
+      return { chips: ctx.chips, mult: ctx.mult + (isPair ? 5 : 0) };
     },
   },
   {
     id: 7,
     name: "Zany",
     rarity: "common",
-    desc: "+12 Mult if hand contains Three of a Kind",
+    desc: "+8 Mult if hand contains Three of a Kind",
     effect: (ctx) => {
       const ev = evaluate(ctx.playedCards);
       const has3 = ev.type === "Three of a Kind" || ev.type === "Full House" || ev.type === "Four of a Kind" || ev.type === "Five of a Kind" || ev.type === "Flush House" || ev.type === "Flush Five";
-      return { chips: ctx.chips, mult: ctx.mult + (has3 ? 12 : 0) };
+      return { chips: ctx.chips, mult: ctx.mult + (has3 ? 8 : 0) };
     },
   },
   {
     id: 8,
     name: "Hack",
     rarity: "uncommon",
-    desc: "+30 Chips for each 2,3,4,5 in hand",
+    desc: "+20 Chips for each 2,3,4,5 in hand",
     effect: (ctx) => {
       const low = ["2", "3", "4", "5"];
       const count = ctx.playedCards.filter((c) => low.includes(c.rank) && ctx.scoringIds.includes(c.id)).length;
-      return { chips: ctx.chips + count * 30, mult: ctx.mult };
+      return { chips: ctx.chips + count * 20, mult: ctx.mult };
     },
   },
   {
     id: 9,
     name: "Sly",
     rarity: "common",
-    desc: "+50 Chips if hand is a Pair",
+    desc: "+30 Chips if hand is a Pair",
     effect: (ctx) => {
       const isPair = ctx.handType === "Pair";
-      return { chips: ctx.chips + (isPair ? 50 : 0), mult: ctx.mult };
+      return { chips: ctx.chips + (isPair ? 30 : 0), mult: ctx.mult };
     },
   },
   {
     id: 10,
     name: "Half",
     rarity: "common",
-    desc: "+20 Mult if hand has 3 or fewer cards",
+    desc: "+10 Mult if hand has 3 or fewer cards",
     effect: (ctx) => ({
       chips: ctx.chips,
-      mult: ctx.mult + (ctx.playedCards.length <= 3 ? 20 : 0),
+      mult: ctx.mult + (ctx.playedCards.length <= 3 ? 10 : 0),
     }),
   },
   {
     id: 11,
     name: "Banner",
     rarity: "common",
-    desc: "+30 Chips per discard remaining",
+    desc: "+15 Chips per discard remaining",
     effect: (ctx) => ({
-      chips: ctx.chips + ctx.discardsLeft * 30,
+      chips: ctx.chips + ctx.discardsLeft * 15,
       mult: ctx.mult,
     }),
   },
@@ -516,10 +525,10 @@ export const JOKER_DEFS: JokerDef[] = [
     id: 12,
     name: "Mystic Summit",
     rarity: "common",
-    desc: "+15 Mult when 0 discards left",
+    desc: "+8 Mult when 0 discards left",
     effect: (ctx) => ({
       chips: ctx.chips,
-      mult: ctx.mult + (ctx.discardsLeft === 0 ? 15 : 0),
+      mult: ctx.mult + (ctx.discardsLeft === 0 ? 8 : 0),
     }),
   },
 ];

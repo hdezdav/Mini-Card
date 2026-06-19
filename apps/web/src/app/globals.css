@@ -464,7 +464,7 @@ select {
 }
 
 .anim-draw-card {
-  animation: drawFromDeck 260ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: drawFromDeck 480ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
 /* ─── Deck top-card idle float ─── */
@@ -498,4 +498,36 @@ select {
     transform: translateY(2px) !important;
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35) !important;
   }
+}
+
+/* ─── Custom animations for playing and scoring cards ─── */
+@keyframes playCardIn {
+  0% {
+    transform: translateY(120px) scale(0.6) rotate(-12deg);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(-12px) scale(1.06) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0px) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.anim-play-card {
+  animation: playCardIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes scoreBounce {
+  0%, 100% {
+    transform: translateY(-10px) scale(1.05);
+  }
+  50% {
+    transform: translateY(-22px) scale(1.15) rotate(-3deg);
+  }
+}
+
+.anim-score-card {
+  animation: scoreBounce 0.48s ease-in-out;
 }
