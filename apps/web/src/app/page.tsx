@@ -27,7 +27,7 @@ import {
 } from "@/lib/game";
 import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay } from "@/lib/web3";
 
-const HAND_SIZE = 8;
+const HAND_SIZE = 7;
 const MAX_SELECT = 5;
 const MAX_JOKER_SLOTS = 5;
 
@@ -470,7 +470,11 @@ export default function HomePage() {
                 <div key={i} className="relative h-[54px] w-[38px] group">
                   <button
                     type="button"
-                    className="relative overflow-hidden rounded-[9px] border-[2.5px] border-[#2a2a2a] h-full w-full"
+                    className={`relative overflow-hidden rounded-[9px] border-[2.5px] h-full w-full ${
+                      oj.def.rarity === "uncommon" ? "joker-shiny border-[#2a2a2a]" :
+                      oj.def.rarity === "rare" ? "joker-rare-metallic" :
+                      oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border-[#2a2a2a]"
+                    }`}
                     style={{ background: "linear-gradient(160deg,#fbf7ec 0%,#f4eee0 60%,#e7ddc6 100%)", boxShadow: "inset 0 2px 0 rgba(255,255,255,0.7),0 6px 10px rgba(0,0,0,0.5)" }}
                     title={`${oj.def.name}: ${oj.def.desc}`}
                   >
@@ -615,10 +619,10 @@ export default function HomePage() {
               </div>
 
               {/* Current Hand Type */}
-              <div className="bg-[#1f2429] rounded-lg p-1.5 flex flex-col items-center border-b-4 border-black/40">
-                <div className="text-[15px] font-pixel mb-1 leading-none">
+              <div className="flex-1 bg-[#1f2429] rounded-lg p-1.5 flex flex-col items-center justify-center border-b-4 border-black/40">
+                <div className="text-[16px] font-pixel mb-1.5 leading-none">
                   <span className="text-white txt-outline">{showHandType || "\u00A0"}</span>
-                  {showHandType && <span className="ml-1 text-xs text-[#6fa8c8]">lvl.{displayLevel}</span>}
+                  {showHandType && <span className="ml-1.5 text-xs text-[#6fa8c8]">lvl.{displayLevel}</span>}
                 </div>
                 <div className="flex w-full gap-1 h-7 items-stretch">
                   <div className="flex-1 bg-[#2b93ff] rounded flex items-center justify-end pr-2 text-base font-pixel-fat shadow-[0_2px_0_#155bb5] border border-black/10">
@@ -627,23 +631,6 @@ export default function HomePage() {
                   <div className="w-4 flex items-center justify-center text-[#f04f4c] font-pixel-fat text-sm">X</div>
                   <div className={`flex-1 bg-[#f04f4c] rounded flex items-center justify-start pl-2 text-base font-pixel-fat shadow-[0_2px_0_#9a1a1e] border border-black/10 transition-transform ${jokerFlash ? "scale-110" : ""}`}>
                     {showMult}
-                  </div>
-                </div>
-              </div>
-
-              {/* Blind Info */}
-              <div className="flex-1 bg-[#4a3b2c] rounded-lg border-b-4 border-[#2d2218] flex flex-col items-center justify-center relative min-h-[58px] pt-4 pb-1">
-                <div className="bg-[#a86510] w-full text-center py-[1px] rounded-t-lg text-[10px] border-b-2 border-black/20 absolute top-0 font-pixel">
-                  {blind.name}
-                </div>
-                <div className="flex items-center gap-1.5 w-full px-1.5">
-                  <BlindToken kind={blind.kind} />
-                  <div className="flex-1 bg-[#2b3035] rounded-[4px] p-0.5 flex flex-col items-center border border-black/30">
-                    <span className="text-[8px] text-gray-300 leading-none">Score at least</span>
-                    <span className="text-sm font-pixel-fat text-[#f04f4c] flex items-center gap-0.5 leading-none mt-0.5">
-                      <span className="text-gray-400 text-xs">✺</span>{blind.target}
-                    </span>
-                    <span className="text-[8px] text-gray-300 leading-none mt-0.5">Reward: <span className="text-[#facc15]">{"$".repeat(blind.reward)}</span></span>
                   </div>
                 </div>
               </div>

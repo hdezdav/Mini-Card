@@ -531,6 +531,48 @@ export const JOKER_DEFS: JokerDef[] = [
       mult: ctx.mult + (ctx.discardsLeft === 0 ? 8 : 0),
     }),
   },
+  {
+    id: 13,
+    name: "Golden Card",
+    rarity: "rare",
+    desc: "+15 Mult and +50 Chips",
+    effect: (ctx) => ({
+      chips: ctx.chips + 50,
+      mult: ctx.mult + 15,
+    }),
+  },
+  {
+    id: 14,
+    name: "Midas Touch",
+    rarity: "rare",
+    desc: "+20 Mult and +20 Chips",
+    effect: (ctx) => ({
+      chips: ctx.chips + 20,
+      mult: ctx.mult + 20,
+    }),
+  },
+  {
+    id: 15,
+    name: "The Prism",
+    rarity: "legendary",
+    desc: "x3.0 Mult",
+    effect: (ctx) => ({
+      chips: ctx.chips,
+      mult: ctx.mult,
+      xMult: 3,
+    }),
+  },
+  {
+    id: 16,
+    name: "Infinity",
+    rarity: "legendary",
+    desc: "+100 Chips and x2.0 Mult",
+    effect: (ctx) => ({
+      chips: ctx.chips + 100,
+      mult: ctx.mult,
+      xMult: 2,
+    }),
+  },
 ];
 
 export function rollShopJokers(owned: OwnedJoker[], count: number): JokerDef[] {

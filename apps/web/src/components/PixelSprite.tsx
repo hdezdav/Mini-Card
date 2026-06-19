@@ -174,6 +174,13 @@ export const JOKER_SPRITE = [
   "..oo......oo..",
 ];
 
-export function JokerArt() {
-  return <PixelSprite rows={JOKER_SPRITE} palette={JOKER_PALETTE} className="h-full w-full pixelated" />;
+export function JokerArt({ className }: { className?: string }) {
+  return (
+    <img
+      src="/assets/cards/JOKER.png"
+      alt="Joker"
+      className={`h-full w-full object-contain pixelated ${className ?? ""}`}
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
 }

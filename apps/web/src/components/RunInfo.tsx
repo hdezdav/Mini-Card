@@ -90,7 +90,11 @@ export function RunInfo({
           <div className="flex flex-col gap-1.5 mb-3">
             {jokers.map((oj, i) => (
               <div key={i} className="panel rounded-lg p-2 flex items-center gap-2">
-                <div className="w-8 h-10 shrink-0 rounded overflow-hidden bg-[#1a1d20] flex items-center justify-center">
+                <div className={`w-8 h-10 shrink-0 rounded overflow-hidden bg-[#1a1d20] flex items-center justify-center relative ${
+                  oj.def.rarity === "uncommon" ? "joker-shiny border border-white/10" :
+                  oj.def.rarity === "rare" ? "joker-rare-metallic" :
+                  oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border border-white/10"
+                }`}>
                   <JokerArt />
                 </div>
                 <div>

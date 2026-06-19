@@ -111,7 +111,11 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
           const alreadyOwned = ownedIds.has(def.id);
           return (
             <div key={def.id} className="panel rounded-lg p-2 flex items-center gap-2">
-              <div className="w-9 h-12 shrink-0 rounded-md overflow-hidden border border-white/20 bg-[#1a1d20] flex items-center justify-center">
+              <div className={`w-9 h-12 shrink-0 rounded-md overflow-hidden border bg-[#1a1d20] flex items-center justify-center relative ${
+                def.rarity === "uncommon" ? "joker-shiny border-white/20" :
+                def.rarity === "rare" ? "joker-rare-metallic" :
+                def.rarity === "legendary" ? "joker-legendary-iridescent" : "border-white/20"
+              }`}>
                 <JokerArt />
               </div>
               <div className="flex-1 min-w-0">
@@ -144,7 +148,11 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
                 className="panel rounded-lg p-1.5 flex flex-col items-center gap-1 w-[60px] text-center hover:brightness-110 active:scale-95 transition-transform"
                 title={`Sell for $${Math.floor(jokerBaseCost(oj.def) / 2)}`}
               >
-                <div className="w-8 h-10 rounded overflow-hidden bg-[#1a1d20] flex items-center justify-center">
+                <div className={`w-8 h-10 rounded overflow-hidden bg-[#1a1d20] flex items-center justify-center relative ${
+                  oj.def.rarity === "uncommon" ? "joker-shiny border border-white/10" :
+                  oj.def.rarity === "rare" ? "joker-rare-metallic" :
+                  oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border border-white/10"
+                }`}>
                   <JokerArt />
                 </div>
                 <div className="font-pixel text-[8px] text-gray-300 leading-none">{oj.def.name}</div>
