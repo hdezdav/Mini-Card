@@ -515,8 +515,253 @@ export default function StatsPage() {
           {t.live[l]}
         </p>
 
-        {/* Web Analytics — always rendered independently of on-chain data */}
-        <div className="relative z-10 mb-6">
+        {loading ? (
+          <div className="flex justify-center py-40 relative z-10">
+            <span className="inline-block w-12 h-12 border-4 border-[#ec4899]/30 border-t-[#ec4899] rounded-full animate-spin" />
+          </div>
+        ) : !stats ? (
+          <div className="text-center font-pixel text-gray-400 py-20 relative z-10">{t.noData[l]}</div>
+        ) : (
+          <div className="flex flex-col gap-6 relative z-10">
+
+            {/* 1. HOY */}
+            <Section title={t.today[l]}>
+              <div className="grid grid-cols-2 gap-2">
+                <Card label="DAU" value={stats.dau} />
+                <Card label={t.gamesToday[l]} value={stats.gamesToday} />
+              </div>
+            </Section>
+
+            {/* 2. JUGADORES */}
+            <Section title={t.players[l]}>
+              <div className="grid grid-cols-3 gap-2">
+                <Card label={t.total[l]} value={fmt(stats.totalPlayers)} />
+                <Card label="WAU" value={stats.wau} sub={t.last7d[l]} />
+                <Card label="MAU" value={stats.mau} sub={t.last30d[l]} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Card label={t.gamesPerPlayer[l]} value={stats.avgGamesPerPlayer} sub={t.average[l]} />
+                <Card label={t.bestStreak[l]} value={stats.topPlayers[0]?.[1] ?? 0} sub={`${stats.topPlayers[0]?.[0]?.slice(0, 6)}...`} />
+              </div>
+              <div className="mt-2 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
+                <div className="grid grid-cols-[1fr_60px] text-[10px] font-pixel text-gray-400 px-3 py-1 border-b border-white/5 bg-white/[0.02]">
+                  <span>{t.player[l]}</span><span className="text-right">{t.gamesCol[l]}</span>
+                </div>
+                {stats.topPlayers.map(([addr, count], i) => (
+                  <div key={addr} className="grid grid-cols-[1fr_60px] text-[11px] font-pixel px-3 py-1 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
+                    <span className="text-gray-300 truncate">{i + 1}. {addr.slice(0, 6)}...{addr.slice(-4)}</span>
+                    <span className="text-right text-white font-pixel-fat">{count}</span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            {/* 3. RETENCIÓN */}
+            <Section title={t.retention[l]}>
+              <div className="bg-black/45 rounded-lg border border-white/5 overflow-hidden">
+                <div className="grid grid-cols-3 text-[10px] font-pixel text-gray-400 px-3 py-1 border-b border-white/5 bg-white/[0.02]">
+                  <span>{t.cohort[l]}</span><span className="text-center">{t.returned[l]}</span><span className="text-right">{t.rate[l]}</span>
+                </div>
+                {[
+                  { label: t.day1to2[l], data: stats.ret1 },
+                  { label: t.day1to7[l], data: stats.ret7 },
+                  { label: t.day1to30[l], data: stats.ret30 },
+                ].map((r) => (
+                  <div key={r.label} className="grid grid-cols-3 text-[11px] font-pixel px-3 py-1.5 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
+                    <span className="text-gray-300">{r.label}</span>
+                    <span className="text-center text-gray-300">{r.data.returned} / {r.data.eligible}</span>
+                    <span className="text-right text-white font-pixel-fat">{fmtPct(r.data.rate)}</span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+
+            {/* 4. JUGADAS */}
+            <Section title={t.games[l]}>
+              <div className="grid grid-cols-3 gap-2">
+                <Card label={t.totalGames[l]} value={fmt(stats.totalGames)} accent />
+                <Card label={t.thisWeek[l]} value={stats.gamesWeek} />
+                <Card label={t.thisMonth[l]} value={stats.gamesMonth} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Card label={t.avgScore[l]} value={stats.avgScore} />
+                <Card label={t.avgRound[l]} value={stats.avgRound} />
+              </div>
+              <div className="mt-3 bg-black/45 rounded-lg border border-white/5 p-3">
+                <div className="font-pixel text-[10px] text-gray-400 mb-2">{t.chart14d[l]}</div>
+                <div className="flex items-end gap-[4px] h-[60px] px-1">
+                  {stats.dailyGames.map((d) => (
+                    <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full group relative">
+                      <div className="w-full rounded-t bg-[#ec4899] min-h-[2px] transition-all hover:bg-[#f472b6] cursor-pointer" style={{ height: `${Math.max(4, (d.count / stats.maxDaily) * 100)}%` }} />
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[8px] font-pixel rounded py-0.5 px-1 whitespace-nowrap z-20">
+                        {d.count}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-[4px] mt-1.5 px-1">
+                  {stats.dailyGames.filter((_, i) => i % 3 === 0 || i === stats.dailyGames.length - 1).map((d) => (
+                    <span key={d.day} className="flex-1 text-[8px] font-pixel text-gray-500 text-center">{d.day}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Distribución de Puntajes */}
+              <div className="mt-3 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
+                <div className="grid grid-cols-[1fr_60px_70px] text-[10px] font-pixel text-gray-400 px-3 py-1 border-b border-white/5 bg-white/[0.02]">
+                  <span>{t.range[l]}</span><span className="text-right">{t.gamesCol[l]}</span><span className="text-right">%</span>
+                </div>
+                {stats.distrib.map((b) => (
+                  <div key={b.label} className="grid grid-cols-[1fr_60px_70px] text-[11px] font-pixel px-3 py-1 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
+                    <span className="text-gray-300">{b.label}</span>
+                    <span className="text-right text-white font-pixel-fat">{b.count}</span>
+                    <span className="text-right text-gray-400">{stats.totalGames > 0 ? fmtPct(b.count / stats.totalGames) : "0%"}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Rondas Alcanzadas */}
+              <div className="mt-3">
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <Card label={t.highestRound[l]} value={stats.maxRound} accent />
+                  <Card label={t.bestScore[l]} value={fmt(stats.bestScore)} sub={`${t.roundLabel[l]} ${stats.bestRound}`} accent />
+                </div>
+                <div className="bg-black/45 rounded-lg border border-white/5 overflow-hidden">
+                  {stats.roundDistrib.map((b) => (
+                    <div key={b.label} className="grid grid-cols-[1fr_60px_70px] text-[11px] font-pixel px-3 py-1 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
+                      <span className="text-gray-300">{b.label}</span>
+                      <span className="text-right text-white font-pixel-fat">{b.count}</span>
+                      <span className="text-right text-gray-400">{stats.totalGames > 0 ? fmtPct(b.count / stats.totalGames) : "0%"}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </Section>
+
+            {/* 5. ECONOMÍA */}
+            <Section title={t.economy[l]}>
+              <div className="grid grid-cols-3 gap-2">
+                <Card label={t.totalRevenue[l]} value={fmtUSDT(stats.totalRevenueUSDT)} accent />
+                <Card label={t.totalPaid[l]} value={fmtUSDT(stats.totalPayoutsUSDT)} />
+                <Card label={t.highestPrize[l]} value={fmtUSDT(stats.highestPrizeUSDT)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Card label={t.treasuryUSDT[l]} value={fmtUSDT(stats.usdtBalanceNum)} />
+                <Card label={t.treasuryCELO[l]} value={fmtCelo(stats.celoBalanceNum)} />
+              </div>
+
+              <div className="mt-2">
+                <Card 
+                  label={t.runway[l]} 
+                  value={stats.runwayDays === Infinity ? t.infinite[l] : `${fmt(Math.round(stats.runwayDays))} ${t.days[l]}`}
+                  sub={t.runwaySub[l]}
+                  accent
+                />
+              </div>
+
+              {/* Runway Per Game */}
+              <div className="mt-3 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
+                <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
+                  <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
+                    {t.perGameLabel[l]}
+                  </span>
+                </div>
+                <table className="w-full text-left font-pixel text-[11px]">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-white/[0.04] bg-black/20">
+                      <th className="px-3 py-1">{t.gameTitle[l]}</th>
+                      <th className="px-3 py-1 text-center">{t.balanceTitle[l]}</th>
+                      <th className="px-3 py-1 text-right">{t.runwayTitle[l]}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-white/[0.02]">
+                      <td className="px-3 py-1.5 text-white font-pixel-fat">MiniCard</td>
+                      <td className="px-3 py-1.5 text-center text-gray-300">
+                        {fmtUSDT(stats.treasuryBalanceUSD)}
+                      </td>
+                      <td className="px-3 py-1.5 text-right text-[#facc15] font-pixel-fat">
+                        {stats.runwayDays === Infinity ? t.infinite[l] : `${fmt(Math.round(stats.runwayDays))} ${t.days[l]}`}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+
+            {/* 6. ON-CHAIN */}
+            <Section title={t.onchain[l]}>
+              <div className="grid grid-cols-2 gap-2">
+                <Card label={t.totalTx[l]} value={fmt(stats.totalTransactions)} />
+                <Card label={t.activeAddresses[l]} value={fmt(stats.activeAddresses)} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Card label={t.playsOnchain[l]} value={fmt(stats.playsRegistered)} />
+                <Card 
+                  label={t.daysOnchain[l]} 
+                  value={stats.daysSinceFirstLeaderboardTx} 
+                  sub={stats.firstTxDateFormatted ? `${t.sinceLabel[l]} ${stats.firstTxDateFormatted}` : ""} 
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Card label={t.usdtInflow[l]} value={fmtUSDT(stats.totalRevenueUSDT)} />
+                <Card label={t.usdtOutflow[l]} value={fmtUSDT(stats.totalPayoutsUSDT)} />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <Card label={t.gasOperator[l]} value={fmtCelo(stats.operatorGasSpentCelo)} sub={fmtUSDT(stats.operatorGasSpentUSD)} />
+                <Card label={t.gasPlayers[l]} value={fmtCelo(stats.playersGasSpentCelo)} sub={fmtUSDT(stats.playersGasSpentUSD)} />
+              </div>
+              <div className="mt-2">
+                <Card label={t.failedTxRate[l]} value={fmtPctDec(stats.failedTxRate)} accent={stats.failedTxRate > 0.05} />
+              </div>
+
+              {/* Transaction Types Table */}
+              <div className="mt-3 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
+                <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
+                  <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
+                    {t.txTableTitle[l]}
+                  </span>
+                </div>
+                <table className="w-full text-left font-pixel text-[11px]">
+                  <thead>
+                    <tr className="text-gray-400 border-b border-white/[0.04] bg-black/20">
+                      <th className="px-3 py-1">{t.txTypeCol[l]}</th>
+                      <th className="px-3 py-1 text-center">{t.txCountCol[l]}</th>
+                      <th className="px-3 py-1 text-right">{t.txPctCol[l]}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.txTypesTable.map((item) => (
+                      <tr key={item.id} className="border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
+                        <td className="px-3 py-1.5 text-gray-300 font-pixel">
+                          {t[item.id as keyof typeof t]?.[l] || item.id}
+                        </td>
+                        <td className="px-3 py-1.5 text-center text-white font-pixel-fat">
+                          {fmt(item.count)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right text-gray-400">
+                          {fmtPctDec(item.pct)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+
+            {/* 7. CONTRATOS */}
+            <Section title={t.contracts[l]}>
+              <ContractRow label="Leaderboard" address={LEADERBOARD_CONTRACT_ADDRESS} />
+              <ContractRow label="USDT (Celo)" address={USDT_ADDRESS} />
+              <ContractRow label={t.operator[l]} address={OPERATOR_ADDRESS} />
+            </Section>
+
+          </div>
+        )}
+
+        {/* 8. ANALÍTICA WEB — siempre visible, independiente de datos on-chain */}
+        <div className="relative z-10 mt-6">
           <Section title={t.webAnalytics[l]}>
             {cfLoading ? (
               <div className="flex items-center justify-center py-8 gap-2">
@@ -530,9 +775,8 @@ export default function StatsPage() {
               </div>
             ) : (
               <>
-                {/* Visitor counts */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <Card label={t.visitors7d[l]}  value={fmt(cfData.visitors7d)} />
+                  <Card label={t.visitors7d[l]} value={fmt(cfData.visitors7d)} />
                   <Card label={t.visitors30d[l]} value={fmt(cfData.visitors30d)} />
                   <Card label={t.monthlySessions[l]} value={fmt(cfData.sessions30d)} />
                   {cfData.visitors30d > 0 && stats && (
@@ -544,10 +788,7 @@ export default function StatsPage() {
                   )}
                 </div>
 
-                {/* Grid: Countries / Devices / Browsers */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-
-                  {/* Countries */}
                   <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
                     <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
                       {t.topCountries[l]}
@@ -565,7 +806,6 @@ export default function StatsPage() {
                     ))}
                   </div>
 
-                  {/* Devices */}
                   <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
                     <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
                       {t.deviceDistrib[l]}
@@ -583,7 +823,6 @@ export default function StatsPage() {
                     ))}
                   </div>
 
-                  {/* Browsers */}
                   <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
                     <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
                       Browsers
@@ -600,271 +839,11 @@ export default function StatsPage() {
                       </div>
                     ))}
                   </div>
-
                 </div>
               </>
             )}
           </Section>
         </div>
-
-        {loading ? (
-          <div className="flex justify-center py-40">
-            <span className="inline-block w-12 h-12 border-4 border-[#ec4899]/30 border-t-[#ec4899] rounded-full animate-spin" />
-          </div>
-        ) : !stats ? (
-          <div className="text-center font-pixel text-gray-400 py-20">{t.noData[l]}</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-            
-            {/* COLUMN 1: ECONOMY & WEB ANALYTICS */}
-            <div className="flex flex-col gap-6">
-              
-              {/* Protocol Economy */}
-              <Section title={t.economy[l]}>
-                <div className="grid grid-cols-3 gap-2">
-                  <Card label={t.totalRevenue[l]} value={fmtUSDT(stats.totalRevenueUSDT)} accent />
-                  <Card label={t.totalPaid[l]} value={fmtUSDT(stats.totalPayoutsUSDT)} />
-                  <Card label={t.highestPrize[l]} value={fmtUSDT(stats.highestPrizeUSDT)} />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Card label={t.treasuryUSDT[l]} value={fmtUSDT(stats.usdtBalanceNum)} />
-                  <Card label={t.treasuryCELO[l]} value={fmtCelo(stats.celoBalanceNum)} />
-                </div>
-
-                <div className="mt-2">
-                  <Card 
-                    label={t.runway[l]} 
-                    value={stats.runwayDays === Infinity ? t.infinite[l] : `${fmt(Math.round(stats.runwayDays))} ${t.days[l]}`}
-                    sub={t.runwaySub[l]}
-                    accent
-                  />
-                </div>
-
-                {/* Runway Per Game */}
-                <div className="mt-3 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
-                  <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
-                    <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
-                      {t.perGameLabel[l]}
-                    </span>
-                  </div>
-                  <table className="w-full text-left font-pixel text-[11px]">
-                    <thead>
-                      <tr className="text-gray-400 border-b border-white/[0.04] bg-black/20">
-                        <th className="px-3 py-1">{t.gameTitle[l]}</th>
-                        <th className="px-3 py-1 text-center">{t.balanceTitle[l]}</th>
-                        <th className="px-3 py-1 text-right">{t.runwayTitle[l]}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-white/[0.02]">
-                        <td className="px-3 py-1.5 text-white font-pixel-fat">MiniCard</td>
-                        <td className="px-3 py-1.5 text-center text-gray-300">
-                          {fmtUSDT(stats.treasuryBalanceUSD)}
-                        </td>
-                        <td className="px-3 py-1.5 text-right text-[#facc15] font-pixel-fat">
-                          {stats.runwayDays === Infinity ? t.infinite[l] : `${fmt(Math.round(stats.runwayDays))} ${t.days[l]}`}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </Section>
-
-              {/* Web Analytics moved above on-chain section — rendered independently */}
-
-            </div>
-
-            {/* COLUMN 2: ON-CHAIN METRICS & PROTOCOL GAMEPLAY STATS */}
-            <div className="flex flex-col gap-6">
-
-              {/* On-chain Metrics */}
-              <Section title={t.onchain[l]}>
-                <div className="grid grid-cols-2 gap-2">
-                  <Card label={t.totalTx[l]} value={fmt(stats.totalTransactions)} />
-                  <Card label={t.activeAddresses[l]} value={fmt(stats.activeAddresses)} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Card label={t.playsOnchain[l]} value={fmt(stats.playsRegistered)} />
-                  <Card 
-                    label={t.daysOnchain[l]} 
-                    value={stats.daysSinceFirstLeaderboardTx} 
-                    sub={stats.firstTxDateFormatted ? `${t.sinceLabel[l]} ${stats.firstTxDateFormatted}` : ""} 
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Card label={t.usdtInflow[l]} value={fmtUSDT(stats.totalRevenueUSDT)} />
-                  <Card label={t.usdtOutflow[l]} value={fmtUSDT(stats.totalPayoutsUSDT)} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Card label={t.gasOperator[l]} value={fmtCelo(stats.operatorGasSpentCelo)} sub={fmtUSDT(stats.operatorGasSpentUSD)} />
-                  <Card label={t.gasPlayers[l]} value={fmtCelo(stats.playersGasSpentCelo)} sub={fmtUSDT(stats.playersGasSpentUSD)} />
-                </div>
-                <div className="mt-2">
-                  <Card label={t.failedTxRate[l]} value={fmtPctDec(stats.failedTxRate)} accent={stats.failedTxRate > 0.05} />
-                </div>
-
-                {/* Transaction Types Table */}
-                <div className="mt-3 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
-                  <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
-                    <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
-                      {t.txTableTitle[l]}
-                    </span>
-                  </div>
-                  <table className="w-full text-left font-pixel text-[11px]">
-                    <thead>
-                      <tr className="text-gray-400 border-b border-white/[0.04] bg-black/20">
-                        <th className="px-3 py-1">{t.txTypeCol[l]}</th>
-                        <th className="px-3 py-1 text-center">{t.txCountCol[l]}</th>
-                        <th className="px-3 py-1 text-right">{t.txPctCol[l]}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.txTypesTable.map((item) => (
-                        <tr key={item.id} className="border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
-                          <td className="px-3 py-1.5 text-gray-300 font-pixel">
-                            {t[item.id as keyof typeof t]?.[l] || item.id}
-                          </td>
-                          <td className="px-3 py-1.5 text-center text-white font-pixel-fat">
-                            {fmt(item.count)}
-                          </td>
-                          <td className="px-3 py-1.5 text-right text-gray-400">
-                            {fmtPctDec(item.pct)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Section>
-
-              {/* Today Gameplay */}
-              <Section title={t.today[l]}>
-                <div className="grid grid-cols-2 gap-2">
-                  <Card label="DAU" value={stats.dau} />
-                  <Card label={t.gamesToday[l]} value={stats.gamesToday} />
-                </div>
-              </Section>
-
-              {/* Players Overall */}
-              <Section title={t.players[l]}>
-                <div className="grid grid-cols-3 gap-2">
-                  <Card label={t.total[l]} value={fmt(stats.totalPlayers)} />
-                  <Card label="WAU" value={stats.wau} sub={t.last7d[l]} />
-                  <Card label="MAU" value={stats.mau} sub={t.last30d[l]} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Card label={t.gamesPerPlayer[l]} value={stats.avgGamesPerPlayer} sub={t.average[l]} />
-                  <Card label={t.bestStreak[l]} value={stats.topPlayers[0]?.[1] ?? 0} sub={`${stats.topPlayers[0]?.[0]?.slice(0, 6)}...`} />
-                </div>
-                <div className="mt-2 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_60px] text-[10px] font-pixel text-gray-400 px-3 py-1 border-b border-white/5 bg-white/[0.02]">
-                    <span>{t.player[l]}</span><span className="text-right">{t.gamesCol[l]}</span>
-                  </div>
-                  {stats.topPlayers.map(([addr, count], i) => (
-                    <div key={addr} className="grid grid-cols-[1fr_60px] text-[11px] font-pixel px-3 py-1 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
-                      <span className="text-gray-300 truncate">{i + 1}. {addr.slice(0, 6)}...{addr.slice(-4)}</span>
-                      <span className="text-right text-white font-pixel-fat">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-
-              {/* Retention */}
-              <Section title={t.retention[l]}>
-                <div className="bg-black/45 rounded-lg border border-white/5 overflow-hidden">
-                  <div className="grid grid-cols-3 text-[10px] font-pixel text-gray-400 px-3 py-1 border-b border-white/5 bg-white/[0.02]">
-                    <span>{t.cohort[l]}</span><span className="text-center">{t.returned[l]}</span><span className="text-right">{t.rate[l]}</span>
-                  </div>
-                  {[
-                    { label: t.day1to2[l], data: stats.ret1 },
-                    { label: t.day1to7[l], data: stats.ret7 },
-                    { label: t.day1to30[l], data: stats.ret30 },
-                  ].map((r) => (
-                    <div key={r.label} className="grid grid-cols-3 text-[11px] font-pixel px-3 py-1.5 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
-                      <span className="text-gray-300">{r.label}</span>
-                      <span className="text-center text-gray-300">{r.data.returned} / {r.data.eligible}</span>
-                      <span className="text-right text-white font-pixel-fat">{fmtPct(r.data.rate)}</span>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-
-              {/* Games Chart */}
-              <Section title={t.games[l]}>
-                <div className="grid grid-cols-3 gap-2">
-                  <Card label={t.totalGames[l]} value={fmt(stats.totalGames)} accent />
-                  <Card label={t.thisWeek[l]} value={stats.gamesWeek} />
-                  <Card label={t.thisMonth[l]} value={stats.gamesMonth} />
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  <Card label={t.avgScore[l]} value={stats.avgScore} />
-                  <Card label={t.avgRound[l]} value={stats.avgRound} />
-                </div>
-                <div className="mt-3 bg-black/45 rounded-lg border border-white/5 p-3">
-                  <div className="font-pixel text-[10px] text-gray-400 mb-2">{t.chart14d[l]}</div>
-                  <div className="flex items-end gap-[4px] h-[60px] px-1">
-                    {stats.dailyGames.map((d) => (
-                      <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                        <div className="w-full rounded-t bg-[#ec4899] min-h-[2px] transition-all hover:bg-[#f472b6] cursor-pointer" style={{ height: `${Math.max(4, (d.count / stats.maxDaily) * 100)}%` }} />
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[8px] font-pixel rounded py-0.5 px-1 whitespace-nowrap z-20">
-                          {d.count}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex gap-[4px] mt-1.5 px-1">
-                    {stats.dailyGames.filter((_, i) => i % 3 === 0 || i === stats.dailyGames.length - 1).map((d) => (
-                      <span key={d.day} className="flex-1 text-[8px] font-pixel text-gray-500 text-center">{d.day}</span>
-                    ))}
-                  </div>
-                </div>
-              </Section>
-
-              {/* Score Distribution */}
-              <Section title={t.scoreDistrib[l]}>
-                <div className="bg-black/45 rounded-lg border border-white/5 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_60px_70px] text-[10px] font-pixel text-gray-400 px-3 py-1 border-b border-white/5 bg-white/[0.02]">
-                    <span>{t.range[l]}</span><span className="text-right">{t.gamesCol[l]}</span><span className="text-right">%</span>
-                  </div>
-                  {stats.distrib.map((b) => (
-                    <div key={b.label} className="grid grid-cols-[1fr_60px_70px] text-[11px] font-pixel px-3 py-1 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
-                      <span className="text-gray-300">{b.label}</span>
-                      <span className="text-right text-white font-pixel-fat">{b.count}</span>
-                      <span className="text-right text-gray-400">{stats.totalGames > 0 ? fmtPct(b.count / stats.totalGames) : "0%"}</span>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-
-              {/* Rounds Reached */}
-              <Section title={t.roundsReached[l]}>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <Card label={t.highestRound[l]} value={stats.maxRound} accent />
-                  <Card label={t.bestScore[l]} value={fmt(stats.bestScore)} sub={`${t.roundLabel[l]} ${stats.bestRound}`} accent />
-                </div>
-                <div className="bg-black/45 rounded-lg border border-white/5 overflow-hidden">
-                  {stats.roundDistrib.map((b) => (
-                    <div key={b.label} className="grid grid-cols-[1fr_60px_70px] text-[11px] font-pixel px-3 py-1 border-b border-white/[0.02] hover:bg-white/[0.01] transition-colors">
-                      <span className="text-gray-300">{b.label}</span>
-                      <span className="text-right text-white font-pixel-fat">{b.count}</span>
-                      <span className="text-right text-gray-400">{stats.totalGames > 0 ? fmtPct(b.count / stats.totalGames) : "0%"}</span>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-
-              {/* Contracts Info */}
-              <Section title={t.contracts[l]}>
-                <ContractRow label="Leaderboard" address={LEADERBOARD_CONTRACT_ADDRESS} />
-                <ContractRow label="USDT (Celo)" address={USDT_ADDRESS} />
-                <ContractRow label={t.operator[l]} address={OPERATOR_ADDRESS} />
-              </Section>
-
-            </div>
-
-          </div>
-        )}
 
         {/* Footer info */}
         <div className="text-center font-pixel text-xs text-gray-500 mt-12 mb-6 relative z-10">
