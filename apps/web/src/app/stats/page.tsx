@@ -206,9 +206,18 @@ export default function StatsPage() {
     fetch("/api/cf-analytics")
       .then((r) => r.json())
       .then((data) => {
-        if (!data.error) setCfData(data);
+        // Set data even if arrays are empty — empty arrays ≠ not configured
+        if (!data.error) {
+          setCfData(data);
+        } else {
+          // API returned an error — set empty shell so UI doesn't show "Setup required"
+          setCfData({ countries: [], devices: [], trafficSources: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
+        }
       })
-      .catch(() => {/* CF analytics unavailable — silently degrade */})
+      .catch(() => {
+        // Network failure — set empty shell
+        setCfData({ countries: [], devices: [], trafficSources: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
+      })
       .finally(() => setCfLoading(false));
   }, []);
 
@@ -578,20 +587,10 @@ export default function StatsPage() {
                     <span className="font-pixel text-[11px] text-gray-500">Loading CF Analytics...</span>
                   </div>
                 ) : !cfData ? (
-                  /* ── Not configured yet ── */
+                  /* ── Network failure ── */
                   <div className="bg-black/40 rounded-lg border border-dashed border-white/10 p-4 text-center flex flex-col gap-2">
-                    <span className="font-pixel-fat text-[12px] text-[#00b4d8]">⚡ Setup required</span>
-                    <p className="font-pixel text-[10px] text-gray-400 leading-relaxed">
-                      Add <code className="text-[#facc15]">CF_ACCOUNT_ID</code>, <code className="text-[#facc15]">CF_API_TOKEN</code> and <code className="text-[#facc15]">CF_SITE_TAG</code> as Worker secrets.
-                    </p>
-                    <a
-                      href="https://dash.cloudflare.com/?to=/:account/web-analytics"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-pixel text-[10px] text-[#ec4899] hover:text-[#f472b6] underline"
-                    >
-                      Enable Web Analytics →
-                    </a>
+                    <span className="font-pixel-fat text-[12px] text-gray-500">📡 Connecting...</span>
+                    <p className="font-pixel text-[10px] text-gray-500 leading-relaxed">Could not reach analytics endpoint.</p>
                   </div>
                 ) : (
                   <>
