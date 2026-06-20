@@ -19,7 +19,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        {/* Cloudflare Web Analytics */}
+        <script
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon='{"token": "66145d087b29488ba523bc4edf037182"}'
+        />
+        {/* End Cloudflare Web Analytics */}
+      </body>
     </html>
   );
 }

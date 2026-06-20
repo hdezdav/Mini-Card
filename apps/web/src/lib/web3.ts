@@ -264,11 +264,11 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
       timestamp: Number(entry.timestamp),
     }));
 
-    // Keep only the latest score entry for each player address
+    // Keep only the highest score entry for each player address (matches personalBest on-chain)
     const uniqueMap: Record<string, LeaderboardEntry & { timestamp?: number }> = {};
     for (const entry of mapped) {
       const playerKey = entry.address.toLowerCase();
-      if (!uniqueMap[playerKey] || (entry.timestamp && entry.timestamp > (uniqueMap[playerKey].timestamp || 0))) {
+      if (!uniqueMap[playerKey] || entry.score > uniqueMap[playerKey].score) {
         uniqueMap[playerKey] = entry;
       }
     }
@@ -398,10 +398,10 @@ export async function registerUsernameToCelo(username: string): Promise<boolean>
   }
 }
 
-// ─── Reroll Payment ($0.01 cUSD) ───
+// ─── Reroll Payment ($0.01 USDm) ───
 
 /**
- * Pays $0.01 cUSD to reroll shop offers.
+ * Pays $0.01 USDm (USDT) to reroll shop offers.
  * Inside MiniPay this opens the native payment confirmation.
  * If no wallet is present (guest mode), returns true for free reroll.
  */

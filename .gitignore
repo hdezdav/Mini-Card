@@ -9,6 +9,8 @@ out
 
 # Environment variables
 .env*.local
+.env
+contracts/.env
 
 # Debug logs
 npm-debug.log*
