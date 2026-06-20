@@ -27,6 +27,7 @@ import {
   shuffle,
 } from "@/lib/game";
 import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay } from "@/lib/web3";
+import { trackEvent } from "@/lib/analytics";
 
 const HAND_SIZE = 7;
 const MAX_SELECT = 5;
@@ -82,11 +83,18 @@ export default function HomePage() {
 
   // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
   useEffect(() => {
+    trackEvent("pageview");
+    trackEvent("play_initiated"); // Track first play initiation on page load
+
     const nav = navigator.language || (navigator as any).userLanguage || "en";
     setLang(nav.toLowerCase().startsWith("es") ? "es" : "en");
 
     autoConnect().then((addr) => {
+      const isRealWallet = addr && !addr.startsWith("0xceloGuest");
       setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
+      if (isRealWallet) {
+        trackEvent("wallet_connected", { address: addr });
+      }
     });
     setDetectedMiniPay(isMiniPay());
 
@@ -225,6 +233,7 @@ export default function HomePage() {
           clearInterval(timer);
           setPhase("lost");
           saveScore(roundScore);
+          trackEvent("play_completed", { score: roundScore, round });
           const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
           localStorage.setItem("minicard_cooldown_end", String(endCooldown));
           setCooldownEnd(endCooldown);
@@ -396,6 +405,7 @@ export default function HomePage() {
     } else if (newHands <= 0) {
       setPhase("lost");
       saveScore(end);
+      trackEvent("play_completed", { score: end, round });
       const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
       localStorage.setItem("minicard_cooldown_end", String(endCooldown));
       setCooldownEnd(endCooldown);
@@ -432,6 +442,7 @@ export default function HomePage() {
     setOwnedJokers([]);
     levels.current = {};
     startRound();
+    trackEvent("play_initiated");
   };
 
   const handleFreeRestart = () => {

@@ -31,3 +31,11 @@ yarn-error.log*
 # AI Agents
 .agents
 
+# Cloudflare & Wrangler local state
+.wrangler
+.dev.vars*
+
+# Vercel / Next-on-pages build outputs
+.vercel
+
+
