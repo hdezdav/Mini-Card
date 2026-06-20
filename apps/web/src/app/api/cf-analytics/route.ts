@@ -8,7 +8,7 @@ export const runtime = "edge";
 
 const CF_GQL = "https://api.cloudflare.com/client/v4/graphql";
 // Public beacon token — same as the JS snippet, safe to hardcode
-const CF_SITE_TAG = "66145d087b29488ba523bc4edf037182";
+const CF_SITE_TAG = process.env.CF_SITE_TAG || process.env.NEXT_PUBLIC_CF_SITE_TAG || "797ddb8d03954767898daee659caa8de";
 
 /**
  * Build a date string N days ago in YYYY-MM-DD format.
