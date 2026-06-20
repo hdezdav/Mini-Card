@@ -7,12 +7,11 @@
 export const runtime = "edge";
 
 const CF_GQL = "https://api.cloudflare.com/client/v4/graphql";
-// Public beacon token — same as the JS snippet, safe to hardcode
-const CF_SITE_TAG = process.env.CF_SITE_TAG || process.env.NEXT_PUBLIC_CF_SITE_TAG || "797ddb8d03954767898daee659caa8de";
+const CF_SITE_TAG =
+  process.env.CF_SITE_TAG ||
+  process.env.NEXT_PUBLIC_CF_SITE_TAG ||
+  "797ddb8d03954767898daee659caa8de";
 
-/**
- * Build a date string N days ago in YYYY-MM-DD format.
- */
 function daysAgoDate(n: number): string {
   const d = new Date(Date.now() - n * 86_400_000);
   return d.toISOString().slice(0, 10);
@@ -20,8 +19,8 @@ function daysAgoDate(n: number): string {
 
 export async function GET() {
   const accountId = process.env.CF_ACCOUNT_ID;
-  const apiToken  = process.env.CF_API_TOKEN;
-  const siteTag   = CF_SITE_TAG;
+  const apiToken = process.env.CF_API_TOKEN;
+  const siteTag = CF_SITE_TAG;
 
   if (!accountId || !apiToken) {
     return Response.json(
@@ -30,10 +29,11 @@ export async function GET() {
     );
   }
 
-  const startDate = daysAgoDate(30);
+  const start30d = daysAgoDate(30);
+  const start7d = daysAgoDate(7);
   const endDate = daysAgoDate(0);
 
-  // ── Countries (top 10) ──────────────────────────────────────────────────────
+  // ── Countries (top 10, 30d) ──────────────────────────────────────────────
   const countriesQuery = `
     query CountriesQuery($accountId: String!, $siteTag: String!, $start: Date!, $end: Date!) {
       viewer {
@@ -44,6 +44,7 @@ export async function GET() {
             orderBy: [count_DESC]
           ) {
             count
+            sum { visits }
             dimensions { countryName }
           }
         }
@@ -51,7 +52,7 @@ export async function GET() {
     }
   `;
 
-  // ── Devices (top 5) ─────────────────────────────────────────────────────────
+  // ── Devices (top 5, 30d) ─────────────────────────────────────────────────
   const devicesQuery = `
     query DevicesQuery($accountId: String!, $siteTag: String!, $start: Date!, $end: Date!) {
       viewer {
@@ -62,6 +63,7 @@ export async function GET() {
             orderBy: [count_DESC]
           ) {
             count
+            sum { visits }
             dimensions { deviceType }
           }
         }
@@ -69,7 +71,7 @@ export async function GET() {
     }
   `;
 
-  // ── Referrers / Traffic Sources (top 10) ────────────────────────────────────
+  // ── Referrers / Traffic Sources (top 10, 30d) ────────────────────────────
   const referrersQuery = `
     query ReferrersQuery($accountId: String!, $siteTag: String!, $start: Date!, $end: Date!) {
       viewer {
@@ -80,6 +82,7 @@ export async function GET() {
             orderBy: [count_DESC]
           ) {
             count
+            sum { visits }
             dimensions { refererHost }
           }
         }
@@ -87,25 +90,22 @@ export async function GET() {
     }
   `;
 
-  // ── Total visitors (7d and 30d) ──────────────────────────────────────────────
-  const visitorsQuery = `
-    query VisitorsQuery($accountId: String!, $siteTag: String!, $start: Date!, $end: Date!) {
+  // ── Total visits (30d) ───────────────────────────────────────────────────
+  const totalVisitsQuery = `
+    query TotalVisitsQuery($accountId: String!, $siteTag: String!, $start: Date!, $end: Date!) {
       viewer {
         accounts(filter: { accountTag: $accountId }) {
           rumPageloadEventsAdaptiveGroups(
             filter: { AND: [{ siteTag: $siteTag }, { date_geq: $start }, { date_leq: $end }] }
-            limit: 1
+            limit: 1000
           ) {
+            count
             sum { visits }
-            uniq { uniques }
           }
         }
       }
     }
   `;
-
-  const vars30d = { accountId, siteTag, start: startDate, end: endDate };
-  const vars7d  = { accountId, siteTag, start: daysAgoDate(7), end: endDate };
 
   async function gql(query: string, variables: Record<string, string>) {
     const res = await fetch(CF_GQL, {
@@ -117,69 +117,76 @@ export async function GET() {
       body: JSON.stringify({ query, variables }),
     });
     if (!res.ok) throw new Error(`CF GraphQL ${res.status}: ${await res.text()}`);
-    return res.json() as Promise<any>;
+    const json = await res.json() as any;
+    if (json.errors?.length) {
+      throw new Error(`CF GraphQL error: ${json.errors[0]?.message}`);
+    }
+    return json;
   }
 
   try {
-    const [countriesRes, devicesRes, referrersRes, visitors30dRes, visitors7dRes] =
+    const vars30d = { accountId, siteTag, start: start30d, end: endDate };
+    const vars7d  = { accountId, siteTag, start: start7d,  end: endDate };
+
+    const [countriesRes, devicesRes, referrersRes, total30dRes, total7dRes] =
       await Promise.all([
-        gql(countriesQuery, vars30d),
-        gql(devicesQuery, vars30d),
-        gql(referrersQuery, vars30d),
-        gql(visitorsQuery, vars30d),
-        gql(visitorsQuery, vars7d),
+        gql(countriesQuery,    vars30d),
+        gql(devicesQuery,      vars30d),
+        gql(referrersQuery,    vars30d),
+        gql(totalVisitsQuery,  vars30d),
+        gql(totalVisitsQuery,  vars7d),
       ]);
 
     // Parse countries
     const countryGroups: any[] =
       countriesRes?.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups ?? [];
-    const totalCountryHits = countryGroups.reduce((s: number, g: any) => s + (g.count ?? 0), 0);
+    const totalCountryVisits = countryGroups.reduce((s: number, g: any) => s + (g.sum?.visits ?? g.count ?? 0), 0);
     const countries = countryGroups
       .filter((g: any) => g.dimensions?.countryName)
       .map((g: any) => ({
         name: g.dimensions.countryName as string,
-        count: g.count as number,
-        pct: totalCountryHits > 0 ? (g.count as number) / totalCountryHits : 0,
+        count: (g.sum?.visits ?? g.count) as number,
+        pct: totalCountryVisits > 0 ? ((g.sum?.visits ?? g.count) as number) / totalCountryVisits : 0,
       }));
 
     // Parse devices
     const deviceGroups: any[] =
       devicesRes?.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups ?? [];
-    const totalDeviceHits = deviceGroups.reduce((s: number, g: any) => s + (g.count ?? 0), 0);
+    const totalDeviceVisits = deviceGroups.reduce((s: number, g: any) => s + (g.sum?.visits ?? g.count ?? 0), 0);
     const devices = deviceGroups
       .filter((g: any) => g.dimensions?.deviceType)
       .map((g: any) => ({
         name: g.dimensions.deviceType as string,
-        count: g.count as number,
-        pct: totalDeviceHits > 0 ? (g.count as number) / totalDeviceHits : 0,
+        count: (g.sum?.visits ?? g.count) as number,
+        pct: totalDeviceVisits > 0 ? ((g.sum?.visits ?? g.count) as number) / totalDeviceVisits : 0,
       }));
 
     // Parse referrers
     const refGroups: any[] =
       referrersRes?.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups ?? [];
-    const totalRefHits = refGroups.reduce((s: number, g: any) => s + (g.count ?? 0), 0);
+    const totalRefVisits = refGroups.reduce((s: number, g: any) => s + (g.sum?.visits ?? g.count ?? 0), 0);
     const trafficSources = refGroups
       .map((g: any) => ({
         name: (g.dimensions?.refererHost as string) || "Direct",
-        count: g.count as number,
-        pct: totalRefHits > 0 ? (g.count as number) / totalRefHits : 0,
+        count: (g.sum?.visits ?? g.count) as number,
+        pct: totalRefVisits > 0 ? ((g.sum?.visits ?? g.count) as number) / totalRefVisits : 0,
       }));
 
-    // Parse visitor totals
+    // Parse totals
     const v30groups: any[] =
-      visitors30dRes?.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups ?? [];
+      total30dRes?.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups ?? [];
     const v7groups: any[] =
-      visitors7dRes?.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups ?? [];
+      total7dRes?.data?.viewer?.accounts?.[0]?.rumPageloadEventsAdaptiveGroups ?? [];
 
-    const visitors30d: number = v30groups.reduce((s: number, g: any) => s + (g.uniq?.uniques ?? 0), 0);
+    const visitors30d: number = v30groups.reduce((s: number, g: any) => s + (g.count ?? 0), 0);
     const sessions30d: number = v30groups.reduce((s: number, g: any) => s + (g.sum?.visits ?? 0), 0);
-    const visitors7d: number  = v7groups.reduce((s: number, g: any) => s + (g.uniq?.uniques ?? 0), 0);
+    const visitors7d:  number = v7groups.reduce((s: number, g: any) => s + (g.count ?? 0), 0);
 
     return Response.json(
       { countries, devices, trafficSources, visitors30d, visitors7d, sessions30d },
       {
         headers: {
-          // Cache for 5 minutes at the edge — fresh enough, saves API calls
+          // Cache 5 min at the edge
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",
         },
       }
