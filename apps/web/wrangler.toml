@@ -2,3 +2,8 @@ name = "minicard"
 pages_build_output_dir = ".vercel/output/static"
 compatibility_flags = ["nodejs_compat"]
 compatibility_date = "2024-05-02"
+
+[vars]
+CF_ACCOUNT_ID = "b0e89e27389f0291087d80c7da96ac90"
+CF_API_TOKEN = "cfut_Q5KhqAehwlKorYqiXWArltrOPktglQgfp6CQqLdqa55b93fd"
+

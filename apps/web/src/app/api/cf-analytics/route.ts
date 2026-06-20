@@ -19,16 +19,9 @@ function daysAgoDate(n: number): string {
 }
 
 export async function GET() {
-  const accountId = process.env.CF_ACCOUNT_ID;
-  const apiToken  = process.env.CF_API_TOKEN;
+  const accountId = "b0e89e27389f0291087d80c7da96ac90";
+  const apiToken  = "cfut_Q5KhqAehwlKorYqiXWArltrOPktglQgfp6CQqLdqa55b93fd";
   const siteTag   = CF_SITE_TAG;
-
-  if (!accountId || !apiToken) {
-    return Response.json(
-      { error: "CF_ACCOUNT_ID and CF_API_TOKEN Worker secrets are required" },
-      { status: 500 }
-    );
-  }
 
   const startDate = daysAgoDate(30);
   const endDate = daysAgoDate(0);
