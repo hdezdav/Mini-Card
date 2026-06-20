@@ -515,6 +515,98 @@ export default function StatsPage() {
           {t.live[l]}
         </p>
 
+        {/* Web Analytics — always rendered independently of on-chain data */}
+        <div className="relative z-10 mb-6">
+          <Section title={t.webAnalytics[l]}>
+            {cfLoading ? (
+              <div className="flex items-center justify-center py-8 gap-2">
+                <span className="inline-block w-4 h-4 border-2 border-[#00b4d8]/30 border-t-[#00b4d8] rounded-full animate-spin" />
+                <span className="font-pixel text-[11px] text-gray-500">Loading CF Analytics...</span>
+              </div>
+            ) : !cfData ? (
+              <div className="bg-black/40 rounded-lg border border-dashed border-white/10 p-4 text-center flex flex-col gap-2">
+                <span className="font-pixel-fat text-[12px] text-gray-500">📡 Connecting...</span>
+                <p className="font-pixel text-[10px] text-gray-500 leading-relaxed">Could not reach analytics endpoint.</p>
+              </div>
+            ) : (
+              <>
+                {/* Visitor counts */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <Card label={t.visitors7d[l]}  value={fmt(cfData.visitors7d)} />
+                  <Card label={t.visitors30d[l]} value={fmt(cfData.visitors30d)} />
+                  <Card label={t.monthlySessions[l]} value={fmt(cfData.sessions30d)} />
+                  {cfData.visitors30d > 0 && stats && (
+                    <Card
+                      label={t.walletConnRate[l]}
+                      value={fmtPctDec(stats.activeAddresses / cfData.visitors30d)}
+                      accent
+                    />
+                  )}
+                </div>
+
+                {/* Grid: Countries / Devices / Browsers */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+
+                  {/* Countries */}
+                  <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
+                    <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
+                      {t.topCountries[l]}
+                    </span>
+                    {cfData.countries.slice(0, 6).map(c => (
+                      <div key={c.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400 truncate">{c.name}</span>
+                          <span className="text-white font-pixel-fat">{fmtPct(c.pct)}</span>
+                        </div>
+                        <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
+                          <div className="bg-[#facc15] h-full rounded" style={{ width: `${c.pct * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Devices */}
+                  <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
+                    <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
+                      {t.deviceDistrib[l]}
+                    </span>
+                    {cfData.devices.map(d => (
+                      <div key={d.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400 truncate">{d.name}</span>
+                          <span className="text-white font-pixel-fat">{fmtPct(d.pct)}</span>
+                        </div>
+                        <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
+                          <div className="bg-[#00b4d8] h-full rounded" style={{ width: `${d.pct * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Browsers */}
+                  <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
+                    <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
+                      Browsers
+                    </span>
+                    {(cfData as any).browsers?.slice(0, 5).map((b: any) => (
+                      <div key={b.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
+                        <div className="flex justify-between">
+                          <span className="text-gray-400 truncate">{b.name}</span>
+                          <span className="text-white font-pixel-fat">{fmtPct(b.pct)}</span>
+                        </div>
+                        <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
+                          <div className="bg-[#ec4899] h-full rounded" style={{ width: `${b.pct * 100}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              </>
+            )}
+          </Section>
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-40">
             <span className="inline-block w-12 h-12 border-4 border-[#ec4899]/30 border-t-[#ec4899] rounded-full animate-spin" />
@@ -579,164 +671,8 @@ export default function StatsPage() {
                 </div>
               </Section>
 
-              {/* Web Analytics — powered by Cloudflare Web Analytics (real data) */}
-              <Section title={t.webAnalytics[l]}>
-                {cfLoading ? (
-                  <div className="flex items-center justify-center py-8 gap-2">
-                    <span className="inline-block w-4 h-4 border-2 border-[#00b4d8]/30 border-t-[#00b4d8] rounded-full animate-spin" />
-                    <span className="font-pixel text-[11px] text-gray-500">Loading CF Analytics...</span>
-                  </div>
-                ) : !cfData ? (
-                  /* ── Network failure ── */
-                  <div className="bg-black/40 rounded-lg border border-dashed border-white/10 p-4 text-center flex flex-col gap-2">
-                    <span className="font-pixel-fat text-[12px] text-gray-500">📡 Connecting...</span>
-                    <p className="font-pixel text-[10px] text-gray-500 leading-relaxed">Could not reach analytics endpoint.</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Visitor counts */}
-                    <div className="grid grid-cols-3 gap-2">
-                      <Card label={t.visitors7d[l]}  value={fmt(cfData.visitors7d)} />
-                      <Card label={t.visitors30d[l]} value={fmt(cfData.visitors30d)} />
-                      <Card label={t.monthlySessions[l]} value={fmt(cfData.sessions30d)} />
-                    </div>
+              {/* Web Analytics moved above on-chain section — rendered independently */}
 
-                    {/* Wallet connect rate (on-chain / CF visitors) */}
-                    {cfData.visitors30d > 0 && (
-                      <div className="mt-2">
-                        <Card
-                          label={t.walletConnRate[l]}
-                          value={fmtPctDec(stats ? stats.activeAddresses / cfData.visitors30d : 0)}
-                          accent
-                        />
-                      </div>
-                    )}
-
-                    {/* Conversion Funnel */}
-                    {cfData.funnel && (
-                      <div className="mt-4 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
-                        <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
-                          <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
-                            {t.conversionFunnel[l]} ({t.last30d[l]})
-                          </span>
-                        </div>
-                        <div className="p-3 flex flex-col gap-3 font-pixel text-[11px]">
-                          {/* Step 1: Visitors */}
-                          <div className="flex flex-col gap-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">{t.funnelVisitor[l]}</span>
-                              <span className="text-white font-pixel-fat">
-                                {fmt(cfData.funnel.visitors)} (100%)
-                              </span>
-                            </div>
-                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
-                              <div className="bg-[#00b4d8] h-full rounded" style={{ width: "100%" }} />
-                            </div>
-                          </div>
-
-                          {/* Step 2: Wallet Connected */}
-                          <div className="flex flex-col gap-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">{t.funnelWallet[l]}</span>
-                              <span className="text-white font-pixel-fat">
-                                {fmt(cfData.funnel.walletConnected)} ({cfData.funnel.visitors > 0 ? fmtPct(cfData.funnel.walletConnected / cfData.funnel.visitors) : "0%"})
-                              </span>
-                            </div>
-                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
-                              <div className="bg-[#facc15] h-full rounded" style={{ width: `${cfData.funnel.visitors > 0 ? (cfData.funnel.walletConnected / cfData.funnel.visitors) * 100 : 0}%` }} />
-                            </div>
-                          </div>
-
-                          {/* Step 3: Play Initiated */}
-                          <div className="flex flex-col gap-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">{t.funnelPlayInit[l]}</span>
-                              <span className="text-white font-pixel-fat">
-                                {fmt(cfData.funnel.playInitiated)} ({cfData.funnel.visitors > 0 ? fmtPct(cfData.funnel.playInitiated / cfData.funnel.visitors) : "0%"})
-                              </span>
-                            </div>
-                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
-                              <div className="bg-[#ec4899] h-full rounded" style={{ width: `${cfData.funnel.visitors > 0 ? (cfData.funnel.playInitiated / cfData.funnel.visitors) * 100 : 0}%` }} />
-                            </div>
-                          </div>
-
-                          {/* Step 4: Play Completed */}
-                          <div className="flex flex-col gap-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400">{t.funnelPlayDone[l]}</span>
-                              <span className="text-white font-pixel-fat">
-                                {fmt(cfData.funnel.playCompleted)} ({cfData.funnel.visitors > 0 ? fmtPct(cfData.funnel.playCompleted / cfData.funnel.visitors) : "0%"})
-                              </span>
-                            </div>
-                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
-                              <div className="bg-[#38d08f] h-full rounded" style={{ width: `${cfData.funnel.visitors > 0 ? (cfData.funnel.playCompleted / cfData.funnel.visitors) * 100 : 0}%` }} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Grid: Countries / Devices / Traffic sources */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-
-                      {/* Countries */}
-                      <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
-                        <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
-                          {t.topCountries[l]}
-                        </span>
-                        {cfData.countries.slice(0, 6).map(c => (
-                          <div key={c.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400 truncate">{c.name}</span>
-                              <span className="text-white font-pixel-fat">{fmtPct(c.pct)}</span>
-                            </div>
-                            <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
-                              <div className="bg-[#facc15] h-full rounded" style={{ width: `${c.pct * 100}%` }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Devices */}
-                      <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
-                        <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
-                          {t.deviceDistrib[l]}
-                        </span>
-                        {cfData.devices.map(d => (
-                          <div key={d.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400 truncate">{d.name}</span>
-                              <span className="text-white font-pixel-fat">{fmtPct(d.pct)}</span>
-                            </div>
-                            <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
-                              <div className="bg-[#00b4d8] h-full rounded" style={{ width: `${d.pct * 100}%` }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Traffic Sources */}
-                      <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
-                        <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
-                          {t.topTraffic[l]}
-                        </span>
-                        {cfData.trafficSources.slice(0, 5).map(s => (
-                          <div key={s.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
-                            <div className="flex justify-between">
-                              <span className="text-gray-400 truncate">{s.name || "Direct"}</span>
-                              <span className="text-white font-pixel-fat">{fmtPct(s.pct)}</span>
-                            </div>
-                            <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
-                              <div className="bg-[#ec4899] h-full rounded" style={{ width: `${s.pct * 100}%` }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                    </div>
-                  </>
-                )}
-              </Section>
             </div>
 
             {/* COLUMN 2: ON-CHAIN METRICS & PROTOCOL GAMEPLAY STATS */}
