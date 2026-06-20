@@ -192,6 +192,12 @@ export default function StatsPage() {
     visitors30d: number;
     visitors7d:  number;
     sessions30d: number;
+    funnel?: {
+      visitors: number;
+      walletConnected: number;
+      playInitiated: number;
+      playCompleted: number;
+    };
   } | null>(null);
   const [cfLoading, setCfLoading] = useState(true);
 
@@ -604,6 +610,70 @@ export default function StatsPage() {
                           value={fmtPctDec(stats ? stats.activeAddresses / cfData.visitors30d : 0)}
                           accent
                         />
+                      </div>
+                    )}
+
+                    {/* Conversion Funnel */}
+                    {cfData.funnel && (
+                      <div className="mt-4 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
+                        <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
+                          <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
+                            {t.conversionFunnel[l]} ({t.last30d[l]})
+                          </span>
+                        </div>
+                        <div className="p-3 flex flex-col gap-3 font-pixel text-[11px]">
+                          {/* Step 1: Visitors */}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">{t.funnelVisitor[l]}</span>
+                              <span className="text-white font-pixel-fat">
+                                {fmt(cfData.funnel.visitors)} (100%)
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
+                              <div className="bg-[#00b4d8] h-full rounded" style={{ width: "100%" }} />
+                            </div>
+                          </div>
+
+                          {/* Step 2: Wallet Connected */}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">{t.funnelWallet[l]}</span>
+                              <span className="text-white font-pixel-fat">
+                                {fmt(cfData.funnel.walletConnected)} ({cfData.funnel.visitors > 0 ? fmtPct(cfData.funnel.walletConnected / cfData.funnel.visitors) : "0%"})
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
+                              <div className="bg-[#facc15] h-full rounded" style={{ width: `${cfData.funnel.visitors > 0 ? (cfData.funnel.walletConnected / cfData.funnel.visitors) * 100 : 0}%` }} />
+                            </div>
+                          </div>
+
+                          {/* Step 3: Play Initiated */}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">{t.funnelPlayInit[l]}</span>
+                              <span className="text-white font-pixel-fat">
+                                {fmt(cfData.funnel.playInitiated)} ({cfData.funnel.visitors > 0 ? fmtPct(cfData.funnel.playInitiated / cfData.funnel.visitors) : "0%"})
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
+                              <div className="bg-[#ec4899] h-full rounded" style={{ width: `${cfData.funnel.visitors > 0 ? (cfData.funnel.playInitiated / cfData.funnel.visitors) * 100 : 0}%` }} />
+                            </div>
+                          </div>
+
+                          {/* Step 4: Play Completed */}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">{t.funnelPlayDone[l]}</span>
+                              <span className="text-white font-pixel-fat">
+                                {fmt(cfData.funnel.playCompleted)} ({cfData.funnel.visitors > 0 ? fmtPct(cfData.funnel.playCompleted / cfData.funnel.visitors) : "0%"})
+                              </span>
+                            </div>
+                            <div className="w-full bg-white/[0.03] h-2.5 rounded overflow-hidden">
+                              <div className="bg-[#38d08f] h-full rounded" style={{ width: `${cfData.funnel.visitors > 0 ? (cfData.funnel.playCompleted / cfData.funnel.visitors) * 100 : 0}%` }} />
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
 
