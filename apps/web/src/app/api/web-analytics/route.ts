@@ -5,6 +5,56 @@ export const runtime = "edge";
 // Cache project ID in memory to avoid fetching it on every request
 let cachedProjectId: string | number | null = null;
 
+// Resolve the numeric project id that the HogQL query endpoint expects
+// (/api/projects/{id}/query/). We match the project whose api_token equals the
+// public project token the client SDK uses, so we always query the project that
+// is actually receiving events — regardless of which project is "active" for the
+// personal API key (which may belong to multiple orgs/projects).
+async function resolveProjectId(
+  personalApiKey: string,
+  queryHost: string,
+  publicToken: string | undefined
+): Promise<number> {
+  const meRes = await fetch(`${queryHost}/api/users/@me/`, {
+    headers: { Authorization: `Bearer ${personalApiKey}` },
+  });
+  if (!meRes.ok) {
+    const errText = await meRes.text();
+    throw new Error(`Failed to resolve Project ID from PostHog @me endpoint (${meRes.status}): ${errText}`);
+  }
+  const me: any = await meRes.json();
+
+  // Collect every project-like object we can see in the @me response.
+  const candidates: any[] = [];
+  if (me.team) candidates.push(me.team);
+  if (Array.isArray(me.organization?.projects)) candidates.push(...me.organization.projects);
+  if (Array.isArray(me.organization?.teams)) candidates.push(...me.organization.teams);
+  if (Array.isArray(me.projects)) candidates.push(...me.projects);
+
+  // If we have a public token, prefer the project that matches it.
+  if (publicToken) {
+    const match = candidates.find((p) => p?.api_token === publicToken);
+    if (match?.id != null) return Number(match.id);
+  }
+
+  // Fallback: the currently active team (previous behavior), only if it matches
+  // the public token or we have no token to compare against.
+  if (me.team?.id != null && (!publicToken || me.team.api_token === publicToken)) {
+    return Number(me.team.id);
+  }
+
+  // Last resort: if the personal key only sees one project, use it.
+  if (candidates.length === 1 && candidates[0]?.id != null) {
+    return Number(candidates[0].id);
+  }
+
+  throw new Error(
+    publicToken
+      ? `No PostHog project matched the public token (${publicToken}). Check that the personal API key has access to that project.`
+      : "Could not resolve a PostHog project. Set POSTHOG_PROJECT_ID or NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN."
+  );
+}
+
 export async function GET(req: NextRequest) {
   const personalApiKey = process.env.POSTHOG_PERSONAL_API_KEY;
   let projectId = process.env.POSTHOG_PROJECT_ID || cachedProjectId;
@@ -48,29 +98,13 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // If projectId is still not resolved, fetch it from PostHog @me endpoint
+    // If projectId is still not resolved, derive it from the public token so we
+    // always query the SAME project the client SDK is capturing into — instead of
+    // blindly trusting whichever project happens to be "active" for the personal key.
     if (!projectId) {
-      const meUrl = `${queryHost}/api/users/@me/`;
-      const meRes = await fetch(meUrl, {
-        headers: {
-          "Authorization": `Bearer ${personalApiKey}`,
-        },
-      });
-
-      if (!meRes.ok) {
-        const errText = await meRes.text();
-        throw new Error(`Failed to resolve Project ID from PostHog @me endpoint (${meRes.status}): ${errText}`);
-      }
-
-      const meData = await meRes.json();
-      const resolvedId = meData.team?.id;
-
-      if (!resolvedId) {
-        throw new Error("Could not find a project/team associated with the provided Personal API Key.");
-      }
-
-      projectId = resolvedId;
-      cachedProjectId = resolvedId; // Cache it
+      const publicToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
+      projectId = await resolveProjectId(personalApiKey, queryHost, publicToken);
+      cachedProjectId = projectId;
     }
 
     const runHogQL = async (sql: string) => {
@@ -141,6 +175,12 @@ export async function GET(req: NextRequest) {
       visitors30d,
       visitors7d,
       sessions30d,
+      // Surface an empty-project hint so the UI can tell "no data yet" apart from
+      // "misconfigured" — avoids the current confusion where zeros look like demo mode.
+      note:
+        visitors30d === 0 && visitors7d === 0 && sessions30d === 0
+          ? "No events found in the last 30 days for the resolved project."
+          : undefined,
     }, {
       headers: {
         "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60",

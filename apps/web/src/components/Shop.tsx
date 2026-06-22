@@ -1,5 +1,5 @@
 "use client";
-import { JOKER_DEFS, jokerBaseCost, type OwnedJoker, type JokerDef } from "@/lib/game";
+import { jokerBaseCost, jokerConflictsWith, rollShopJokersWeighted, type OwnedJoker, type JokerDef } from "@/lib/game";
 import { JokerArt } from "@/components/PixelSprite";
 import { GbaBackground } from "./GbaBackground";
 import { useState, useCallback } from "react";
@@ -12,22 +12,14 @@ const RARITY_COLOR: Record<string, string> = {
   legendary: "#9b59b6",
 };
 
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function getOffers(excludeIds: Set<number>): JokerDef[] {
-  return shuffle(JOKER_DEFS.filter((j) => !excludeIds.has(j.id))).slice(0, 3);
+function getOffers(owned: OwnedJoker[], ante: number): JokerDef[] {
+  return rollShopJokersWeighted(owned, 3, ante);
 }
 
 interface ShopProps {
   money: number;
   ownedJokers: OwnedJoker[];
+  ante: number;
   onBuy: (def: JokerDef) => void;
   onSell: (idx: number) => void;
   onClose: () => void;
@@ -35,9 +27,9 @@ interface ShopProps {
 
 type RerollState = "idle" | "pending" | "error" | "success";
 
-export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) {
+export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose }: ShopProps) {
   const ownedIds = new Set(ownedJokers.map((j) => j.def.id));
-  const [offers, setOffers] = useState<JokerDef[]>(() => getOffers(ownedIds));
+  const [offers, setOffers] = useState<JokerDef[]>(() => getOffers(ownedJokers, ante));
   const [rerollState, setRerollState] = useState<RerollState>("idle");
   const [rerollCount, setRerollCount] = useState(0);
 
@@ -53,13 +45,12 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
       return;
     }
 
-    // Refresh offers (exclude already-owned jokers)
-    const freshOwned = new Set(ownedJokers.map((j) => j.def.id));
-    setOffers(getOffers(freshOwned));
+    // Refresh offers (exclude already-owned jokers, gated by current ante)
+    setOffers(getOffers(ownedJokers, ante));
     setRerollCount((n) => n + 1);
     setRerollState("success");
     setTimeout(() => setRerollState("idle"), 1200);
-  }, [rerollState, ownedJokers]);
+  }, [rerollState, ownedJokers, ante]);
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-black/50 backdrop-blur-[2px] overflow-hidden">
@@ -112,6 +103,8 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
           const cost = jokerBaseCost(def);
           const canAfford = money >= cost;
           const alreadyOwned = ownedIds.has(def.id);
+          const conflict = jokerConflictsWith(def, ownedJokers);
+          const blocked = !!conflict;
           return (
             <div key={def.id} className="panel rounded-lg p-2 flex items-center gap-2">
               <div className={`w-9 h-12 shrink-0 rounded-md overflow-hidden border bg-[#1a1d20] flex items-center justify-center relative ${
@@ -125,14 +118,19 @@ export function Shop({ money, ownedJokers, onBuy, onSell, onClose }: ShopProps) 
                 <div className="font-pixel-fat text-sm text-white leading-none">{def.name}</div>
                 <div style={{ color: RARITY_COLOR[def.rarity] }} className="font-pixel text-[10px] leading-none mt-0.5 capitalize">{def.rarity}</div>
                 <div className="font-pixel text-[10px] text-gray-300 leading-tight mt-1">{def.desc}</div>
+                {conflict && (
+                  <div className="font-pixel text-[9px] text-[#fe5f55] leading-tight mt-1">
+                    ⚠ conflicts with {conflict.def.name}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
-                disabled={!canAfford || alreadyOwned}
+                disabled={!canAfford || alreadyOwned || blocked}
                 onClick={() => onBuy(def)}
                 className="btn-chunky btn-green shrink-0 px-2 py-1 text-xs"
               >
-                {alreadyOwned ? "✓" : `$${cost}`}
+                {alreadyOwned ? "✓" : blocked ? "✕" : `$${cost}`}
               </button>
             </div>
           );

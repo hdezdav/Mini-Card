@@ -766,8 +766,16 @@ export default function StatsPage() {
                     <div className="bg-[#facc15]/15 border border-[#facc15]/30 rounded-lg p-3 mb-3 text-center">
                       <span className="font-pixel-fat text-[11px] text-[#facc15] block mb-1">⚠️ Modo Demo Activado</span>
                       <p className="font-pixel text-[9px] text-gray-300 leading-relaxed">
-                        Para cargar estadísticas reales en vivo, configura las variables de entorno <code className="text-[#ec4899]">POSTHOG_PERSONAL_API_KEY</code> y <code className="text-[#ec4899]">POSTHOG_PROJECT_ID</code>.
+                        Para cargar estadísticas reales en vivo, configura la variable de entorno <code className="text-[#ec4899]">POSTHOG_PERSONAL_API_KEY</code> en Cloudflare. El ID del proyecto se resuelve automáticamente desde <code className="text-[#ec4899]">NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN</code>.
                       </p>
+                    </div>
+                  )}
+
+                  {webData.configured === true && webData.note && (
+                    <div className="bg-black/40 border border-white/10 rounded-lg p-3 mb-3 text-center">
+                      <span className="font-pixel text-[10px] text-gray-400 leading-relaxed">
+                        {webData.note}
+                      </span>
                     </div>
                   )}
 

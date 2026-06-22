@@ -189,6 +189,17 @@ export function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Crypto-backed integer in [0, max). Falls back to Math.random outside the browser.
+function randInt(max: number): number {
+  if (max <= 0) return 0;
+  if (typeof window !== "undefined" && window.crypto && window.crypto.getRandomValues) {
+    const buf = new Uint32Array(1);
+    window.crypto.getRandomValues(buf);
+    return buf[0] % max;
+  }
+  return Math.floor(Math.random() * max);
+}
+
 export interface Evaluation {
   type: HandType;
   scoringIds: string[];
@@ -382,6 +393,8 @@ export interface JokerDef {
   desc: string;
   // Effect: receives chips, mult, cards, handType and returns modified chips/mult
   effect: (ctx: JokerCtx) => JokerResult;
+  // Optional: ids of jokers that cannot coexist with this one (mutual exclusion)
+  incompatibleWith?: number[];
 }
 
 export interface JokerCtx {
@@ -556,6 +569,7 @@ export const JOKER_DEFS: JokerDef[] = [
     name: "The Prism",
     rarity: "legendary",
     desc: "x3.0 Mult",
+    incompatibleWith: [16],
     effect: (ctx) => ({
       chips: ctx.chips,
       mult: ctx.mult,
@@ -567,11 +581,102 @@ export const JOKER_DEFS: JokerDef[] = [
     name: "Infinity",
     rarity: "legendary",
     desc: "+100 Chips and x2.0 Mult",
+    incompatibleWith: [15],
     effect: (ctx) => ({
       chips: ctx.chips + 100,
       mult: ctx.mult,
       xMult: 2,
     }),
+  },
+  {
+    id: 17,
+    name: "Blood Pact",
+    rarity: "rare",
+    desc: "x3 Mult, but lose $5 if a ♥ scores",
+    effect: (ctx) => {
+      const hasHeart = ctx.playedCards.some(
+        (c) => c.suit === "hearts" && ctx.scoringIds.includes(c.id)
+      );
+      return { chips: ctx.chips, mult: ctx.mult, xMult: 3, money: hasHeart ? -5 : 0 };
+    },
+  },
+  {
+    id: 18,
+    name: "Diamond Debt",
+    rarity: "rare",
+    desc: "x2.5 Mult, but lose $2 per ♦ scored",
+    effect: (ctx) => {
+      const diamonds = ctx.playedCards.filter(
+        (c) => c.suit === "diamonds" && ctx.scoringIds.includes(c.id)
+      ).length;
+      return { chips: ctx.chips, mult: ctx.mult, xMult: 2.5, money: -2 * diamonds };
+    },
+  },
+  {
+    id: 19,
+    name: "Cursed Coin",
+    rarity: "uncommon",
+    desc: "+$6 per hand played, but Mult x0.75",
+    effect: (ctx) => ({
+      chips: ctx.chips,
+      mult: ctx.mult,
+      xMult: 0.75,
+      money: 6,
+    }),
+  },
+  {
+    id: 20,
+    name: "Glass Cannon",
+    rarity: "legendary",
+    desc: "x4 Mult, but lose $10 at 0 discards",
+    effect: (ctx) => ({
+      chips: ctx.chips,
+      mult: ctx.mult,
+      xMult: 4,
+      money: ctx.discardsLeft === 0 ? -10 : 0,
+    }),
+  },
+  {
+    id: 21,
+    name: "Void Pact",
+    rarity: "rare",
+    desc: "x2.5 Mult, but ♠/♣ cards score no chips",
+    effect: (ctx) => {
+      const blackChips = ctx.playedCards
+        .filter(
+          (c) =>
+            (c.suit === "spades" || c.suit === "clubs") &&
+            ctx.scoringIds.includes(c.id)
+        )
+        .reduce((sum, c) => sum + RANK_CHIPS[c.rank], 0);
+      return { chips: ctx.chips - blackChips, mult: ctx.mult, xMult: 2.5 };
+    },
+  },
+  {
+    id: 22,
+    name: "Crimson Edge",
+    rarity: "rare",
+    desc: "x2 Mult and +30 Chips per ♥ scored",
+    incompatibleWith: [23],
+    effect: (ctx) => {
+      const hearts = ctx.playedCards.filter(
+        (c) => c.suit === "hearts" && ctx.scoringIds.includes(c.id)
+      ).length;
+      return { chips: ctx.chips + 30 * hearts, mult: ctx.mult, xMult: 2 };
+    },
+  },
+  {
+    id: 23,
+    name: "Obsidian Edge",
+    rarity: "rare",
+    desc: "x2 Mult and +30 Chips per ♠ scored",
+    incompatibleWith: [22],
+    effect: (ctx) => {
+      const spades = ctx.playedCards.filter(
+        (c) => c.suit === "spades" && ctx.scoringIds.includes(c.id)
+      ).length;
+      return { chips: ctx.chips + 30 * spades, mult: ctx.mult, xMult: 2 };
+    },
   },
 ];
 
@@ -580,6 +685,69 @@ export function rollShopJokers(owned: OwnedJoker[], count: number): JokerDef[] {
   const available = JOKER_DEFS.filter((j) => !ownedIds.has(j.id));
   const shuffled = shuffle(available);
   return shuffled.slice(0, count);
+}
+
+// ─── Shop balance: rarity gating by ante + weighted odds ───
+// Lower antes only see weaker jokers; legendary stays rare even once unlocked.
+export const RARITY_UNLOCK_ANTE: Record<JokerRarity, number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 3,
+  legendary: 5,
+};
+
+export const RARITY_WEIGHT: Record<JokerRarity, number> = {
+  common: 60,
+  uncommon: 25,
+  rare: 12,
+  legendary: 3,
+};
+
+// Weighted sampling without replacement, gated by the current ante.
+// Uses the same crypto-backed RNG as shuffle() for consistency.
+export function rollShopJokersWeighted(
+  owned: OwnedJoker[],
+  count: number,
+  ante: number
+): JokerDef[] {
+  const ownedIds = new Set(owned.map((j) => j.def.id));
+  const pool = JOKER_DEFS.filter(
+    (j) => !ownedIds.has(j.id) && ante >= RARITY_UNLOCK_ANTE[j.rarity]
+  );
+  if (pool.length === 0) return [];
+
+  const picked: JokerDef[] = [];
+  const avail = [...pool];
+
+  for (let n = 0; n < count && avail.length > 0; n += 1) {
+    const weights = avail.map((j) => RARITY_WEIGHT[j.rarity]);
+    const total = weights.reduce((a, b) => a + b, 0);
+    const r = randInt(total); // 0..total-1, crypto-backed
+    let acc = 0;
+    let idx = 0;
+    for (let i = 0; i < avail.length; i += 1) {
+      acc += weights[i];
+      if (r < acc) {
+        idx = i;
+        break;
+      }
+    }
+    picked.push(avail[idx]);
+    avail.splice(idx, 1);
+  }
+  return picked;
+}
+
+// Returns the owned joker that blocks buying `def`, if any (mutual exclusion).
+export function jokerConflictsWith(
+  def: JokerDef,
+  owned: OwnedJoker[]
+): OwnedJoker | undefined {
+  return owned.find(
+    (o) =>
+      o.def.incompatibleWith?.includes(def.id) ||
+      def.incompatibleWith?.includes(o.def.id)
+  );
 }
 
 export function jokerBaseCost(def: JokerDef): number {

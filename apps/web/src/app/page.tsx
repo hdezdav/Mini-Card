@@ -24,6 +24,7 @@ import {
   evaluate,
   handScore,
   jokerBaseCost,
+  jokerConflictsWith,
   shuffle,
 } from "@/lib/game";
 import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay } from "@/lib/web3";
@@ -357,11 +358,15 @@ export default function HomePage() {
     };
 
     let jokerCtx = { ...jokerCtxBase };
+    let moneyDelta = 0;
     for (const oj of ownedJokers) {
       const ctx: JokerCtx = { ...jokerCtx, state: oj.state };
       const result = oj.def.effect(ctx);
       const prevMult = jokerCtx.mult;
       jokerCtx = { ...jokerCtx, chips: result.chips, mult: result.xMult ? jokerCtx.mult * result.xMult : result.mult };
+      if (result.money) {
+        moneyDelta += result.money;
+      }
       if (result.mult !== prevMult || result.xMult) {
         setJokerFlash(true);
         pushFloat(played[0]?.id ?? "", result.xMult ? `x${result.xMult}` : `+${result.mult - prevMult}`, "#d23bd2");
@@ -371,10 +376,22 @@ export default function HomePage() {
       }
     }
     chips = jokerCtx.chips;
-    mult = jokerCtx.mult;
+    // Floor mult at 1 so downside jokers (e.g. Cursed Coin x0.75) never invert the score.
+    mult = Math.max(1, jokerCtx.mult);
     setAnimChips(chips);
     setAnimMult(mult);
     await delay(200);
+
+    // Apply joker money effects (Blood Pact, Diamond Debt, Cursed Coin, Glass Cannon).
+    if (moneyDelta !== 0) {
+      setMoney((current) => Math.max(0, current + moneyDelta));
+      pushFloat(
+        played[0]?.id ?? "",
+        `${moneyDelta > 0 ? "+" : ""}$${moneyDelta}`,
+        moneyDelta > 0 ? "#facc15" : "#fe5f55"
+      );
+      await delay(280);
+    }
 
     const gained = Math.floor(chips * mult);
     const start = roundScore;
@@ -419,6 +436,8 @@ export default function HomePage() {
   const handleBuyJoker = (def: JokerDef) => {
     const cost = jokerBaseCost(def);
     if (money < cost || ownedJokers.length >= MAX_JOKER_SLOTS) return;
+    // Safety net: the shop UI already blocks conflicting jokers, but double-check here.
+    if (jokerConflictsWith(def, ownedJokers)) return;
     setMoney(m => m - cost);
     setOwnedJokers(prev => [...prev, { def, edition: "base", state: {} }]);
   };
@@ -718,6 +737,7 @@ export default function HomePage() {
           <Shop
             money={money}
             ownedJokers={ownedJokers}
+            ante={ante}
             onBuy={handleBuyJoker}
             onSell={handleSellJoker}
             onClose={enterNextBlind}
