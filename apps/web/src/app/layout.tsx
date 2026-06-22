@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { PostHogProvider } from "./providers";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "MiniCard",
@@ -24,6 +25,11 @@ export default function RootLayout({
         <PostHogProvider>
           {children}
         </PostHogProvider>
+        <Script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="c943aae0-d766-4b93-b3e0-ae33c31f75fa"
+        />
       </body>
     </html>
   );

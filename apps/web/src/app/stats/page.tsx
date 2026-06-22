@@ -184,43 +184,6 @@ export default function StatsPage() {
   const [operatorUsdtBalance, setOperatorUsdtBalance] = useState<bigint>(BigInt(0));
   const [loading, setLoading] = useState(true);
 
-  // ── Cloudflare Web Analytics (real visitor data) ──
-  const [cfData, setCfData] = useState<{
-    countries: { name: string; count: number; pct: number }[];
-    devices:   { name: string; count: number; pct: number }[];
-    trafficSources: { name: string; count: number; pct: number }[];
-    visitors30d: number;
-    visitors7d:  number;
-    sessions30d: number;
-    funnel?: {
-      visitors: number;
-      walletConnected: number;
-      playInitiated: number;
-      playCompleted: number;
-    };
-  } | null>(null);
-  const [cfLoading, setCfLoading] = useState(true);
-
-  // Fetch CF Web Analytics separately (doesn't block on-chain data)
-  useEffect(() => {
-    fetch("/api/cf-analytics")
-      .then((r) => r.json())
-      .then((data) => {
-        // Set data even if arrays are empty — empty arrays ≠ not configured
-        if (!data.error) {
-          setCfData(data);
-        } else {
-          // API returned an error — set empty shell so UI doesn't show "Setup required"
-          setCfData({ countries: [], devices: [], trafficSources: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
-        }
-      })
-      .catch(() => {
-        // Network failure — set empty shell
-        setCfData({ countries: [], devices: [], trafficSources: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
-      })
-      .finally(() => setCfLoading(false));
-  }, []);
-
   useEffect(() => {
     (async () => {
       try {
@@ -759,91 +722,6 @@ export default function StatsPage() {
 
           </div>
         )}
-
-        {/* 8. ANALÍTICA WEB — siempre visible, independiente de datos on-chain */}
-        <div className="relative z-10 mt-6">
-          <Section title={t.webAnalytics[l]}>
-            {cfLoading ? (
-              <div className="flex items-center justify-center py-8 gap-2">
-                <span className="inline-block w-4 h-4 border-2 border-[#00b4d8]/30 border-t-[#00b4d8] rounded-full animate-spin" />
-                <span className="font-pixel text-[11px] text-gray-500">Loading CF Analytics...</span>
-              </div>
-            ) : !cfData ? (
-              <div className="bg-black/40 rounded-lg border border-dashed border-white/10 p-4 text-center flex flex-col gap-2">
-                <span className="font-pixel-fat text-[12px] text-gray-500">📡 Connecting...</span>
-                <p className="font-pixel text-[10px] text-gray-500 leading-relaxed">Could not reach analytics endpoint.</p>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <Card label={t.visitors7d[l]} value={fmt(cfData.visitors7d)} />
-                  <Card label={t.visitors30d[l]} value={fmt(cfData.visitors30d)} />
-                  <Card label={t.monthlySessions[l]} value={fmt(cfData.sessions30d)} />
-                  {cfData.visitors30d > 0 && stats && (
-                    <Card
-                      label={t.walletConnRate[l]}
-                      value={fmtPctDec(stats.activeAddresses / cfData.visitors30d)}
-                      accent
-                    />
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-                  <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
-                    <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
-                      {t.topCountries[l]}
-                    </span>
-                    {cfData.countries.slice(0, 6).map(c => (
-                      <div key={c.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400 truncate">{c.name}</span>
-                          <span className="text-white font-pixel-fat">{fmtPct(c.pct)}</span>
-                        </div>
-                        <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
-                          <div className="bg-[#facc15] h-full rounded" style={{ width: `${c.pct * 100}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
-                    <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
-                      {t.deviceDistrib[l]}
-                    </span>
-                    {cfData.devices.map(d => (
-                      <div key={d.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400 truncate">{d.name}</span>
-                          <span className="text-white font-pixel-fat">{fmtPct(d.pct)}</span>
-                        </div>
-                        <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
-                          <div className="bg-[#00b4d8] h-full rounded" style={{ width: `${d.pct * 100}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
-                    <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
-                      Browsers
-                    </span>
-                    {(cfData as any).browsers?.slice(0, 5).map((b: any) => (
-                      <div key={b.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
-                        <div className="flex justify-between">
-                          <span className="text-gray-400 truncate">{b.name}</span>
-                          <span className="text-white font-pixel-fat">{fmtPct(b.pct)}</span>
-                        </div>
-                        <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
-                          <div className="bg-[#ec4899] h-full rounded" style={{ width: `${b.pct * 100}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </Section>
-        </div>
 
         {/* Footer info */}
         <div className="text-center font-pixel text-xs text-gray-500 mt-12 mb-6 relative z-10">
