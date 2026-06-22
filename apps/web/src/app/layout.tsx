@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { PostHogProvider } from "./providers";
 import Script from "next/script";
 
 export const metadata: Metadata = {
@@ -22,9 +21,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <PostHogProvider>
-          {children}
-        </PostHogProvider>
+        {children}
         <Script
           defer
           src="https://cloud.umami.is/script.js"

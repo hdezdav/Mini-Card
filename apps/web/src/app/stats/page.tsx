@@ -184,6 +184,34 @@ export default function StatsPage() {
   const [operatorUsdtBalance, setOperatorUsdtBalance] = useState<bigint>(BigInt(0));
   const [loading, setLoading] = useState(true);
 
+  const [webData, setWebData] = useState<{
+    countries: { name: string; count: number; pct: number }[];
+    devices:   { name: string; count: number; pct: number }[];
+    browsers:  { name: string; count: number; pct: number }[];
+    visitors30d: number;
+    visitors7d:  number;
+    sessions30d: number;
+    configured?: boolean;
+    note?: string;
+  } | null>(null);
+  const [webLoading, setWebLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/web-analytics")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.error) {
+          setWebData(data);
+        } else {
+          setWebData({ countries: [], devices: [], browsers: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
+        }
+      })
+      .catch(() => {
+        setWebData({ countries: [], devices: [], browsers: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
+      })
+      .finally(() => setWebLoading(false));
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -718,6 +746,98 @@ export default function StatsPage() {
               <ContractRow label="Leaderboard" address={LEADERBOARD_CONTRACT_ADDRESS} />
               <ContractRow label="USDT (Celo)" address={USDT_ADDRESS} />
               <ContractRow label={t.operator[l]} address={OPERATOR_ADDRESS} />
+            </Section>
+
+            {/* 8. ANALÍTICA WEB (PostHog) */}
+            <Section title={t.webAnalytics[l]}>
+              {webLoading ? (
+                <div className="flex items-center justify-center py-8 gap-2">
+                  <span className="inline-block w-4 h-4 border-2 border-[#00b4d8]/30 border-t-[#00b4d8] rounded-full animate-spin" />
+                  <span className="font-pixel text-[11px] text-gray-500">Loading Web Analytics...</span>
+                </div>
+              ) : !webData ? (
+                <div className="bg-black/40 rounded-lg border border-dashed border-white/10 p-4 text-center flex flex-col gap-2">
+                  <span className="font-pixel-fat text-[12px] text-gray-500">📡 Connecting...</span>
+                  <p className="font-pixel text-[10px] text-gray-500 leading-relaxed">Could not reach analytics endpoint.</p>
+                </div>
+              ) : (
+                <>
+                  {webData.configured === false && (
+                    <div className="bg-[#facc15]/15 border border-[#facc15]/30 rounded-lg p-3 mb-3 text-center">
+                      <span className="font-pixel-fat text-[11px] text-[#facc15] block mb-1">⚠️ Modo Demo Activado</span>
+                      <p className="font-pixel text-[9px] text-gray-300 leading-relaxed">
+                        Para cargar estadísticas reales en vivo, configura las variables de entorno <code className="text-[#ec4899]">POSTHOG_PERSONAL_API_KEY</code> y <code className="text-[#ec4899]">POSTHOG_PROJECT_ID</code>.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <Card label={t.visitors7d[l]} value={fmt(webData.visitors7d)} />
+                    <Card label={t.visitors30d[l]} value={fmt(webData.visitors30d)} />
+                    <Card label={t.monthlySessions[l]} value={fmt(webData.sessions30d)} />
+                    {webData.visitors30d > 0 && stats && (
+                      <Card
+                        label={t.walletConnRate[l]}
+                        value={fmtPctDec(stats.activeAddresses / webData.visitors30d)}
+                        accent
+                      />
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+                    <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
+                      <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
+                        {t.topCountries[l]}
+                      </span>
+                      {webData.countries.slice(0, 6).map(c => (
+                        <div key={c.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400 truncate">{c.name}</span>
+                            <span className="text-white font-pixel-fat">{fmtPct(c.pct)}</span>
+                          </div>
+                          <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
+                            <div className="bg-[#facc15] h-full rounded" style={{ width: `${c.pct * 100}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
+                      <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
+                        {t.deviceDistrib[l]}
+                      </span>
+                      {webData.devices.map(d => (
+                        <div key={d.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400 truncate">{d.name}</span>
+                            <span className="text-white font-pixel-fat">{fmtPct(d.pct)}</span>
+                          </div>
+                          <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
+                            <div className="bg-[#00b4d8] h-full rounded" style={{ width: `${d.pct * 100}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
+                      <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
+                        Browsers
+                      </span>
+                      {webData.browsers.slice(0, 5).map(b => (
+                        <div key={b.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400 truncate">{b.name}</span>
+                            <span className="text-white font-pixel-fat">{fmtPct(b.pct)}</span>
+                          </div>
+                          <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
+                            <div className="bg-[#ec4899] h-full rounded" style={{ width: `${b.pct * 100}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </Section>
 
           </div>
