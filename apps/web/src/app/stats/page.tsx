@@ -29,6 +29,7 @@ const t = {
   onchain:        { en: "On-chain Metrics",     es: "Métricas On-chain" },
   contracts:      { en: "Protocol Contracts",   es: "Contratos del Protocolo" },
   economy:        { en: "Protocol Economy",     es: "Economía del Protocolo" },
+  webAnalytics:   { en: "Web Analytics",        es: "Analítica Web" },
 
   // Cards & General labels
   gamesToday:     { en: "Games today",          es: "Jugadas hoy" },
@@ -76,6 +77,16 @@ const t = {
   txTypeCol:      { en: "Transaction Type",     es: "Tipo de Transacción" },
   txCountCol:     { en: "Count",                es: "Cant." },
   txPctCol:       { en: "Percentage",           es: "Porcentaje" },
+
+  // Web Analytics Labels
+  visitors7d:     { en: "Visitors (7 days)",    es: "Visitantes (7 días)" },
+  visitors30d:    { en: "Visitors (30 days)",   es: "Visitantes (30 días)" },
+  monthlySessions:{ en: "Sessions (30 days)",   es: "Sesiones (30 días)" },
+  walletConnRate: { en: "Wallet Conn. Rate",    es: "Tasa conexión wallet" },
+  deviceDistrib:  { en: "Devices",              es: "Dispositivos" },
+  topCountries:   { en: "Top Countries",        es: "Top países" },
+  topBrowsers:    { en: "Browsers",             es: "Navegadores" },
+  topReferrers:   { en: "Traffic Sources",      es: "Fuentes de tráfico" },
 
   // Retention Labels
   cohort:         { en: "Cohort",               es: "Cohorte" },
@@ -164,6 +175,35 @@ export default function StatsPage() {
   const [operatorCeloBalance, setOperatorCeloBalance] = useState<bigint>(BigInt(0));
   const [operatorUsdtBalance, setOperatorUsdtBalance] = useState<bigint>(BigInt(0));
   const [loading, setLoading] = useState(true);
+
+  const [webData, setWebData] = useState<{
+    countries: { name: string; count: number; pct: number }[];
+    devices:   { name: string; count: number; pct: number }[];
+    browsers:  { name: string; count: number; pct: number }[];
+    referrers: { name: string; count: number; pct: number }[];
+    visitors30d: number;
+    visitors7d:  number;
+    sessions30d: number;
+    configured?: boolean;
+    note?: string;
+  } | null>(null);
+  const [webLoading, setWebLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/web-analytics")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.error) {
+          setWebData(data);
+        } else {
+          setWebData({ countries: [], devices: [], browsers: [], referrers: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
+        }
+      })
+      .catch(() => {
+        setWebData({ countries: [], devices: [], browsers: [], referrers: [], visitors30d: 0, visitors7d: 0, sessions30d: 0 });
+      })
+      .finally(() => setWebLoading(false));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -701,6 +741,63 @@ export default function StatsPage() {
               <ContractRow label={t.operator[l]} address={OPERATOR_ADDRESS} />
             </Section>
 
+            {/* 8. ANALÍTICA WEB (Mixpanel) */}
+            <Section title={t.webAnalytics[l]}>
+              {webLoading ? (
+                <div className="flex items-center justify-center py-8 gap-2">
+                  <span className="inline-block w-4 h-4 border-2 border-[#00b4d8]/30 border-t-[#00b4d8] rounded-full animate-spin" />
+                  <span className="font-pixel text-[11px] text-gray-500">Loading Web Analytics...</span>
+                </div>
+              ) : !webData ? (
+                <div className="bg-black/40 rounded-lg border border-dashed border-white/10 p-4 text-center flex flex-col gap-2">
+                  <span className="font-pixel-fat text-[12px] text-gray-500">📡 Connecting...</span>
+                  <p className="font-pixel text-[10px] text-gray-500 leading-relaxed">Could not reach analytics endpoint.</p>
+                </div>
+              ) : (
+                <>
+                  {webData.configured === false && (
+                    <div className="bg-[#facc15]/15 border border-[#facc15]/30 rounded-lg p-3 mb-3 text-center">
+                      <span className="font-pixel-fat text-[11px] text-[#facc15] block mb-1">⚠️ Modo Demo Activado</span>
+                      <p className="font-pixel text-[9px] text-gray-300 leading-relaxed">
+                        Para cargar estadísticas reales en vivo, configura las variables de entorno{" "}
+                        <code className="text-[#ec4899]">MIXPANEL_SERVICE_ACCOUNT_USER</code>,{" "}
+                        <code className="text-[#ec4899]">MIXPANEL_SERVICE_ACCOUNT_SECRET</code> y{" "}
+                        <code className="text-[#ec4899]">MIXPANEL_PROJECT_ID</code> en Cloudflare Pages (como plaintext, no encrypted secrets).
+                      </p>
+                    </div>
+                  )}
+
+                  {webData.configured === true && webData.note && (
+                    <div className="bg-black/40 border border-white/10 rounded-lg p-3 mb-3 text-center">
+                      <span className="font-pixel text-[10px] text-gray-400 leading-relaxed">
+                        {webData.note}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <Card label={t.visitors7d[l]} value={fmt(webData.visitors7d)} />
+                    <Card label={t.visitors30d[l]} value={fmt(webData.visitors30d)} />
+                    <Card label={t.monthlySessions[l]} value={fmt(webData.sessions30d)} />
+                    {webData.visitors30d > 0 && stats && (
+                      <Card
+                        label={t.walletConnRate[l]}
+                        value={fmtPctDec(stats.activeAddresses / webData.visitors30d)}
+                        accent
+                      />
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-3">
+                    <BreakdownBars title={t.topCountries[l]} color="#facc15" items={webData.countries} />
+                    <BreakdownBars title={t.deviceDistrib[l]} color="#00b4d8" items={webData.devices} />
+                    <BreakdownBars title={t.topBrowsers[l]} color="#ec4899" items={webData.browsers} />
+                    <BreakdownBars title={t.topReferrers[l]} color="#38d08f" items={webData.referrers} />
+                  </div>
+                </>
+              )}
+            </Section>
+
           </div>
         )}
 
@@ -754,5 +851,38 @@ function ContractRow({ label, address }: { label: string; address: string }) {
       </span>
       <span className="text-gray-500 text-xs">↗</span>
     </a>
+  );
+}
+
+function BreakdownBars({
+  title,
+  color,
+  items,
+}: {
+  title: string;
+  color: string;
+  items: { name: string; count: number; pct: number }[];
+}) {
+  return (
+    <div className="bg-black/35 rounded-lg border border-white/5 p-2 flex flex-col gap-1">
+      <span className="font-pixel-fat text-[10px] text-gray-400 border-b border-white/5 pb-1 mb-1 block uppercase">
+        {title}
+      </span>
+      {items.length === 0 ? (
+        <span className="font-pixel text-[9px] text-gray-600 py-2 text-center">—</span>
+      ) : (
+        items.map((c) => (
+          <div key={c.name} className="flex flex-col gap-0.5 font-pixel text-[10px]">
+            <div className="flex justify-between">
+              <span className="text-gray-400 truncate">{c.name}</span>
+              <span className="text-white font-pixel-fat">{fmtPct(c.pct)}</span>
+            </div>
+            <div className="w-full bg-white/[0.03] h-1.5 rounded overflow-hidden">
+              <div className="h-full rounded" style={{ width: `${c.pct * 100}%`, backgroundColor: color }} />
+            </div>
+          </div>
+        ))
+      )}
+    </div>
   );
 }

@@ -1,0 +1,238 @@
+import { NextRequest } from "next/server";
+
+export const runtime = "edge";
+
+// Mixpanel Web Analytics — computed from the Raw Data Export API.
+//
+// The Mixpanel account is on the free plan, which blocks the Query/Analytics
+// endpoints (/api/query/segmentation, retention, funnels) with HTTP 402
+// "Your plan does not allow API calls". The Raw Data Export API
+// (data.mixpanel.com/api/2.0/export) IS available on the free plan and returns
+// every event as newline-delimited JSON. We pull the 30-day window once and
+// compute all metrics server-side from the raw events.
+//
+// Auth: Service Account (HTTP Basic, username:secret). The legacy API Secret
+// is [Deprecated] and is NOT used. project_id is passed as a query param.
+//
+// Required env vars (server-only, no NEXT_PUBLIC_ prefix):
+//   MIXPANEL_SERVICE_ACCOUNT_USER
+//   MIXPANEL_SERVICE_ACCOUNT_SECRET
+//   MIXPANEL_PROJECT_ID
+// On Cloudflare Pages these must be set as PLAINTEXT env vars (not encrypted
+// secrets) so they reach edge runtime.
+
+interface BreakdownEntry {
+  name: string;
+  count: number;
+  pct: number;
+}
+
+interface WebAnalytics {
+  configured: boolean;
+  visitors7d: number;
+  visitors30d: number;
+  sessions30d: number;
+  countries: BreakdownEntry[];
+  devices: BreakdownEntry[];
+  browsers: BreakdownEntry[];
+  referrers: BreakdownEntry[];
+  note?: string;
+}
+
+const EMPTY: WebAnalytics = {
+  configured: false,
+  visitors7d: 0,
+  visitors30d: 0,
+  sessions30d: 0,
+  countries: [],
+  devices: [],
+  browsers: [],
+  referrers: [],
+};
+
+// Common ISO-3166 country codes → friendly names. Falls back to the raw code.
+const COUNTRY_NAMES: Record<string, string> = {
+  CO: "Colombia",
+  US: "United States",
+  AR: "Argentina",
+  ES: "Spain",
+  MX: "Mexico",
+  BR: "Brazil",
+  PE: "Peru",
+  CL: "Chile",
+  EC: "Ecuador",
+  VE: "Venezuela",
+  GB: "United Kingdom",
+  CA: "Canada",
+  DE: "Germany",
+  FR: "France",
+  IT: "Italy",
+  PT: "Portugal",
+  CN: "China",
+  IN: "India",
+};
+
+const SESSION_TIMEOUT_S = 30 * 60; // 30-minute inactivity gap
+
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+// Group unique visitors per property value and return the top N as {name,count,pct}.
+function topBreakdown(
+  events: Array<{ properties: Record<string, any> }>,
+  key: string,
+  limit: number,
+  totalVisitors: number,
+  opts: { skipEmpty?: boolean; nameMap?: Record<string, string> } = {}
+): BreakdownEntry[] {
+  const perValue = new Map<string, Set<string>>();
+  for (const ev of events) {
+    let raw = ev.properties[key];
+    if (raw == null || raw === "") continue;
+    if (typeof raw === "string") raw = raw.trim();
+    if (opts.skipEmpty && (!raw || raw === "$direct")) continue;
+    const name = opts.nameMap?.[raw as string] ?? String(raw);
+    if (!perValue.has(name)) perValue.set(name, new Set());
+    perValue.get(name)!.add(ev.properties.distinct_id);
+  }
+  return [...perValue.entries()]
+    .map(([name, ids]) => ({
+      name,
+      count: ids.size,
+      pct: totalVisitors > 0 ? ids.size / totalVisitors : 0,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
+
+export async function GET(_req: NextRequest) {
+  const user = process.env.MIXPANEL_SERVICE_ACCOUNT_USER;
+  const secret = process.env.MIXPANEL_SERVICE_ACCOUNT_SECRET;
+  const projectId = process.env.MIXPANEL_PROJECT_ID;
+
+  if (!user || !secret || !projectId) {
+    return Response.json(
+      {
+        ...EMPTY,
+        note: "DEMO MODE: Configure MIXPANEL_SERVICE_ACCOUNT_USER, MIXPANEL_SERVICE_ACCOUNT_SECRET and MIXPANEL_PROJECT_ID to load live Mixpanel stats.",
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const to = new Date();
+  const from = new Date(to.getTime() - 30 * 86400 * 1000);
+  const sevenDaysAgo = (to.getTime() / 1000) - 7 * 86400;
+
+  const url =
+    `https://data.mixpanel.com/api/2.0/export` +
+    `?project_id=${encodeURIComponent(projectId)}` +
+    `&from_date=${ymd(from)}&to_date=${ymd(to)}`;
+
+  const auth = btoa(`${user}:${secret}`);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        Accept: "application/json",
+      },
+    });
+  } catch (err: any) {
+    console.error("Mixpanel export fetch error:", err);
+    return Response.json(
+      { error: err?.message || "Failed to reach Mixpanel export API" },
+      { status: 502 }
+    );
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`Mixpanel export failed (${res.status}):`, text);
+    return Response.json(
+      { error: `Mixpanel export failed (${res.status}): ${text}` },
+      { status: 502 }
+    );
+  }
+
+  // Export returns newline-delimited JSON. The first line may be an empty header.
+  const body = await res.text();
+
+  // Keep only autocapture events ($mp_*). distinct_id + time are required.
+  type Ev = { properties: Record<string, any> };
+  const events: Ev[] = [];
+  const sessionsPerUser = new Map<string, number[]>();
+
+  for (const line of body.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    let parsed: any;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    const event: string | undefined = parsed.event;
+    const props = parsed.properties;
+    if (!event || !event.startsWith("$mp_") || !props) continue;
+    const distinctId: string | undefined = props.distinct_id;
+    const time: number | undefined = props.time;
+    if (!distinctId || typeof time !== "number") continue;
+
+    events.push({ properties: props });
+    if (!sessionsPerUser.has(distinctId)) sessionsPerUser.set(distinctId, []);
+    sessionsPerUser.get(distinctId)!.push(time);
+  }
+
+  // Unique visitors over the full 30d window and the last 7d.
+  const visitors30dSet = new Set<string>();
+  const visitors7dSet = new Set<string>();
+  for (const ev of events) {
+    const id = ev.properties.distinct_id as string;
+    visitors30dSet.add(id);
+    if ((ev.properties.time as number) >= sevenDaysAgo) visitors7dSet.add(id);
+  }
+  const visitors30d = visitors30dSet.size;
+  const visitors7d = visitors7dSet.size;
+
+  // Sessions: per distinct_id, sort event times and split on a 30-min gap.
+  let sessions30d = 0;
+  for (const times of sessionsPerUser.values()) {
+    times.sort((a, b) => a - b);
+    let sessions = 1;
+    for (let i = 1; i < times.length; i++) {
+      if (times[i] - times[i - 1] > SESSION_TIMEOUT_S) sessions++;
+    }
+    sessions30d += sessions;
+  }
+
+  const countries = topBreakdown(events, "mp_country_code", 6, visitors30d, {
+    nameMap: COUNTRY_NAMES,
+  });
+  const devices = topBreakdown(events, "$device", 5, visitors30d);
+  const browsers = topBreakdown(events, "$browser", 5, visitors30d);
+  const referrers = topBreakdown(events, "$referring_domain", 6, visitors30d, {
+    skipEmpty: true,
+  });
+
+  const payload: WebAnalytics = {
+    configured: true,
+    visitors7d,
+    visitors30d,
+    sessions30d,
+    countries,
+    devices,
+    browsers,
+    referrers,
+    note:
+      visitors30d === 0 && visitors7d === 0 && sessions30d === 0
+        ? "No autocapture events found in the last 30 days."
+        : undefined,
+  };
+
+  return Response.json(payload, {
+    headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" },
+  });
+}
