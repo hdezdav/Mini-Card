@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getRequestContext } from "@cloudflare/next-on-pages";
 
 export const runtime = "edge";
 
@@ -107,9 +108,24 @@ function topBreakdown(
 }
 
 export async function GET(_req: NextRequest) {
-  const user = process.env.MIXPANEL_SERVICE_ACCOUNT_USER;
-  const secret = process.env.MIXPANEL_SERVICE_ACCOUNT_SECRET;
-  const projectId = process.env.MIXPANEL_PROJECT_ID;
+  let user = process.env.MIXPANEL_SERVICE_ACCOUNT_USER;
+  let secret = process.env.MIXPANEL_SERVICE_ACCOUNT_SECRET;
+  let projectId = process.env.MIXPANEL_PROJECT_ID;
+
+  // Fallback: Read environment variables from Cloudflare Pages Request Context if process.env is empty
+  if (!user || !secret || !projectId) {
+    try {
+      const ctx = getRequestContext();
+      if (ctx && ctx.env) {
+        const cfEnv = ctx.env as Record<string, any>;
+        user = user || cfEnv.MIXPANEL_SERVICE_ACCOUNT_USER;
+        secret = secret || cfEnv.MIXPANEL_SERVICE_ACCOUNT_SECRET;
+        projectId = projectId || cfEnv.MIXPANEL_PROJECT_ID;
+      }
+    } catch (e) {
+      console.warn("Cloudflare getRequestContext not available:", e);
+    }
+  }
 
   if (!user || !secret || !projectId) {
     return Response.json(
