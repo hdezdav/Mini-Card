@@ -7,6 +7,7 @@ import { DeckBack, EmptySlot } from "@/components/Specials";
 import { GbaBackground } from "@/components/GbaBackground";
 import { Shop } from "@/components/Shop";
 import { RunInfo } from "@/components/RunInfo";
+import { MusicToggle } from "@/components/MusicToggle";
 import { JokerArt } from "@/components/PixelSprite";
 import {
   type Blind,
@@ -495,6 +496,9 @@ export default function HomePage() {
           <StatBox label="Round" value={round} color="#f5a623" />
           <MoneyBox money={money} />
         </div>
+
+        {/* Floating Music Toggle (mirrors the timer on the left edge) */}
+        <MusicToggle />
 
         {/* Floating Timer Widget (Active from Round 2+) */}
         {round > 1 && phase === "playing" && (
