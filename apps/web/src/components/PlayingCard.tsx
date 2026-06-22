@@ -48,8 +48,8 @@ export function PlayingCard({
       : "red";
 
   const imgSrc = facedown
-    ? `/assets/cards/back-${backColor}.png`
-    : `/assets/cards/${rank}-${suitChar}.png`;
+    ? `/assets/cards/back-${backColor}.webp`
+    : `/assets/cards/${rank}-${suitChar}.webp`;
 
   return (
     <button

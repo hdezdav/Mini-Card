@@ -801,9 +801,24 @@ export default function StatsPage() {
           </div>
         )}
 
-        {/* Footer info */}
-        <div className="text-center font-pixel text-xs text-gray-500 mt-12 mb-6 relative z-10">
-          MiniCard · Celo Mainnet · Powered by MiniPay
+        {/* Footer info — legal + support links required for MiniPay listing */}
+        <div className="text-center mt-12 mb-6 relative z-10 flex flex-col items-center gap-2">
+          <div className="font-pixel text-xs text-gray-500">
+            MiniCard · Celo Mainnet · Powered by MiniPay
+          </div>
+          <div className="flex items-center gap-2">
+            <Link href="/legal/terms" className="font-pixel text-[10px] text-gray-500 hover:text-[#38d08f] transition-colors">
+              Terms
+            </Link>
+            <span className="text-gray-700 text-[10px]">·</span>
+            <Link href="/legal/privacy" className="font-pixel text-[10px] text-gray-500 hover:text-[#38d08f] transition-colors">
+              Privacy
+            </Link>
+            <span className="text-gray-700 text-[10px]">·</span>
+            <Link href="/support" className="font-pixel text-[10px] text-gray-500 hover:text-[#38d08f] transition-colors">
+              Support
+            </Link>
+          </div>
         </div>
       </div>
     </main>

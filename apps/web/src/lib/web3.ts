@@ -86,6 +86,11 @@ export interface LeaderboardEntry {
 // USDT contract address: 0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e
 const USDT_ADDRESS = "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e";
 
+// MiniPay Deposit deeplink — redirect here when a payment fails due to
+// insufficient stablecoin balance (MiniPay submission requirement §6).
+// Canonical list: https://docs.minipay.xyz/technical-references/deeplinks.html
+export const MINIPAY_DEPOSIT_DEEPLINK = "https://link.minipay.xyz/add_cash?tokens=USDT";
+
 // Fee receiver for reroll payments — change to your own wallet!
 const REROLL_FEE_RECEIVER = "0x0419F23541408EEcab6EC4Bd96a454EE8A1dD1BE";
 
@@ -134,6 +139,35 @@ function getWalletClient() {
     chain: celo,
     transport: custom(provider),
   });
+}
+
+// ─── Insufficient-balance detection ───
+// MiniPay requires redirecting to the Deposit deeplink instead of showing a
+// generic error when a payment fails because the user lacks funds. We inspect
+// the revert reason / error code from the wallet rejection.
+function isInsufficientBalanceError(err: unknown): boolean {
+  const msg = String((err as any)?.message ?? (err as any)?.shortMessage ?? err ?? "").toLowerCase();
+  return (
+    msg.includes("insufficient") ||
+    msg.includes("balance") ||
+    msg.includes("funds") ||
+    msg.includes("underflow") ||
+    // viem error code for ERC20 transfer exceeding balance
+    msg.includes("0x") && (msg.includes("2c") || msg.includes("transfer amount exceeds balance"))
+  );
+}
+
+/**
+ * On a payment failure, redirect MiniPay users to the Deposit deeplink when the
+ * cause is insufficient balance. Returns true if redirected, false otherwise.
+ */
+export function handlePaymentFailure(err: unknown): boolean {
+  if (!isInsufficientBalanceError(err)) return false;
+  if (typeof window !== "undefined" && isMiniPay()) {
+    window.location.href = MINIPAY_DEPOSIT_DEEPLINK;
+    return true;
+  }
+  return false;
 }
 
 // ─── Auto-connect (MiniPay pattern — no "Connect" button) ───
@@ -404,6 +438,9 @@ export async function registerUsernameToCelo(username: string): Promise<boolean>
  * Pays $0.01 USDm (USDT) to reroll shop offers.
  * Inside MiniPay this opens the native payment confirmation.
  * If no wallet is present (guest mode), returns true for free reroll.
+ *
+ * Throws the underlying error so the caller can detect insufficient balance
+ * and redirect to the MiniPay Deposit deeplink (see handlePaymentFailure).
  */
 export async function payRerollWithMiniPay(): Promise<boolean> {
   const walletClient = getWalletClient();
@@ -440,6 +477,8 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
     await publicClient.waitForTransactionReceipt({ hash });
     return true;
   } catch (err) {
+    // Re-throw so callers can detect insufficient balance and redirect to Deposit.
+    if (isInsufficientBalanceError(err)) throw err;
     console.warn("Reroll payment failed:", err);
     return false;
   }
@@ -447,6 +486,9 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
 
 /**
  * Pays $0.01 USDT to restart the game immediately (bypassing the 24h cooldown).
+ *
+ * Throws the underlying error on insufficient balance so the caller can
+ * redirect to the MiniPay Deposit deeplink (see handlePaymentFailure).
  */
 export async function payRestartWithMiniPay(): Promise<boolean> {
   const walletClient = getWalletClient();
@@ -482,6 +524,8 @@ export async function payRestartWithMiniPay(): Promise<boolean> {
     await publicClient.waitForTransactionReceipt({ hash });
     return true;
   } catch (err) {
+    // Re-throw so callers can detect insufficient balance and redirect to Deposit.
+    if (isInsufficientBalanceError(err)) throw err;
     console.warn("Restart payment failed:", err);
     return false;
   }

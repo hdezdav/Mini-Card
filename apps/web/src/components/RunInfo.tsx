@@ -74,7 +74,7 @@ export function RunInfo({
               }`}
             >
               <img
-                src={`/assets/cards/back-${type}.png`}
+                src={`/assets/cards/back-${type}.webp`}
                 alt={type}
                 className="w-full h-full object-cover pixelated"
                 style={{ imageRendering: "pixelated" }}

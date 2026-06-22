@@ -90,7 +90,7 @@ export function DeckBack({
       }}
     >
       <img
-        src={`/assets/cards/back-${backColor}.png`}
+        src={`/assets/cards/back-${backColor}.webp`}
         alt="Deck Back"
         className="h-full w-full object-cover pixelated"
         style={{ imageRendering: "pixelated" }}

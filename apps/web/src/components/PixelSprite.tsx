@@ -177,7 +177,7 @@ export const JOKER_SPRITE = [
 export function JokerArt({ className }: { className?: string }) {
   return (
     <img
-      src="/assets/cards/JOKER.png"
+      src="/assets/cards/JOKER.webp"
       alt="Joker"
       className={`h-full w-full object-contain pixelated ${className ?? ""}`}
       style={{ imageRendering: "pixelated" }}

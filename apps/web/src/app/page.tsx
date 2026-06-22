@@ -27,7 +27,7 @@ import {
   jokerConflictsWith,
   shuffle,
 } from "@/lib/game";
-import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay } from "@/lib/web3";
+import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay, handlePaymentFailure } from "@/lib/web3";
 
 const HAND_SIZE = 7;
 const MAX_SELECT = 5;
@@ -156,7 +156,7 @@ export default function HomePage() {
   const handleSubmitLastScore = useCallback(async () => {
     if (lastScore <= 0 || submittingScore || scoreSubmitted) return;
     if (!walletAddress || walletAddress.startsWith("0xceloGuest")) {
-      alert("Please connect a real Celo wallet (like MiniPay) to submit scores on-chain.");
+      alert("Open this app inside MiniPay to save your score to the on-chain leaderboard.");
       return;
     }
 
@@ -469,11 +469,15 @@ export default function HomePage() {
         setCooldownEnd(null);
         restart();
       } else {
-        alert("Payment failed or rejected. Please try again to play immediately.");
+        // Rejected or no wallet — keep the user in-app. (Insufficient balance
+        // throws and is handled in the catch block via the Deposit deeplink.)
+        alert("Payment was rejected. Please approve the transaction to play again.");
       }
     } catch (e) {
+      // Insufficient balance → redirect to MiniPay Deposit deeplink.
+      if (handlePaymentFailure(e)) return;
       console.error(e);
-      alert("Error processing payment.");
+      alert("Payment failed. Please try again.");
     } finally {
       setPayingRestart(false);
     }
@@ -781,7 +785,7 @@ export default function HomePage() {
                   />
                   {walletAddress.startsWith("0xceloGuest") && (
                     <div className="font-pixel text-[9px] text-[#ff8b85] mt-1 leading-tight">
-                      Guest mode: Connect Celo/MiniPay wallet to pay and bypass, or wait 24h.
+                      Guest mode: Open this app inside MiniPay to pay and bypass, or wait 24h.
                     </div>
                   )}
                 </div>
@@ -811,7 +815,6 @@ export default function HomePage() {
           <LeaderboardOverlay
             onClose={() => setShowLeaderboard(false)}
             walletAddress={walletAddress}
-            isMiniPayUser={detectedMiniPay}
             lastScore={lastScore}
             lastRound={lastRound}
             scoreSubmitted={scoreSubmitted}
@@ -923,7 +926,7 @@ function DeckPile({ count, total, deckType = "red" }: { count: number; total: nu
             >
               {!empty && (
                 <img
-                  src={`/assets/cards/back-${backColor}.png`}
+                  src={`/assets/cards/back-${backColor}.webp`}
                   alt="Deck Back"
                   className="h-full w-full object-cover pixelated"
                   style={{ imageRendering: "pixelated" }}
@@ -1008,7 +1011,6 @@ interface LeaderboardEntry {
 interface LeaderboardOverlayProps {
   onClose: () => void;
   walletAddress: string;
-  isMiniPayUser: boolean;
   lastScore: number;
   lastRound: number;
   scoreSubmitted: boolean;
@@ -1019,7 +1021,6 @@ interface LeaderboardOverlayProps {
 function LeaderboardOverlay({
   onClose,
   walletAddress,
-  isMiniPayUser,
   lastScore,
   lastRound,
   scoreSubmitted,
@@ -1096,7 +1097,7 @@ function LeaderboardOverlay({
       setUsernameInput("");
       loadLeaderboard();
     } else {
-      alert("Failed to set username. Ensure you have gas fees (USDT/CELO) and a wallet connected.");
+      alert("Failed to set username. Make sure you approved the transaction and have a small network fee in USDT.");
     }
     setRegistering(false);
   };
@@ -1109,10 +1110,10 @@ function LeaderboardOverlay({
           LEADERBOARD
         </div>
 
-        {/* Celo connection info */}
+        {/* Wallet connection info — show username as primary identifier, address only as secondary hint */}
         <div className="text-[10px] text-gray-300 font-pixel mb-3 flex items-center justify-center gap-1.5 bg-black/40 px-2.5 py-0.5 rounded-full border border-white/5">
           <div className="w-1.5 h-1.5 rounded-full bg-[#38d08f] animate-pulse"></div>
-          <span>{isMiniPayUser ? "MINIPAY" : "CELO"}: {walletAddress.startsWith("0xceloGuest") ? walletAddress : `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`}</span>
+          <span>{registeredUsername ? registeredUsername : (walletAddress.startsWith("0xceloGuest") ? walletAddress : `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)}</span>
         </div>
 
         {/* Username Registration Form (if connected to a wallet) */}
@@ -1204,9 +1205,11 @@ function LeaderboardOverlay({
                     >
                       <td className={`py-1 font-bold ${rankColor}`}>{index + 1}</td>
                       <td className="py-1 font-mono text-[11px] text-gray-300">
-                        {entry.username ? entry.username : (entry.address.startsWith("0xceloGuest") 
-                          ? entry.address 
-                          : `${entry.address.slice(0, 6)}...${entry.address.slice(-4)}`)}
+                        {entry.username
+                          ? entry.username
+                          : entry.address.startsWith("0xceloGuest")
+                          ? entry.address
+                          : `Player ${entry.address.slice(2, 6)}`}
                       </td>
                       <td className="py-1 text-right text-gray-400">{entry.round}</td>
                       <td className="py-1 text-right font-pixel-fat text-[#38d08f]">{entry.score}</td>

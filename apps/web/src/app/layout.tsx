@@ -3,10 +3,33 @@ import "./globals.css";
 import Script from "next/script";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://minicard.game"),
   title: "MiniCard",
-  description: "Minipay card experience inspired by Balatro pixel art",
+  description: "MiniCard is a card roguelike that reinvents traditional poker. It combines classic hands with modern mechanics, multipliers, and dynamic modifiers to achieve astronomical scores. Choose your strategy, defy the odds, and break the game!",
   icons: {
     icon: "/favicon.svg",
+  },
+  openGraph: {
+    title: "MiniCard",
+    description: "MiniCard is a card roguelike that reinvents traditional poker. It combines classic hands with modern mechanics, multipliers, and dynamic modifiers to achieve astronomical scores. Choose your strategy, defy the odds, and break the game!",
+    url: "https://minicard.game",
+    siteName: "MiniCard",
+    images: [
+      {
+        url: "/assets/opengrahp.png",
+        width: 1200,
+        height: 630,
+        alt: "MiniCard - A poker-inspired roguelike card game",
+      },
+    ],
+    locale: "es",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MiniCard",
+    description: "MiniCard is a card roguelike that reinvents traditional poker. It combines classic hands with modern mechanics, multipliers, and dynamic modifiers to achieve astronomical scores. Choose your strategy, defy the odds, and break the game!",
+    images: ["/assets/opengrahp.png"],
   },
   other: {
     "talentapp:project_verification": "2c3ccaeb4c6fa4451f9ea1b16da94c4e54861c10418c17765bff26deb12760d4d6ae1b221f983854d723eb0a0c688b004b0e8fada0181d1df4c7ebd9b6984e06",
