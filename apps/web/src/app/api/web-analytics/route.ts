@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getOptionalRequestContext } from "@cloudflare/next-on-pages";
 
 export const runtime = "edge";
+export const dynamic = "force-dynamic";
 
 // Mixpanel Web Analytics — computed from the Raw Data Export API.
 //
