@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getOptionalRequestContext } from "@cloudflare/next-on-pages";
 
 export const runtime = "edge";
 
@@ -115,7 +115,7 @@ export async function GET(_req: NextRequest) {
   // Fallback: Read environment variables from Cloudflare Pages Request Context if process.env is empty
   if (!user || !secret || !projectId) {
     try {
-      const ctx = getRequestContext();
+      const ctx = getOptionalRequestContext();
       if (ctx && ctx.env) {
         const cfEnv = ctx.env as Record<string, any>;
         user = user || cfEnv.MIXPANEL_SERVICE_ACCOUNT_USER;
@@ -123,7 +123,7 @@ export async function GET(_req: NextRequest) {
         projectId = projectId || cfEnv.MIXPANEL_PROJECT_ID;
       }
     } catch (e) {
-      console.warn("Cloudflare getRequestContext not available:", e);
+      console.warn("Cloudflare getOptionalRequestContext not available:", e);
     }
   }
 
