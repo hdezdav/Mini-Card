@@ -20,8 +20,12 @@ export const dynamic = "force-dynamic";
 //   MIXPANEL_SERVICE_ACCOUNT_USER
 //   MIXPANEL_SERVICE_ACCOUNT_SECRET
 //   MIXPANEL_PROJECT_ID
-// On Cloudflare Pages these must be set as PLAINTEXT env vars (not encrypted
-// secrets) so they reach edge runtime.
+// On Cloudflare Pages set these as environment variables — either Plaintext
+// or Encrypted secret (both work). Encrypted secrets are recommended for
+// credentials. They reach the edge runtime via getOptionalRequestContext().env
+// below; Plaintext vars additionally populate process.env when the
+// nodejs_compat_populate_process_env compatibility flag is active.
+// Upload them with: `pnpm pages:secrets` (see scripts/sync-pages-secrets.mjs).
 
 interface BreakdownEntry {
   name: string;

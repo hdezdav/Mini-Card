@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "pages:build": "npx @cloudflare/next-on-pages && node -e \"const fs = require('fs'); fs.writeFileSync('.vercel/output/static/.assetsignore', '_worker.js\\n')\"",
-    "pages:deploy": "pnpm pages:build && pnpm exec wrangler pages deploy .vercel/output/static"
+    "pages:deploy": "pnpm pages:build && pnpm exec wrangler pages deploy .vercel/output/static",
+    "pages:secrets": "node scripts/sync-pages-secrets.mjs"
   },
   "dependencies": {
     "next": "^15.5.19",

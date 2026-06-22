@@ -3,7 +3,7 @@ import "./globals.css";
 import Script from "next/script";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://minicard.game"),
+  metadataBase: new URL("https://minicard.fun"),
   title: "MiniCard",
   description: "MiniCard is a card roguelike that reinvents traditional poker. It combines classic hands with modern mechanics, multipliers, and dynamic modifiers to achieve astronomical scores. Choose your strategy, defy the odds, and break the game!",
   icons: {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "MiniCard",
     description: "MiniCard is a card roguelike that reinvents traditional poker. It combines classic hands with modern mechanics, multipliers, and dynamic modifiers to achieve astronomical scores. Choose your strategy, defy the odds, and break the game!",
-    url: "https://minicard.game",
+    url: "https://minicard.fun",
     siteName: "MiniCard",
     images: [
       {
