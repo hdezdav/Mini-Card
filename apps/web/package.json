@@ -11,9 +11,7 @@
     "pages:deploy": "pnpm pages:build && pnpm exec wrangler pages deploy .vercel/output/static"
   },
   "dependencies": {
-    "@posthog/react": "^1.10.2",
     "next": "^15.5.19",
-    "posthog-js": "^1.391.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "viem": "^2.52.2"
