@@ -29,6 +29,7 @@ import {
   shuffle,
 } from "@/lib/game";
 import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay, handlePaymentFailure } from "@/lib/web3";
+import { getSfx } from "@/lib/sfx";
 
 const HAND_SIZE = 7;
 const MAX_SELECT = 5;
@@ -82,6 +83,11 @@ export default function HomePage() {
   const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
   const [payingRestart, setPayingRestart] = useState(false);
 
+  // Procedural SFX engine (cards / plays / scoring / shop). Shares one
+  // AudioContext; created lazily on first use. Muted when the user has music
+  // off — we treat "music on" as the master audio toggle for the whole app.
+  const sfx = useMemo(() => getSfx(), []);
+
   // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
   useEffect(() => {
     const nav = navigator.language || (navigator as any).userLanguage || "en";
@@ -96,6 +102,11 @@ export default function HomePage() {
     if (savedDeck && ["red", "blue", "yellow", "green", "black", "painted"].includes(savedDeck)) {
       setDeckType(savedDeck);
     }
+
+    // SFX follow the music preference: if the user has music enabled, SFX are
+    // on too; otherwise the app is silent. (Both share the "audio on" toggle.)
+    const musicOn = localStorage.getItem("minicard_music_enabled") === "1";
+    sfx.setEnabled(musicOn);
   }, []);
 
   // Global click listener to close Joker tooltips when clicking elsewhere
@@ -109,6 +120,17 @@ export default function HomePage() {
       document.removeEventListener("click", handleGlobalClick);
     };
   }, [activeTooltipIdx]);
+
+  // Keep SFX enabled state in sync with the music toggle at runtime.
+  useEffect(() => {
+    const onAudio = (e: Event) => {
+      const on = (e as CustomEvent<{ on: boolean }>).detail?.on ?? true;
+      sfx.setEnabled(on);
+      if (on) sfx.resume();
+    };
+    window.addEventListener("minicard:audio", onAudio);
+    return () => window.removeEventListener("minicard:audio", onAudio);
+  }, [sfx]);
 
   const handleSelectDeck = (type: DeckType) => {
     setDeckType(type);
@@ -200,7 +222,11 @@ export default function HomePage() {
     setFloats([]);
     setScoringId(null);
     setTimeLeft(60);
-  }, []);
+    // Staggered deal ticks — one per card, slightly offset, like a real deal.
+    newHand.forEach((_, i) => {
+      setTimeout(() => sfx.play("deal"), 120 + i * 70);
+    });
+  }, [sfx]);
 
   useEffect(() => {
     const stored = localStorage.getItem("minicard_cooldown_end");
@@ -252,8 +278,12 @@ export default function HomePage() {
   const toggleSelect = (id: string) => {
     if (phase !== "playing" || busy.current) return;
     setSelected((prev) => {
-      if (prev.includes(id)) return prev.filter((value) => value !== id);
+      if (prev.includes(id)) {
+        sfx.play("deselect");
+        return prev.filter((value) => value !== id);
+      }
       if (prev.length >= MAX_SELECT) return prev;
+      sfx.play("select");
       return [...prev, id];
     });
   };
@@ -280,6 +310,7 @@ export default function HomePage() {
   const doDiscard = () => {
     if (phase !== "playing" || busy.current) return;
     if (selected.length === 0 || discardsLeft <= 0) return;
+    sfx.play("discard");
     const remaining = hand.filter((card) => !selected.includes(card.id));
     const { newHand, rest } = drawTo(remaining, deck);
     setHand(newHand);
@@ -318,6 +349,7 @@ export default function HomePage() {
     setScoringId(null);
     setAnimChips(base.chips);
     setAnimMult(base.mult);
+    sfx.play("play");
 
     await delay(300);
 
@@ -332,6 +364,7 @@ export default function HomePage() {
       setScoringId(card.id);
       setAnimChips(chips);
       pushFloat(card.id, `+${add}`, "#2fb8ff");
+      sfx.play("chip");
       await delay(280);
     }
     setScoringId(null);
@@ -363,6 +396,7 @@ export default function HomePage() {
         setJokerFlash(true);
         pushFloat(played[0]?.id ?? "", result.xMult ? `x${result.xMult}` : `+${result.mult - prevMult}`, "#d23bd2");
         setAnimMult(jokerCtx.mult);
+        sfx.play("joker");
         await delay(300);
         setJokerFlash(false);
       }
@@ -410,10 +444,12 @@ export default function HomePage() {
       await delay(200);
       setMoney((current) => current + blind.reward + Math.min(newHands, 5));
       saveScore(end);
+      sfx.play("win");
       setPhase("shop");
     } else if (newHands <= 0) {
       setPhase("lost");
       saveScore(end);
+      sfx.play("lose");
       const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
       localStorage.setItem("minicard_cooldown_end", String(endCooldown));
       setCooldownEnd(endCooldown);
@@ -431,6 +467,7 @@ export default function HomePage() {
     if (jokerConflictsWith(def, ownedJokers)) return;
     setMoney(m => m - cost);
     setOwnedJokers(prev => [...prev, { def, edition: "base", state: {} }]);
+    sfx.play("buy");
   };
 
   const handleSellJoker = (idx: number) => {
@@ -438,6 +475,7 @@ export default function HomePage() {
     if (!oj) return;
     setMoney(m => m + Math.floor(jokerBaseCost(oj.def) / 2));
     setOwnedJokers(prev => prev.filter((_, i) => i !== idx));
+    sfx.play("sell");
   };
 
   const enterNextBlind = () => {
@@ -497,7 +535,7 @@ export default function HomePage() {
           <MoneyBox money={money} />
         </div>
 
-        {/* Floating Music Toggle (mirrors the timer on the left edge) */}
+        {/* Floating Music Toggle (sits below the joker slots on the left edge) */}
         <MusicToggle />
 
         {/* Floating Timer Widget (Active from Round 2+) */}

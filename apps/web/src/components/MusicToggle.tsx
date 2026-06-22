@@ -20,6 +20,24 @@ export function MusicToggle() {
   const [ready, setReady] = useState(false);
   const [volume, setVolume] = useState(0.5);
 
+  // Volume slider visibility. When music is turned on we flash the slider so
+  // the user can fine-tune, then auto-collapse it after a few seconds of
+  // inactivity — "you already set the music, the control steps aside".
+  // Hovering the toggle / slider, or dragging it, keeps it open.
+  const [volOpen, setVolOpen] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const armHide = (delay = 2600) => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setVolOpen(false), delay);
+  };
+  const cancelHide = () => {
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  };
+
   // Restore saved preference once on mount.
   useEffect(() => {
     if (!MusicEngine.supported()) return;
@@ -74,6 +92,15 @@ export function MusicToggle() {
     const next = !on;
     setOn(next);
     localStorage.setItem(PREF_KEY, next ? "1" : "0");
+    // Broadcast the master audio toggle so SFX (and anything else) can follow.
+    window.dispatchEvent(new CustomEvent("minicard:audio", { detail: { on: next } }));
+    if (next) {
+      setVolOpen(true);
+      armHide();
+    } else {
+      cancelHide();
+      setVolOpen(false);
+    }
   };
 
   const handleVolume = (v: number) => {
@@ -81,38 +108,48 @@ export function MusicToggle() {
     localStorage.setItem(VOL_KEY, String(v));
   };
 
+  // Clean up the hide timer on unmount.
+  useEffect(() => () => cancelHide(), []);
+
   if (!ready) return null;
 
   return (
-    <div className="absolute top-[78px] left-0 z-30 anim-pop flex flex-col items-start gap-1.5">
+    <div className="absolute top-[150px] left-0 z-30 anim-pop flex flex-col items-start gap-1.5">
       <button
         type="button"
         onClick={handleToggle}
+        onMouseEnter={() => { if (on) { cancelHide(); setVolOpen(true); } }}
+        onMouseLeave={() => on && armHide()}
         aria-pressed={on}
         aria-label={on ? "Mute music" : "Play music"}
         title={on ? "Mute music" : "Play music"}
-        className={`flex items-center gap-1 min-w-[44px] px-2 py-1 rounded-r-lg border-y-2 border-r-2 border-black/50 text-center shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
+        className={`flex items-center gap-1 min-w-[40px] px-2.5 py-1.5 rounded-r-lg rounded-l-none border-y-2 border-r-2 border-black/40 text-center transition-[transform,box-shadow] duration-75 active:translate-y-[2px] ${
           on
-            ? "bg-[#facc15] text-black border-[#b35900]"
-            : "bg-black text-gray-400 border-white/20"
+            ? "bg-[#f7931a] text-white shadow-[0_4px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3)] active:shadow-[0_2px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3)]"
+            : "bg-[#3b4249] text-gray-300 shadow-[0_3px_0_#1e2226,inset_0_1px_0_rgba(255,255,255,0.15)] active:shadow-[0_1px_0_#1e2226,inset_0_1px_0_rgba(255,255,255,0.15)]"
         }`}
       >
-        <span className="font-pixel text-[8px] uppercase tracking-wider leading-none">
-          {on ? "Mute" : "Music"}
-        </span>
-        <span className="font-pixel-fat text-sm leading-none">
+        <span className="font-pixel-fat text-base leading-none txt-shadow">
           {on ? "♪" : "♪̸"}
         </span>
         {on && <span className="inline-flex gap-[1px] items-end h-3 ml-0.5">
-          <span className="w-[2px] bg-black animate-pulse" style={{ height: "40%", animationDelay: "0ms" }} />
-          <span className="w-[2px] bg-black animate-pulse" style={{ height: "75%", animationDelay: "120ms" }} />
-          <span className="w-[2px] bg-black animate-pulse" style={{ height: "55%", animationDelay: "240ms" }} />
+          <span className="w-[2px] bg-white animate-pulse" style={{ height: "40%", animationDelay: "0ms" }} />
+          <span className="w-[2px] bg-white animate-pulse" style={{ height: "75%", animationDelay: "120ms" }} />
+          <span className="w-[2px] bg-white animate-pulse" style={{ height: "55%", animationDelay: "240ms" }} />
         </span>}
       </button>
 
       {on && (
-        <div className="ml-0 bg-black/80 border border-white/15 rounded-r-lg rounded-l-none px-2 py-1.5 flex items-center gap-1.5 shadow-[0_4px_10px_rgba(0,0,0,0.5)] anim-pop">
-          <span className="font-pixel text-[7px] text-gray-400 leading-none">VOL</span>
+        <div
+          onMouseEnter={() => { cancelHide(); setVolOpen(true); }}
+          onMouseLeave={() => on && armHide()}
+          className={`bg-[#1a1d20] border-y-2 border-r-2 border-black/40 rounded-r-lg rounded-l-none px-2 py-1.5 flex items-center gap-1.5 shadow-[0_3px_0_#1e2226,inset_0_2px_4px_rgba(0,0,0,0.6)] transition-all duration-300 origin-top ${
+            volOpen
+              ? "opacity-100 scale-100 max-h-10 mt-0"
+              : "opacity-0 scale-90 max-h-0 -mt-1.5 pointer-events-none overflow-hidden"
+          }`}
+        >
+          <span className="font-pixel text-[7px] text-gray-400 leading-none uppercase tracking-wider">Vol</span>
           <input
             type="range"
             min={0}
@@ -120,6 +157,8 @@ export function MusicToggle() {
             step={0.05}
             value={volume}
             onChange={(e) => handleVolume(Number(e.target.value))}
+            onPointerDown={() => cancelHide()}
+            onPointerUp={() => armHide()}
             aria-label="Music volume"
             className="music-slider w-16 h-1 accent-[#facc15]"
           />

@@ -1,32 +1,47 @@
-// Procedural jazz/funk music engine (Web Audio API).
+// Procedural Balatro-style music engine (Web Audio API).
 //
-// Synthesizes a Balatro-style loop entirely in code — walking bass,
-// swing drums, Rhodes-style electric piano chords and a pentatonic lead,
-// all routed through a slowly modulated filter for that psychedelic
-// movement. No external audio assets, so it is 100% copyright-free and
-// works offline (important inside MiniPay / web3 wallet browsers where
-// external URLs can be blocked or fail).
+// Synthesizes a psychedelic lounge/funk loop entirely in code — walking
+// upright bass, swing brushed drums, a Rhodes-style electric piano with a
+// heavy pulsing tremolo (the signature Balatro EP wobble), rich rootless
+// jazz voicings (9ths / 13ths / #9), and a muted-trumpet lead. Everything
+// runs through a slowly sweeping resonant low-pass plus a gentle tape-style
+// saturation for warmth. No external audio assets, so it is 100%
+// copyright-free and works offline (important inside MiniPay / web3 wallet
+// browsers where external URLs can be blocked or fail).
 
 type MaybeAudioContext = AudioContext & { resume?: () => Promise<void> };
 
 const noteFreq = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
 
-// 4-bar progression in D minor (jazzy/funky turnaround).
-// Each bar: [root, chord tones] used for bass walking + Rhodes voicing.
+// Soft-clipping curve for tape/brass saturation. `amount` controls how hard
+// the signal is driven — 1.2 = subtle warmth, 2.2 = brassy edge.
+function softCurve(amount: number): Float32Array<ArrayBuffer> {
+  const n = 1024;
+  const c = new Float32Array(new ArrayBuffer(n * 4));
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    c[i] = Math.tanh(x * amount);
+  }
+  return c;
+}
+
+// 4-bar progression in D minor (psychedelic lounge turnaround).
+// Each bar: [root, rootless chord voicing]. The voicings use upper
+// extensions (9 / 13 / #9) for that colorful, slightly "out" Balatro feel.
 const PROGRESSION = [
-  { root: 38, chord: [50, 53, 57, 60] }, // Dm7  (D F A C)
-  { root: 43, chord: [50, 55, 59, 62] }, // G7   (G B D F  — voiced up)
-  { root: 38, chord: [50, 53, 57, 60] }, // Dm7
-  { root: 45, chord: [49, 52, 57, 61] }, // A7   (A C# E G)
+  { root: 38, chord: [53, 57, 60, 64] }, // Dm9  (F A C E   — b3 5 b7 9)
+  { root: 43, chord: [53, 57, 59, 64] }, // G13  (F A B E   — b7 9 3 13)
+  { root: 38, chord: [53, 57, 60, 64] }, // Dm9
+  { root: 45, chord: [52, 55, 58, 61] }, // A7#9 (E G Bb C# — 5 b7 #9 3)
 ];
 
 // Walking bass — 4 quarter notes per bar, beat 4 is a chromatic approach
 // to the next bar's root (classic jazz voice-leading).
 const BASS = [
-  [38, 41, 45, 42], // Dm7 -> G7   (D F A F#)
-  [43, 47, 50, 49], // G7  -> Dm7  (G B D C#)
-  [38, 41, 45, 44], // Dm7 -> A7   (D F A G#)
-  [45, 49, 52, 39], // A7  -> Dm7  (A C# E D#)
+  [38, 41, 45, 42], // Dm9 -> G13  (D F# A F)
+  [43, 47, 50, 49], // G13 -> Dm9  (G B D C#)
+  [38, 41, 45, 44], // Dm9 -> A7#9 (D F A G#)
+  [45, 49, 52, 39], // A7#9 -> Dm9 (A C# E Eb)
 ];
 
 // Drum patterns — 8 eighth-notes per bar, 4 bars = 32 steps.
@@ -44,27 +59,34 @@ const SNARE = [
   0, 0, 1, 0, 0, 0, 1, 0,
   0, 0, 1, 0, 0, 0, 1, 0,
 ];
-const HAT = Array(STEPS).fill(1); // eighths throughout
+const HAT = Array(STEPS).fill(1); // brushed eighths throughout
 
-// Lead melody — D minor pentatonic (D F G A C) + occasional Eb blue note.
+// Lead melody — D minor pentatonic (D F G A C) + blue notes.
 // -1 = rest. Voiced around D4–D5 (MIDI 62–74).
 const LEAD = [
   69, -1, 72, -1, 74, -1, 72, 69, // bar 1: A C D C A
-  67, -1, 70, -1, 72, -1, 70, 67, // bar 2: G Bb C Bb G  (G7 colour)
+  71, -1, 74, -1, 72, -1, 71, 69, // bar 2: B D C B A  (hits G13's 3rd & 9th)
   65, -1, 69, -1, 72, -1, 69, 65, // bar 3: F A C A F
-  70, 72, 74, -1, 72, 70, 69, -1, // bar 4: Bb C D C Bb A (turnaround)
+  70, 72, 74, -1, 72, 70, 69, -1, // bar 4: Bb C D C Bb A (turnaround, #9 colour)
 ];
 
-const TEMPO = 104; // BPM — laid-back funky jazz
-const SWING = 0.62; // off-beat eighth delay ratio (0.5 = straight, 0.66 = heavy)
+const TEMPO = 100; // BPM — laid-back lounge
+const SWING = 0.65; // off-beat eighth delay ratio (0.5 = straight, 0.66 = heavy)
 
 export class MusicEngine {
   private ctx: MaybeAudioContext | null = null;
   private master: GainNode | null = null;
   private filter: BiquadFilterNode | null = null;
+  private shaper: WaveShaperNode | null = null;
   private lfo: OscillatorNode | null = null;
   private lfoGain: GainNode | null = null;
   private comp: DynamicsCompressorNode | null = null;
+
+  // Rhodes tremolo bus — the woozy pulsing gain that defines the Balatro EP.
+  private rhodesBus: GainNode | null = null;
+  private rhodesTrem: OscillatorNode | null = null;
+  private rhodesTremDepth: GainNode | null = null;
+  private brassCurve: Float32Array<ArrayBuffer> | null = null;
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextStepTime = 0;
@@ -124,6 +146,10 @@ export class MusicEngine {
       try { this.lfo.stop(); } catch { /* already stopped */ }
       this.lfo = null;
     }
+    if (this.rhodesTrem) {
+      try { this.rhodesTrem.stop(); } catch { /* already stopped */ }
+      this.rhodesTrem = null;
+    }
     if (this.ctx) {
       this.ctx.close().catch(() => {});
       this.ctx = null;
@@ -137,23 +163,28 @@ export class MusicEngine {
     const ctx = this.ctx;
 
     this.comp = ctx.createDynamicsCompressor();
-    this.comp.threshold.value = -14;
-    this.comp.knee.value = 24;
-    this.comp.ratio.value = 4;
-    this.comp.attack.value = 0.005;
-    this.comp.release.value = 0.18;
+    this.comp.threshold.value = -16;
+    this.comp.knee.value = 26;
+    this.comp.ratio.value = 3;
+    this.comp.attack.value = 0.006;
+    this.comp.release.value = 0.2;
 
-    // Slowly sweeping low-pass for the psychedelic Balatro movement.
+    // Gentle tape-style saturation for warmth across the whole mix.
+    this.shaper = ctx.createWaveShaper();
+    this.shaper.curve = softCurve(1.3);
+    this.shaper.oversample = "2x";
+
+    // Slowly sweeping resonant low-pass for the psychedelic Balatro movement.
     this.filter = ctx.createBiquadFilter();
     this.filter.type = "lowpass";
-    this.filter.frequency.value = 1400;
-    this.filter.Q.value = 0.8;
+    this.filter.frequency.value = 1500;
+    this.filter.Q.value = 0.9;
 
     this.lfo = ctx.createOscillator();
     this.lfo.type = "sine";
-    this.lfo.frequency.value = 0.08; // ~12s cycle
+    this.lfo.frequency.value = 0.09; // ~11s cycle
     this.lfoGain = ctx.createGain();
-    this.lfoGain.gain.value = 700;
+    this.lfoGain.gain.value = 1100; // sweeps ~400Hz → ~2600Hz
     this.lfo.connect(this.lfoGain);
     this.lfoGain.connect(this.filter.frequency);
     this.lfo.start();
@@ -161,10 +192,30 @@ export class MusicEngine {
     this.master = ctx.createGain();
     this.master.gain.value = this.volume;
 
-    // instrument bus -> filter -> compressor -> master -> out
-    this.filter.connect(this.comp);
+    // instrument bus -> filter -> saturator -> compressor -> master -> out
+    this.filter.connect(this.shaper);
+    this.shaper.connect(this.comp);
     this.comp.connect(this.master);
     this.master.connect(ctx.destination);
+
+    // ─── Rhodes tremolo bus ───
+    // A gain node whose level is modulated by a ~5.4Hz sine LFO, giving the
+    // electric piano its woozy, pulsing Balatro wobble. All Rhodes notes
+    // route through here instead of straight to the filter.
+    this.rhodesBus = ctx.createGain();
+    this.rhodesBus.gain.value = 0.75;
+    this.rhodesTrem = ctx.createOscillator();
+    this.rhodesTrem.type = "sine";
+    this.rhodesTrem.frequency.value = 5.4;
+    this.rhodesTremDepth = ctx.createGain();
+    this.rhodesTremDepth.gain.value = 0.28; // depth: gain ranges ~0.47 → 1.03
+    this.rhodesTrem.connect(this.rhodesTremDepth);
+    this.rhodesTremDepth.connect(this.rhodesBus.gain);
+    this.rhodesTrem.start();
+    this.rhodesBus.connect(this.filter);
+
+    // Pre-computed brassy soft-clip curve for the muted-trumpet lead.
+    this.brassCurve = softCurve(2.2);
   }
 
   private bus(): AudioNode {
@@ -191,10 +242,10 @@ export class MusicEngine {
   }
 
   private scheduleStep(step: number, bar: number, local: number, t: number): void {
-    // Drums
+    // Drums (brushed / soft)
     if (KICK[step]) this.kick(t);
     if (SNARE[step]) this.snare(t);
-    if (HAT[step]) this.hat(t, local % 2 === 1 ? 0.18 : 0.3);
+    if (HAT[step]) this.hat(t, local % 2 === 1 ? 0.13 : 0.19);
 
     // Bass on the beat (local 0,2,4,6 = quarter notes)
     if (local % 2 === 0) {
@@ -205,14 +256,14 @@ export class MusicEngine {
 
     // Rhodes: sustain the chord at the top of each bar + a soft stab on beat 3
     if (local === 0) {
-      this.rhodes(PROGRESSION[bar].chord, t, 60 / TEMPO * 3.6, 0.16);
+      this.rhodes(PROGRESSION[bar].chord, t, 60 / TEMPO * 3.6, 0.15);
     } else if (local === 4) {
-      this.rhodes(PROGRESSION[bar].chord, t, 60 / TEMPO * 0.9, 0.1);
+      this.rhodes(PROGRESSION[bar].chord, t, 60 / TEMPO * 0.9, 0.09);
     }
 
-    // Lead melody
+    // Muted-trumpet lead
     const note = LEAD[step];
-    if (note > 0) this.lead(note, t, 60 / TEMPO / 2 * 0.9);
+    if (note > 0) this.trumpet(note, t, 60 / TEMPO / 2 * 0.9);
   }
 
   // ─── Voices ───
@@ -226,6 +277,7 @@ export class MusicEngine {
     g.exponentialRampToValueAtTime(0.0001, t + a + d + s + r);
   }
 
+  // Round upright-bass: saw + sine sub-octave through a soft low-pass.
   private bass(midi: number, t: number, dur: number): void {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
@@ -234,113 +286,132 @@ export class MusicEngine {
     const sub = ctx.createOscillator();
     sub.type = "sine";
     sub.frequency.value = noteFreq(midi - 12); // sub-octave for weight
+    const oscG = ctx.createGain(); oscG.gain.value = 0.45;
+    const subG = ctx.createGain(); subG.gain.value = 0.7; // rounder, sub-heavy
     const lp = ctx.createBiquadFilter();
     lp.type = "lowpass";
-    lp.frequency.value = 520;
-    lp.Q.value = 4;
+    lp.frequency.value = 380;
+    lp.Q.value = 2.2;
     const g = ctx.createGain();
-    this.env(g, t, 0.008, 0.06, Math.max(dur - 0.1, 0.05), 0.08, 0.5, 0.28);
-    osc.connect(lp); sub.connect(lp); lp.connect(g); g.connect(this.bus());
+    this.env(g, t, 0.012, 0.09, Math.max(dur - 0.12, 0.06), 0.09, 0.42, 0.24);
+    osc.connect(oscG); sub.connect(subG);
+    oscG.connect(lp); subG.connect(lp); lp.connect(g); g.connect(this.bus());
     osc.start(t); sub.start(t);
     const stopAt = t + dur + 0.12;
     osc.stop(stopAt); sub.stop(stopAt);
   }
 
+  // Rhodes-style electric piano: FM-sine bell tone routed through the
+  // tremolo bus for the woozy Balatro wobble.
   private rhodes(midiList: number[], t: number, dur: number, peak: number): void {
     const ctx = this.ctx!;
     for (const midi of midiList) {
       const osc = ctx.createOscillator();
       osc.type = "sine";
       osc.frequency.value = noteFreq(midi);
-      // FM modulator for the Rhodes bell tone.
+      // FM modulator for the Rhodes bell tone (darker than before).
       const mod = ctx.createOscillator();
       mod.type = "sine";
       mod.frequency.value = noteFreq(midi) * 2;
       const modGain = ctx.createGain();
-      modGain.gain.value = noteFreq(midi) * 0.4;
+      modGain.gain.value = noteFreq(midi) * 0.22;
       mod.connect(modGain); modGain.connect(osc.frequency);
 
       const g = ctx.createGain();
-      this.env(g, t, 0.02, 0.25, Math.max(dur - 0.4, 0.2), 0.4, peak, peak * 0.35);
-      osc.connect(g); g.connect(this.bus());
+      this.env(g, t, 0.015, 0.3, Math.max(dur - 0.5, 0.25), 0.45, peak, peak * 0.3);
+      osc.connect(g); g.connect(this.rhodesBus!); // -> tremolo -> filter
       osc.start(t); mod.start(t);
       const stopAt = t + dur + 0.5;
       osc.stop(stopAt); mod.stop(stopAt);
     }
   }
 
-  private lead(midi: number, t: number, dur: number): void {
+  // Muted-trumpet lead: sawtooth with a quick lip-slide ("doit") into the
+  // note, delayed vibrato, a bandpass for the muted-horn character, and a
+  // brassy soft-clip for edge.
+  private trumpet(midi: number, t: number, dur: number): void {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
-    osc.type = "triangle";
-    osc.frequency.value = noteFreq(midi);
-    // gentle vibrato
+    osc.type = "sawtooth";
+    // "Doit" — slide up into the pitch from just below for that brass attack.
+    osc.frequency.setValueAtTime(noteFreq(midi) * 0.94, t);
+    osc.frequency.exponentialRampToValueAtTime(noteFreq(midi), t + 0.05);
+
+    // Delayed vibrato: brass vibrato only comes in after the attack settles.
     const lfo = ctx.createOscillator();
     lfo.type = "sine";
-    lfo.frequency.value = 5.5;
+    lfo.frequency.value = 5.6;
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = noteFreq(midi) * 0.006;
+    lfoGain.gain.setValueAtTime(0, t);
+    lfoGain.gain.linearRampToValueAtTime(noteFreq(midi) * 0.007, t + 0.22);
     lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
 
     const bp = ctx.createBiquadFilter();
     bp.type = "bandpass";
-    bp.frequency.value = noteFreq(midi) * 2;
-    bp.Q.value = 1;
+    bp.frequency.value = noteFreq(midi) * 1.5;
+    bp.Q.value = 1.8;
+
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = this.brassCurve;
+    shaper.oversample = "2x";
 
     const g = ctx.createGain();
-    this.env(g, t, 0.01, 0.08, Math.max(dur - 0.12, 0.05), 0.12, 0.22, 0.12);
-    osc.connect(bp); bp.connect(g); g.connect(this.bus());
+    this.env(g, t, 0.025, 0.14, Math.max(dur - 0.18, 0.1), 0.14, 0.2, 0.13);
+    osc.connect(bp); bp.connect(shaper); shaper.connect(g); g.connect(this.bus());
     osc.start(t); lfo.start(t);
-    const stopAt = t + dur + 0.2;
+    const stopAt = t + dur + 0.3;
     osc.stop(stopAt); lfo.stop(stopAt);
   }
 
+  // Soft, round kick.
   private kick(t: number): void {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(120, t);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    osc.frequency.setValueAtTime(115, t);
+    osc.frequency.exponentialRampToValueAtTime(42, t + 0.12);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.9, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+    g.gain.exponentialRampToValueAtTime(0.8, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
     osc.connect(g); g.connect(this.bus());
-    osc.start(t); osc.stop(t + 0.24);
+    osc.start(t); osc.stop(t + 0.22);
   }
 
+  // Brushed snare / cross-stick — soft noise burst.
   private snare(t: number): void {
     const ctx = this.ctx!;
     const noise = ctx.createBufferSource();
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     noise.buffer = buf;
     const bp = ctx.createBiquadFilter();
     bp.type = "highpass";
-    bp.frequency.value = 1500;
+    bp.frequency.value = 1700;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.32, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    g.gain.exponentialRampToValueAtTime(0.2, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
     noise.connect(bp); bp.connect(g); g.connect(this.bus());
-    noise.start(t); noise.stop(t + 0.18);
+    noise.start(t); noise.stop(t + 0.16);
   }
 
+  // Brushed hi-hat — short, soft, high noise tick.
   private hat(t: number, peak: number): void {
     const ctx = this.ctx!;
     const noise = ctx.createBufferSource();
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate);
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     noise.buffer = buf;
     const hp = ctx.createBiquadFilter();
     hp.type = "highpass";
-    hp.frequency.value = 7000;
+    hp.frequency.value = 8000;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(peak, t + 0.002);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
     noise.connect(hp); hp.connect(g); g.connect(this.bus());
     noise.start(t); noise.stop(t + 0.06);
   }
