@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+
 interface PixelSpriteProps {
   rows: string[];
   palette: Record<string, string>;
@@ -13,7 +15,7 @@ export function PixelSprite({
 }: PixelSpriteProps) {
   const height = rows.length;
   const width = Math.max(...rows.map((row) => row.length));
-  const rects: JSX.Element[] = [];
+  const rects: ReactElement[] = [];
 
   for (let y = 0; y < height; y++) {
     const row = rows[y];
