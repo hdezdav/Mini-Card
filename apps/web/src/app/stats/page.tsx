@@ -176,6 +176,8 @@ export default function StatsPage() {
   const [operatorUsdtBalance, setOperatorUsdtBalance] = useState<bigint>(BigInt(0));
   const [loading, setLoading] = useState(true);
 
+  // Web analytics (Mixpanel) state — disabled, not in use.
+  /*
   const [webData, setWebData] = useState<{
     countries: { name: string; count: number; pct: number }[];
     devices:   { name: string; count: number; pct: number }[];
@@ -188,7 +190,11 @@ export default function StatsPage() {
     note?: string;
   } | null>(null);
   const [webLoading, setWebLoading] = useState(true);
+  */
 
+  // Web analytics (Mixpanel) disabled — not in use. The /api/web-analytics
+  // endpoint and this fetch are kept commented for easy re-enablement.
+  /*
   useEffect(() => {
     fetch("/api/web-analytics")
       .then((r) => r.json())
@@ -204,6 +210,7 @@ export default function StatsPage() {
       })
       .finally(() => setWebLoading(false));
   }, []);
+  */
 
   useEffect(() => {
     (async () => {
@@ -741,7 +748,7 @@ export default function StatsPage() {
               <ContractRow label={t.operator[l]} address={OPERATOR_ADDRESS} />
             </Section>
 
-            {/* 8. ANALÍTICA WEB (Mixpanel) */}
+            {/* 8. ANALÍTICA WEB (Mixpanel) — disabled, not in use.
             <Section title={t.webAnalytics[l]}>
               {webLoading ? (
                 <div className="flex items-center justify-center py-8 gap-2">
@@ -797,6 +804,7 @@ export default function StatsPage() {
                 </>
               )}
             </Section>
+            */}
 
           </div>
         )}

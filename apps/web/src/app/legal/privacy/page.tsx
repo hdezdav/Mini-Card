@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+// Force dynamic rendering so next-on-pages emits a lambda for this route
+// (static prerendering triggers "Unable to find lambda for route" on Next 15.5).
+// next-on-pages requires the edge runtime on all non-static routes.
+export const runtime = "edge";
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Privacy Policy · MiniCard",
   description: "MiniCard Privacy Policy",

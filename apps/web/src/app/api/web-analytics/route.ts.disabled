@@ -1,3 +1,15 @@
+// Web analytics (Mixpanel) — DISABLED, not in use.
+//
+// This file is renamed to route.ts.disabled so Next.js no longer treats it as
+// a route (a route file with all exports commented out fails Next's type
+// validator). To re-enable:
+//   1. git mv route.ts.disabled route.ts
+//   2. Remove the enclosing /* ... */ block below.
+//   3. Uncomment the Mixpanel <Script> block + `import Script` in
+//      src/app/layout.tsx.
+//   4. Uncomment the webData state + fetch + <Section> in src/app/stats/page.tsx.
+//   5. Uncomment scripts/sync-pages-secrets.mjs and run `pnpm pages:secrets`.
+/*
 import { NextRequest } from "next/server";
 import { getOptionalRequestContext } from "@cloudflare/next-on-pages";
 
@@ -257,3 +269,4 @@ export async function GET(_req: NextRequest) {
     headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" },
   });
 }
+*/

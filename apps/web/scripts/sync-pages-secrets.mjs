@@ -1,6 +1,15 @@
 #!/usr/bin/env node
-// Push the server-side Mixpanel env vars from .env.local to Cloudflare Pages
-// as encrypted secrets. Run from the apps/web package: `pnpm pages:secrets`.
+// Web analytics (Mixpanel) disabled — not in use. This secrets-sync script is
+// commented out. To re-enable, remove the enclosing /* ... */ block below.
+/*
+// Push the server-side Mixpanel env vars from .env.local to the Cloudflare
+// Worker as encrypted secrets. Run from the apps/web package: `pnpm pages:secrets`.
+//
+// NOTE: despite the script name, the site is deployed as a Cloudflare Worker
+// (see the root wrangler.toml with `main` + `[assets]`), not as Pages. So we
+// use `wrangler secret put` (Worker secrets), not `wrangler pages secret put`.
+// Worker secrets are injected into the request env, which
+// getOptionalRequestContext().env reads in src/app/api/web-analytics/route.ts.
 //
 // Reads apps/web/.env.local for:
 //   MIXPANEL_SERVICE_ACCOUNT_USER
@@ -9,10 +18,9 @@
 //   CF_API_TOKEN     -> used as CLOUDFLARE_API_TOKEN to authenticate wrangler
 //   CF_ACCOUNT_ID    -> used as CLOUDFLARE_ACCOUNT_ID (optional but recommended)
 //
-// Each MIXPANEL_* value is piped to `wrangler pages secret put` over stdin so
-// it never appears on the command line or in the terminal output. Encrypted
-// secrets are available to the edge runtime via getOptionalRequestContext().env
-// in src/app/api/web-analytics/route.ts — no redeploy is required after upload.
+// Each MIXPANEL_* value is piped to `wrangler secret put` over stdin so it
+// never appears on the command line or in the terminal output. Secrets are
+// available to the edge runtime on the next request — no redeploy required.
 
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
@@ -20,9 +28,15 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const envPath = join(__dirname, "..", ".env.local");
+const webDir = join(__dirname, ".."); // apps/web
+const repoRoot = join(webDir, ".."); // repo root, where the Worker wrangler.toml lives
+const envPath = join(webDir, ".env.local");
 
-const PROJECT_NAME = process.env.PAGES_PROJECT_NAME || "minicard";
+// The Worker is defined by the repo-root wrangler.toml (name = "minicard",
+// main = apps/web/.vercel/output/static/_worker.js/index.js). wrangler secret
+// commands must run from that directory so they pick up the right config.
+
+const PROJECT_NAME = process.env.WORKER_NAME || "minicard";
 
 const SECRETS = [
   "MIXPANEL_SERVICE_ACCOUNT_USER",
@@ -94,8 +108,13 @@ function putSecret(name, value) {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "wrangler",
-      ["pages", "secret", "put", name, "--project-name", PROJECT_NAME],
-      { env: wranglerEnv, stdio: ["pipe", "inherit", "inherit"], shell: true }
+      ["secret", "put", name, "--name", PROJECT_NAME],
+      {
+        cwd: repoRoot,
+        env: wranglerEnv,
+        stdio: ["pipe", "inherit", "inherit"],
+        shell: true,
+      }
     );
     child.on("error", reject);
     child.on("exit", (code) =>
@@ -108,7 +127,7 @@ function putSecret(name, value) {
   });
 }
 
-console.log(`Uploading Mixpanel secrets to Pages project "${PROJECT_NAME}"...`);
+console.log(`Uploading Mixpanel secrets to Worker "${PROJECT_NAME}"...`);
 for (const name of SECRETS) {
   process.stdout.write(`→ ${name} ... `);
   try {
@@ -125,3 +144,4 @@ console.log("✓ All Mixpanel secrets uploaded.");
 console.log(
   "  They are available to /api/web-analytics on the next request (no redeploy needed)."
 );
+*/
