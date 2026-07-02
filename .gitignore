@@ -31,7 +31,7 @@ yarn-error.log*
 # AI Agents
 .agents
 .claude
-.alt
+.atl
 
 # Cloudflare & Wrangler local state
 .wrangler
