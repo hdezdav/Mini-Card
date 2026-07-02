@@ -26,9 +26,10 @@ import {
   handScore,
   jokerBaseCost,
   jokerConflictsWith,
+  JOKER_DEFS,
   shuffle,
 } from "@/lib/game";
-import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, payRestartWithMiniPay, handlePaymentFailure } from "@/lib/web3";
+import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, checkHasUsername, payRestartWithMiniPay, handlePaymentFailure } from "@/lib/web3";
 import { getSfx } from "@/lib/sfx";
 
 const HAND_SIZE = 7;
@@ -83,18 +84,39 @@ export default function HomePage() {
   const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
   const [payingRestart, setPayingRestart] = useState(false);
 
+  // Username gate — all players must register a username before playing
+  const [needsUsername, setNeedsUsername] = useState(false);
+  const [usernameInput, setUsernameInput] = useState("");
+  const [registeringUsername, setRegisteringUsername] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+
   // Procedural SFX engine (cards / plays / scoring / shop). Shares one
   // AudioContext; created lazily on first use. Muted when the user has music
   // off — we treat "music on" as the master audio toggle for the whole app.
   const sfx = useMemo(() => getSfx(), []);
 
   // Auto-connect Celo / MiniPay (no connect button per MiniPay guidelines)
+  // Also checks whether the connected wallet has a registered username.
+  // If not, shows a modal forcing username registration before playing.
   useEffect(() => {
     const nav = navigator.language || (navigator as any).userLanguage || "en";
     setLang(nav.toLowerCase().startsWith("es") ? "es" : "en");
 
-    autoConnect().then((addr) => {
-      setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
+    autoConnect().then(async (addr) => {
+      if (addr && !addr.startsWith("0xceloGuest")) {
+        setWalletAddress(addr);
+        // Check if this wallet already has a username on-chain
+        try {
+          const has = await checkHasUsername(addr);
+          if (!has) {
+            setNeedsUsername(true);
+          }
+        } catch (err) {
+          console.warn("Failed to check username status:", err);
+        }
+      } else {
+        setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
+      }
     });
     setDetectedMiniPay(isMiniPay());
 
@@ -363,7 +385,7 @@ export default function HomePage() {
       chips += add;
       setScoringId(card.id);
       setAnimChips(chips);
-      pushFloat(card.id, `+${add}`, "#2fb8ff");
+      pushFloat(card.id, `+${add}`, "#00f0ff");
       sfx.play("chip");
       await delay(280);
     }
@@ -394,7 +416,7 @@ export default function HomePage() {
       }
       if (result.mult !== prevMult || result.xMult) {
         setJokerFlash(true);
-        pushFloat(played[0]?.id ?? "", result.xMult ? `x${result.xMult}` : `+${result.mult - prevMult}`, "#d23bd2");
+        pushFloat(played[0]?.id ?? "", result.xMult ? `x${result.xMult}` : `+${result.mult - prevMult}`, "#ff2e88");
         setAnimMult(jokerCtx.mult);
         sfx.play("joker");
         await delay(300);
@@ -414,7 +436,7 @@ export default function HomePage() {
       pushFloat(
         played[0]?.id ?? "",
         `${moneyDelta > 0 ? "+" : ""}$${moneyDelta}`,
-        moneyDelta > 0 ? "#facc15" : "#fe5f55"
+        moneyDelta > 0 ? "#ff9e2c" : "#ff2e88"
       );
       await delay(280);
     }
@@ -478,6 +500,29 @@ export default function HomePage() {
     sfx.play("sell");
   };
 
+  // ─── Booster Pack result handler ───
+  // Called when a booster pack is opened on-chain. If the joker is new,
+  // it's added to the player's inventory. If it's a duplicate, the player
+  // gets the sell value as in-game money instead.
+  const handleBoosterJoker = useCallback((jokerId: number) => {
+    const def = JOKER_DEFS.find((j) => j.id === jokerId);
+    if (!def) return;
+
+    const isDuplicate = ownedJokers.some((oj) => oj.def.id === jokerId);
+    const isConflict = jokerConflictsWith(def, ownedJokers);
+
+    if (isDuplicate || isConflict || ownedJokers.length >= MAX_JOKER_SLOTS) {
+      // Duplicate / conflict / no space — refund sell value as in-game money
+      const refund = Math.floor(jokerBaseCost(def) / 2);
+      setMoney(m => m + refund);
+      sfx.play("buy");
+    } else {
+      // New joker — add to inventory
+      setOwnedJokers(prev => [...prev, { def, edition: "base", state: {} }]);
+      sfx.play("buy");
+    }
+  }, [ownedJokers, sfx]);
+
   const enterNextBlind = () => {
     const nextRound = round + 1;
     setRound(nextRound);
@@ -522,16 +567,48 @@ export default function HomePage() {
     }
   };
 
+  // ─── Username Registration Gate ───
+  // Forces every player to register a unique username before they can play.
+  // This is required by the updated contract (submitScore reverts without a username).
+  const handleRegisterUsernameFromGate = async () => {
+    const trimmed = usernameInput.trim();
+    if (!trimmed) {
+      setUsernameError("Username cannot be empty");
+      return;
+    }
+    if (trimmed.length > 20) {
+      setUsernameError("Username too long (max 20 chars)");
+      return;
+    }
+
+    setRegisteringUsername(true);
+    setUsernameError("");
+    try {
+      const success = await registerUsernameToCelo(trimmed);
+      if (success) {
+        setNeedsUsername(false);
+        setUsernameInput("");
+      } else {
+        setUsernameError("Failed to register. Make sure you approved the transaction.");
+      }
+    } catch (err) {
+      console.error("Username registration error:", err);
+      setUsernameError("Transaction failed. Please try again.");
+    } finally {
+      setRegisteringUsername(false);
+    }
+  };
+
   return (
-    <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-[#070b09]">
+    <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-[#0a0420]">
       <div className="felt-bg relative flex h-full w-full max-w-[480px] flex-col overflow-hidden">
         <GbaBackground blindKind={blind.kind} />
         {/* Top Stats Bar */}
         <div className="relative z-10 flex gap-[5px] px-2 pb-1 pt-1.5 items-stretch">
-          <StatBox label="Hands" value={handsLeft} color="#37b6ef" />
-          <StatBox label="Discards" value={discardsLeft} color="#fe5f55" />
+          <StatBox label="Hands" value={handsLeft} color="#00f0ff" />
+          <StatBox label="Discards" value={discardsLeft} color="#ff2e88" />
           <AnteBox ante={ante} />
-          <StatBox label="Round" value={round} color="#f5a623" />
+          <StatBox label="Round" value={round} color="#ff9e2c" />
           <MoneyBox money={money} />
         </div>
 
@@ -543,8 +620,8 @@ export default function HomePage() {
           <div className="absolute top-[76px] right-0 z-30 anim-pop">
             <div className={`flex flex-col items-center justify-center min-w-[48px] px-2 py-1 rounded-l-lg border-y-2 border-l-2 border-black/50 text-center shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
               timeLeft <= 15
-                ? "bg-[#ec4899] text-white animate-pulse scale-105 border-[#be185d]"
-                : "bg-black text-[#ec4899] border-[#ec4899]/85"
+                ? "bg-[#ff2e88] text-white animate-pulse scale-105 border-[#a01657]"
+                : "bg-black text-[#ff2e88] border-[#ff2e88]/85"
             }`}>
               <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">Time</span>
               <span className="font-pixel-fat text-sm leading-none mt-0.5">{timeLeft}s</span>
@@ -565,12 +642,12 @@ export default function HomePage() {
                       e.stopPropagation();
                       setActiveTooltipIdx(activeTooltipIdx === i ? null : i);
                     }}
-                    className={`relative overflow-hidden rounded-[9px] border-[2.5px] h-full w-full outline-none focus:ring-1 focus:ring-[#38d08f]/50 ${
-                      oj.def.rarity === "uncommon" ? "joker-shiny border-[#2a2a2a]" :
+                    className={`relative overflow-hidden rounded-[9px] border-[2.5px] h-full w-full outline-none focus:ring-1 focus:ring-[#00f0ff]/50 ${
+                      oj.def.rarity === "uncommon" ? "joker-shiny border-[#00f0ff]" :
                       oj.def.rarity === "rare" ? "joker-rare-metallic" :
-                      oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border-[#2a2a2a]"
+                      oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border-[#b026ff]/60"
                     }`}
-                    style={{ background: "linear-gradient(160deg,#fbf7ec 0%,#f4eee0 60%,#e7ddc6 100%)", boxShadow: "0 6px 10px rgba(0,0,0,0.5)" }}
+                    style={{ background: "linear-gradient(160deg,#2a0d5a 0%, #1a0d3a 60%, #0a0420 100%)", boxShadow: "inset 0 2px 0 rgba(0,240,255,0.18), 0 6px 10px rgba(0,0,0,0.55), 0 0 12px rgba(176,38,255,0.3)" }}
                   >
                     <div className="absolute inset-[10%] flex items-center justify-center"><JokerArt /></div>
                   </button>
@@ -580,7 +657,7 @@ export default function HomePage() {
                       : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
                   }`}>
                     <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{oj.def.name}</div>
-                    <div className="font-pixel text-[8px] text-[#94b4a7] capitalize leading-none mb-1">{oj.def.rarity}</div>
+                    <div className="font-pixel text-[8px] text-[#b8aeff] capitalize leading-none mb-1">{oj.def.rarity}</div>
                     <div className="font-pixel text-[9px] text-gray-300 leading-tight">{oj.def.desc}</div>
                   </div>
                 </div>
@@ -679,7 +756,7 @@ export default function HomePage() {
         </div>
 
         {/* Bottom Controls Panel */}
-        <footer className="relative z-10 border-t-4 px-2 pb-3 pt-2 flex flex-col gap-1.5" style={{ borderColor: "#3b93f8", background: "#2f363d" }}>
+        <footer className="relative z-10 border-t-4 px-2 pb-3 pt-2 flex flex-col gap-1.5" style={{ borderColor: "#00f0ff", background: "#1a0d3a" }}>
           <div className="flex gap-1.5 items-stretch justify-between">
             {/* Left Column: Options */}
             <div className="w-[84px] shrink-0 flex flex-col gap-1.5">
@@ -710,23 +787,23 @@ export default function HomePage() {
             {/* Center Column: Score & Details */}
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
               {/* Round Score */}
-              <div className="bg-[#1e2226] border border-white/10 rounded-md h-8 flex items-center justify-between px-2 shadow-sm">
+              <div className="bg-[#0a0420] border border-white/10 rounded-md h-8 flex items-center justify-between px-2 shadow-sm">
                 <span className="text-xs leading-none text-left font-pixel text-gray-300">Round<br/>score</span>
                 <span className="text-lg font-pixel-fat flex items-center gap-1"><span className="text-gray-400 text-sm">✺</span> {roundScore}</span>
               </div>
 
               {/* Current Hand Type */}
-              <div className="flex-1 bg-[#1f2429] rounded-lg p-1.5 flex flex-col items-center justify-center border-b-4 border-black/40">
+              <div className="flex-1 bg-[#120630] rounded-lg p-1.5 flex flex-col items-center justify-center border-b-4 border-black/40">
                 <div className="text-[16px] font-pixel mb-1.5 leading-none">
                   <span className="text-white txt-outline">{showHandType || "\u00A0"}</span>
-                  {showHandType && <span className="ml-1.5 text-xs text-[#fbbf24]">lvl.{displayLevel}</span>}
+                  {showHandType && <span className="ml-1.5 text-xs text-[#ff9e2c]">lvl.{displayLevel}</span>}
                 </div>
                 <div className="flex w-full gap-1 h-7 items-stretch">
-                  <div className="flex-1 bg-[#00b4d8] rounded flex items-center justify-end pr-2 text-base font-pixel-fat shadow-[0_2px_0_#0077b6] border border-black/10">
+                  <div className="flex-1 bg-[#00f0ff] rounded flex items-center justify-end pr-2 text-base font-pixel-fat shadow-[0_2px_0_#0077b6] border border-black/10 text-[#04243a]">
                     {showChips}
                   </div>
-                  <div className="w-4 flex items-center justify-center text-[#ec4899] font-pixel-fat text-sm">X</div>
-                  <div className={`flex-1 bg-[#ec4899] rounded flex items-center justify-start pl-2 text-base font-pixel-fat shadow-[0_2px_0_#be185d] border border-black/10 transition-transform ${jokerFlash ? "scale-110" : ""}`}>
+                  <div className="w-4 flex items-center justify-center text-[#ff2e88] font-pixel-fat text-sm">X</div>
+                  <div className={`flex-1 bg-[#ff2e88] rounded flex items-center justify-start pl-2 text-base font-pixel-fat shadow-[0_2px_0_#a01657] border border-black/10 transition-transform ${jokerFlash ? "scale-110" : ""}`}>
                     {showMult}
                   </div>
                 </div>
@@ -735,9 +812,9 @@ export default function HomePage() {
               <div className="flex justify-center">
                 <Link 
                   href="/stats" 
-                  className="font-sans text-[9px] font-bold uppercase tracking-wider text-[#38d08f] hover:text-[#facc15] transition-all select-none flex items-center gap-1.5 hover:underline"
+                  className="font-sans text-[9px] font-bold uppercase tracking-wider text-[#00f0ff] hover:text-[#ff9e2c] transition-all select-none flex items-center gap-1.5 hover:underline"
                 >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#38d08f] animate-pulse" />
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse" />
                   Live Stats
                 </Link>
               </div>
@@ -776,12 +853,13 @@ export default function HomePage() {
             onBuy={handleBuyJoker}
             onSell={handleSellJoker}
             onClose={enterNextBlind}
+            onBoosterJoker={handleBoosterJoker}
           />
         )}
         {phase === "lost" && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-[3px] overflow-hidden">
             <div className="panel anim-pop rounded-xl px-6 py-5 text-center max-w-[280px] flex flex-col gap-3">
-              <div className="font-pixel-fat text-3xl txt-outline text-[#fe5f55]">
+              <div className="font-pixel-fat text-3xl txt-outline text-[#ff2e88]">
                 {cooldownEnd && cooldownEnd > Date.now() ? "Cooldown Active" : "Game Over"}
               </div>
               {roundScore > 0 && (
@@ -817,7 +895,7 @@ export default function HomePage() {
                     ) : (
                       <>
                         <span>PLAY AGAIN</span>
-                        <span className="bg-black/25 rounded px-1.5 py-0.5 font-pixel text-[10px] text-[#facc15]">$0.01</span>
+                        <span className="bg-black/25 rounded px-1.5 py-0.5 font-pixel text-[10px] text-[#ff9e2c]">$0.01</span>
                       </>
                     )}
                   </button>
@@ -864,6 +942,61 @@ export default function HomePage() {
             onSubmitScore={handleSubmitLastScore}
           />
         )}
+
+        {/* Username Registration Gate — blocks play until username is set */}
+        {needsUsername && !walletAddress.startsWith("0xceloGuest") && (
+          <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+            <div className="panel anim-pop rounded-xl px-5 py-5 w-full max-w-[300px] flex flex-col items-center gap-3">
+              <div className="font-pixel-fat text-2xl txt-chrome text-center">
+                REGISTER USERNAME
+              </div>
+              <div className="font-pixel text-[11px] text-gray-300 text-center leading-tight">
+                You need a unique username to play and save your scores on the Celo leaderboard.
+              </div>
+              <input
+                type="text"
+                placeholder="Choose a username (max 20)"
+                maxLength={20}
+                value={usernameInput}
+                onChange={(e) => {
+                  setUsernameInput(e.target.value);
+                  setUsernameError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !registeringUsername && usernameInput.trim()) {
+                    handleRegisterUsernameFromGate();
+                  }
+                }}
+                disabled={registeringUsername}
+                className="bg-black/50 border border-white/10 rounded px-3 py-2 w-full font-pixel text-sm text-white text-center focus:outline-none focus:border-[#00f0ff]"
+                autoFocus
+              />
+              {usernameError && (
+                <div className="font-pixel text-[10px] text-[#ff2e88] text-center leading-tight">
+                  {usernameError}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleRegisterUsernameFromGate}
+                disabled={registeringUsername || !usernameInput.trim()}
+                className="btn-chunky btn-orange w-full py-2 text-sm flex items-center justify-center gap-1.5"
+              >
+                {registeringUsername ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span>REGISTERING…</span>
+                  </>
+                ) : (
+                  "CONFIRM USERNAME"
+                )}
+              </button>
+              <div className="font-pixel text-[9px] text-gray-500 text-center leading-tight">
+                This requires an on-chain transaction on Celo. You'll approve it in your wallet.
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
@@ -887,7 +1020,7 @@ function AnteBox({ ante }: { ante: number }) {
     <div className="stat-box flex-1 py-1 px-1">
       <span className="text-[11px] text-gray-300 leading-none">Ante</span>
       <div className="stat-inner">
-        <span className="text-lg font-pixel-fat text-[#f7931a]">{ante}</span>
+        <span className="text-lg font-pixel-fat text-[#ff9e2c]">{ante}</span>
         <span className="text-[9px] text-gray-400">/8</span>
       </div>
     </div>
@@ -897,7 +1030,7 @@ function AnteBox({ ante }: { ante: number }) {
 function MoneyBox({ money }: { money: number }) {
   return (
     <div className="stat-box w-[76px] py-1 px-1 justify-center">
-      <span className="text-2xl font-pixel-fat text-[#facc15] leading-none">${money}</span>
+      <span className="text-2xl font-pixel-fat text-[#ff9e2c] leading-none">${money}</span>
     </div>
   );
 }
@@ -951,13 +1084,13 @@ function DeckPile({ count, total, deckType = "red" }: { count: number; total: nu
           return (
             <div
               key={i}
-              className="absolute rounded-[6px] border-[2px] border-[#e9e2cf] overflow-hidden bg-[#2d241e]"
+              className="absolute rounded-[6px] border-[2px] border-[#b026ff]/60 overflow-hidden bg-[#0a0420]"
               style={{
                 width: 34,
                 height: 48,
                 bottom: offsetY,
                 left: offsetX,
-                boxShadow: i === layers - 1 ? "0 4px 10px rgba(0,0,0,0.6), 0 0 6px rgba(43,147,255,0.18)" : undefined,
+                boxShadow: i === layers - 1 ? "0 4px 10px rgba(0,0,0,0.6), 0 0 8px rgba(0,240,255,0.22)" : undefined,
                 filter: empty
                   ? "grayscale(1) brightness(0.4)"
                   : i < layers - 1
@@ -971,7 +1104,15 @@ function DeckPile({ count, total, deckType = "red" }: { count: number; total: nu
                   src={`/assets/cards/back-${backColor}.webp`}
                   alt="Deck Back"
                   className="h-full w-full object-cover pixelated"
-                  style={{ imageRendering: "pixelated" }}
+                  style={{
+                    imageRendering: "pixelated",
+                    // Synthwave tint on warm deck backs (red→magenta, green→cyan).
+                    filter: backColor === "red"
+                      ? "hue-rotate(285deg) saturate(1.4)"
+                      : backColor === "green"
+                      ? "hue-rotate(170deg) saturate(1.3)"
+                      : undefined,
+                  }}
                 />
               )}
               {/* Shimmer overlay on top card */}
@@ -1005,10 +1146,12 @@ function DeckPile({ count, total, deckType = "red" }: { count: number; total: nu
 }
 
 function BlindToken({ kind }: { kind: Blind["kind"] }) {
-  const color = kind === "small" ? "#3aa35a" : kind === "big" ? "#cc8e35" : "#c0392b";
-  const border = kind === "small" ? "#236d3c" : kind === "big" ? "#966421" : "#832216";
-  const shadow = kind === "small" ? "#144223" : kind === "big" ? "#6b4513" : "#51120a";
+  // Synthwave: small→cyan, big→sun, boss→magenta
+  const color = kind === "small" ? "#00f0ff" : kind === "big" ? "#ff9e2c" : "#ff2e88";
+  const border = kind === "small" ? "#0077b6" : kind === "big" ? "#b35900" : "#a01657";
+  const shadow = kind === "small" ? "#003a5a" : kind === "big" ? "#6b3d00" : "#5a0c30";
   const label = kind === "boss" ? "BOSS\nBLIND" : kind === "big" ? "BIG\nBLIND" : "SML\nBLIND";
+  const glow = kind === "small" ? "rgba(0,240,255,0.5)" : kind === "big" ? "rgba(255,158,44,0.5)" : "rgba(255,46,136,0.55)";
 
   return (
     <div
@@ -1016,7 +1159,8 @@ function BlindToken({ kind }: { kind: Blind["kind"] }) {
       style={{
         backgroundColor: color,
         borderColor: border,
-        boxShadow: `0 3px 0 ${shadow}`,
+        boxShadow: `0 3px 0 ${shadow}, 0 0 10px ${glow}`,
+        color: kind === "small" ? "#04243a" : "#ffffff",
         whiteSpace: "pre-line",
       }}
     >
@@ -1148,13 +1292,13 @@ function LeaderboardOverlay({
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <div className="panel anim-pop rounded-xl px-4 py-4 w-full max-w-[310px] flex flex-col items-center">
         {/* Title */}
-        <div className="font-pixel-fat mb-1 text-3xl text-[#facc15] txt-outline">
+        <div className="font-pixel-fat mb-1 text-3xl txt-chrome">
           LEADERBOARD
         </div>
 
         {/* Wallet connection info — show username as primary identifier, address only as secondary hint */}
         <div className="text-[10px] text-gray-300 font-pixel mb-3 flex items-center justify-center gap-1.5 bg-black/40 px-2.5 py-0.5 rounded-full border border-white/5">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#38d08f] animate-pulse"></div>
+          <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse"></div>
           <span>{registeredUsername ? registeredUsername : (walletAddress.startsWith("0xceloGuest") ? walletAddress : `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)}</span>
         </div>
 
@@ -1164,7 +1308,7 @@ function LeaderboardOverlay({
             {registeredUsername ? (
               <div className="text-center py-1">
                 <span className="text-gray-400 text-[10px] block">YOUR USERNAME:</span>
-                <span className="text-[#facc15] font-pixel-fat text-sm">{registeredUsername}</span>
+                <span className="text-[#ff9e2c] font-pixel-fat text-sm">{registeredUsername}</span>
                 <button
                   type="button"
                   onClick={() => setRegisteredUsername(null)}
@@ -1184,7 +1328,7 @@ function LeaderboardOverlay({
                     value={usernameInput}
                     onChange={(e) => setUsernameInput(e.target.value)}
                     disabled={registering}
-                    className="bg-black/50 border border-white/10 rounded px-2 py-1 flex-1 font-pixel text-[11px] text-white focus:outline-none focus:border-[#facc15]"
+                    className="bg-black/50 border border-white/10 rounded px-2 py-1 flex-1 font-pixel text-[11px] text-white focus:outline-none focus:border-[#00f0ff]"
                   />
                   <button
                     type="button"
@@ -1202,11 +1346,11 @@ function LeaderboardOverlay({
 
         {/* Save score section if user has a score that hasn't been submitted yet */}
         {!walletAddress.startsWith("0xceloGuest") && lastScore > 0 && (
-          <div className="w-full bg-[#1b251d] border border-[#38d08f]/20 rounded-lg p-2 mb-3 flex flex-col gap-1.5 font-pixel text-xs">
+          <div className="w-full bg-[#0a2a24] border border-[#00f0ff]/20 rounded-lg p-2 mb-3 flex flex-col gap-1.5 font-pixel text-xs">
             <div className="text-gray-400 text-[9px] uppercase tracking-wider text-center">Current Session Score</div>
             <div className="flex justify-between items-center px-1">
               <span className="text-gray-300">Round {lastRound}</span>
-              <span className="text-[#38d08f] font-pixel-fat text-sm">{lastScore} pts</span>
+              <span className="text-[#00f0ff] font-pixel-fat text-sm">{lastScore} pts</span>
             </div>
             <button
               type="button"
@@ -1254,7 +1398,7 @@ function LeaderboardOverlay({
                           : `Player ${entry.address.slice(2, 6)}`}
                       </td>
                       <td className="py-1 text-right text-gray-400">{entry.round}</td>
-                      <td className="py-1 text-right font-pixel-fat text-[#38d08f]">{entry.score}</td>
+                      <td className="py-1 text-right font-pixel-fat text-[#00f0ff]">{entry.score}</td>
                     </tr>
                   );
                 })}

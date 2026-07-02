@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-[100dvh] w-full bg-[#070b09] text-[#edf6ef] font-pixel">
+    <main className="min-h-[100dvh] w-full bg-[#0a0420] text-[#e8e6ff] font-pixel">
       <div className="mx-auto max-w-[640px] px-4 py-6">
-        <Link href="/" className="text-[#38d08f] text-xs hover:underline">
+        <Link href="/" className="text-[#00f0ff] text-xs hover:underline">
           ← Back to MiniCard
         </Link>
-        <h1 className="font-pixel-fat text-2xl text-[#facc15] txt-outline mt-4 mb-4">
+        <h1 className="font-pixel-fat text-2xl txt-chrome mt-4 mb-4">
           Privacy Policy
         </h1>
 
@@ -58,7 +58,7 @@ export default function PrivacyPage() {
             <p>
               We use privacy-respecting web analytics to understand aggregate usage (how many people
               play, from which countries, retention). We do not link this data to your wallet address
-              or identity. See our <Link href="/stats" className="text-[#38d08f] hover:underline">public stats page</Link>.
+              or identity. See our <Link href="/stats" className="text-[#00f0ff] hover:underline">public stats page</Link>.
             </p>
           </section>
 
@@ -97,14 +97,14 @@ export default function PrivacyPage() {
             <h2 className="font-pixel-fat text-base text-white mb-1">9. Contact</h2>
             <p>
               Privacy questions? Email
-              <a href="mailto:support@minicard.game" className="text-[#38d08f] hover:underline"> support@minicard.game</a>.
+              <a href="mailto:support@minicard.game" className="text-[#00f0ff] hover:underline"> support@minicard.game</a>.
             </p>
           </section>
         </div>
 
         <div className="mt-8 pt-4 border-t border-white/10 text-[11px] text-gray-500 flex gap-3">
-          <Link href="/legal/terms" className="text-[#38d08f] hover:underline">Terms of Service</Link>
-          <Link href="/support" className="text-[#38d08f] hover:underline">Support</Link>
+          <Link href="/legal/terms" className="text-[#00f0ff] hover:underline">Terms of Service</Link>
+          <Link href="/support" className="text-[#00f0ff] hover:underline">Support</Link>
         </div>
       </div>
     </main>

@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 
 export default function SupportPage() {
   return (
-    <main className="min-h-[100dvh] w-full bg-[#070b09] text-[#edf6ef] font-pixel">
+    <main className="min-h-[100dvh] w-full bg-[#0a0420] text-[#e8e6ff] font-pixel">
       <div className="mx-auto max-w-[640px] px-4 py-6">
-        <Link href="/" className="text-[#38d08f] text-xs hover:underline">
+        <Link href="/" className="text-[#00f0ff] text-xs hover:underline">
           ← Back to MiniCard
         </Link>
-        <h1 className="font-pixel-fat text-2xl text-[#facc15] txt-outline mt-4 mb-4">
+        <h1 className="font-pixel-fat text-2xl txt-chrome mt-4 mb-4">
           Support
         </h1>
 
@@ -33,17 +33,17 @@ export default function SupportPage() {
             href="https://t.me/lawvv"
             target="_blank"
             rel="noopener noreferrer"
-            className="block bg-black/30 border border-white/10 rounded-lg p-3 hover:border-[#38d08f]/40 transition-colors"
+            className="block bg-black/30 border border-white/10 rounded-lg p-3 hover:border-[#00f0ff]/40 transition-colors"
           >
-            <div className="font-pixel-fat text-base text-[#38d08f]">Telegram</div>
+            <div className="font-pixel-fat text-base text-[#00f0ff]">Telegram</div>
             <div className="text-[11px] text-gray-400 mt-0.5">@lawvv — fastest response</div>
           </a>
 
           <a
             href="mailto:support@minicard.game"
-            className="block bg-black/30 border border-white/10 rounded-lg p-3 hover:border-[#38d08f]/40 transition-colors"
+            className="block bg-black/30 border border-white/10 rounded-lg p-3 hover:border-[#00f0ff]/40 transition-colors"
           >
-            <div className="font-pixel-fat text-base text-[#38d08f]">Email</div>
+            <div className="font-pixel-fat text-base text-[#00f0ff]">Email</div>
             <div className="text-[11px] text-gray-400 mt-0.5">support@minicard.game</div>
           </a>
 
@@ -58,8 +58,8 @@ export default function SupportPage() {
         </div>
 
         <div className="mt-8 pt-4 border-t border-white/10 text-[11px] text-gray-500 flex gap-3">
-          <Link href="/legal/terms" className="text-[#38d08f] hover:underline">Terms of Service</Link>
-          <Link href="/legal/privacy" className="text-[#38d08f] hover:underline">Privacy Policy</Link>
+          <Link href="/legal/terms" className="text-[#00f0ff] hover:underline">Terms of Service</Link>
+          <Link href="/legal/privacy" className="text-[#00f0ff] hover:underline">Privacy Policy</Link>
         </div>
       </div>
     </main>

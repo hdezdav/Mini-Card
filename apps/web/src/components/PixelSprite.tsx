@@ -48,25 +48,25 @@ export function PixelSprite({
 }
 
 const FACE_PALETTE: Record<string, string> = {
-  o: "#33240f",
-  g: "#f2c93b",
-  G: "#b8821a",
-  s: "#f3c89a",
-  S: "#d99a68",
-  e: "#2a2a2a",
-  b: "#e9e4d6",
-  w: "#ffffff",
-  r: "#c43d33",
-  R: "#8a2a20",
-  m: "#9c3b34",
-  h: "#7a4a22",
-  H: "#5a3416",
-  t: "#3a7d9a",
-  T: "#27566b",
-  l: "#3a6db0",
-  L: "#274d80",
-  p: "#7a4a9a",
-  n: "#3f8f63",
+  o: "#0a0420", // outline → synthwave navy
+  g: "#00f0ff", // gold accent → neon cyan
+  G: "#0077b6", // dark gold → deep cyan
+  s: "#f3c89a", // skin — kept warm as intentional contrast vs cool frame
+  S: "#d99a68", // skin shadow — kept
+  e: "#2a2a2a", // eyes — kept
+  b: "#e9e4d6", // cloth light — kept
+  w: "#ffffff", // white — kept
+  r: "#ff2e88", // red accent → neon magenta
+  R: "#a01657", // dark red → deep magenta
+  m: "#b026ff", // red mid → purple
+  h: "#7a4a22", // brown hair — kept
+  H: "#5a3416", // brown hair shadow — kept
+  t: "#00f0ff", // teal → neon cyan
+  T: "#0077b6", // dark teal → deep cyan
+  l: "#b026ff", // blue → purple
+  L: "#6a13a8", // dark blue → deep purple
+  p: "#b026ff", // purple — kept synthwave
+  n: "#3f8f63", // green — kept (rare accent)
 };
 
 export const KING_SPRITE = [
@@ -145,16 +145,16 @@ export function FaceArt({ rank }: { rank: "J" | "Q" | "K" }) {
 }
 
 const JOKER_PALETTE: Record<string, string> = {
-  o: "#1c1c1c",
-  w: "#f6f3ea",
-  s: "#f3c89a",
-  e: "#2a2a2a",
-  m: "#c0392b",
-  r: "#e23b3b",
-  g: "#3aa35a",
-  b: "#3a6db0",
-  y: "#f2c93b",
-  p: "#9a4aa3",
+  o: "#0a0420", // outline → navy
+  w: "#f6f3ea", // white — kept
+  s: "#f3c89a", // skin — kept
+  e: "#2a2a2a", // eyes — kept
+  m: "#ff2e88", // red → neon magenta
+  r: "#ff2e88", // red → neon magenta
+  g: "#00f0ff", // green → neon cyan
+  b: "#b026ff", // blue → purple
+  y: "#ff9e2c", // yellow → sun
+  p: "#b026ff", // purple — kept synthwave
 };
 
 export const JOKER_SPRITE = [

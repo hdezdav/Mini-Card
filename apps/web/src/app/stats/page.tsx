@@ -55,7 +55,7 @@ const t = {
   treasuryUSDT:   { en: "Treasury (USDT)",      es: "Tesoro (USDT)" },
   treasuryCELO:   { en: "Treasury (CELO)",      es: "Tesoro (CELO)" },
   runway:         { en: "Estimated Runway",     es: "Runway estimado" },
-  runwaySub:      { en: "based on operator gas", es: "basado en gas del operador" },
+  runwaySub:      { en: "based on operator network fees", es: "basado en comisiones de red del operador" },
   perGameLabel:   { en: "Per Game Runway",      es: "Runway por juego" },
   gameTitle:      { en: "Game",                 es: "Juego" },
   balanceTitle:   { en: "Balance",              es: "Saldo" },
@@ -70,8 +70,8 @@ const t = {
   daysOnchain:    { en: "Days on-chain",        es: "Días on-chain" },
   usdtInflow:     { en: "USDT Inflow Vol",      es: "Vol. de entrada USDT" },
   usdtOutflow:    { en: "USDT Outflow Vol",     es: "Vol. de salida USDT" },
-  gasOperator:    { en: "Operator Gas Spent",   es: "Gas gastado operador" },
-  gasPlayers:     { en: "Players Gas Spent",    es: "Gas gastado jugadores" },
+  gasOperator:    { en: "Operator Network Fees",    es: "Comisiones de red operador" },
+  gasPlayers:     { en: "Players Network Fees",     es: "Comisiones de red jugadores" },
   failedTxRate:   { en: "Failed Tx Rate",       es: "Tasa tx fallidas" },
   txTableTitle:   { en: "Tx Types Distribution",es: "Transacciones por tipo" },
   txTypeCol:      { en: "Transaction Type",     es: "Tipo de Transacción" },
@@ -215,16 +215,31 @@ export default function StatsPage() {
   useEffect(() => {
     (async () => {
       try {
-        // 1. Fetch scores
+        // 1. Fetch scores — paginated via getScoresRange
         try {
-          const raw = (await pc.readContract({
+          const total = Number(await pc.readContract({
             address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
             abi: MINICARD_LEADERBOARD_ABI,
-            functionName: "getAllScores",
-          })) as any[];
-          setScores(raw.map((e: any) => ({
-            player: e.player, score: Number(e.score), round: Number(e.round), timestamp: Number(e.timestamp),
-          })));
+            functionName: "getScoresCount",
+          }));
+
+          if (total > 0) {
+            const PAGE_SIZE = 100;
+            const allRaw: any[] = [];
+            for (let offset = 0; offset < total; offset += PAGE_SIZE) {
+              const limit = Math.min(PAGE_SIZE, total - offset);
+              const page = (await pc.readContract({
+                address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
+                abi: MINICARD_LEADERBOARD_ABI,
+                functionName: "getScoresRange",
+                args: [BigInt(offset), BigInt(limit)],
+              })) as any[];
+              allRaw.push(...page);
+            }
+            setScores(allRaw.map((e: any) => ({
+              player: e.player, score: Number(e.score), round: Number(e.round), timestamp: Number(e.timestamp),
+            })));
+          }
         } catch (err) {
           console.error("Error reading contract scores:", err);
         }
@@ -487,7 +502,7 @@ export default function StatsPage() {
   }, [scores, leaderboardTxs, operatorTxs, operatorUsdtTxs, operatorCeloBalance, operatorUsdtBalance]);
 
   return (
-    <main className="min-h-[100dvh] bg-[#070b09] text-[#edf6ef] pb-12 felt-bg">
+    <main className="min-h-[100dvh] bg-[#0a0420] text-[#e8e6ff] pb-12 felt-bg">
       <div className="max-w-[920px] mx-auto px-4 pt-6">
         
         {/* Navigation & Header */}
@@ -498,17 +513,17 @@ export default function StatsPage() {
           <div className="flex-1" />
         </div>
 
-        <h1 className="font-pixel-fat text-4xl text-[#facc15] txt-outline text-center mb-1 relative z-10">
+        <h1 className="font-pixel-fat text-4xl text-[#ff9e2c] txt-outline text-center mb-1 relative z-10">
           {t.title[l]}
         </h1>
         <p className="text-center font-pixel text-sm text-gray-400 mb-8 relative z-10">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#38d08f] animate-pulse mr-1.5 align-middle" />
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#00f0ff] animate-pulse mr-1.5 align-middle" />
           {t.live[l]}
         </p>
 
         {loading ? (
           <div className="flex justify-center py-40 relative z-10">
-            <span className="inline-block w-12 h-12 border-4 border-[#ec4899]/30 border-t-[#ec4899] rounded-full animate-spin" />
+            <span className="inline-block w-12 h-12 border-4 border-[#ff2e88]/30 border-t-[#ff2e88] rounded-full animate-spin" />
           </div>
         ) : !stats ? (
           <div className="text-center font-pixel text-gray-400 py-20 relative z-10">{t.noData[l]}</div>
@@ -583,7 +598,7 @@ export default function StatsPage() {
                 <div className="flex items-end gap-[4px] h-[60px] px-1">
                   {stats.dailyGames.map((d) => (
                     <div key={d.day} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                      <div className="w-full rounded-t bg-[#ec4899] min-h-[2px] transition-all hover:bg-[#f472b6] cursor-pointer" style={{ height: `${Math.max(4, (d.count / stats.maxDaily) * 100)}%` }} />
+                      <div className="w-full rounded-t bg-[#ff2e88] min-h-[2px] transition-all hover:bg-[#ff5fa8] cursor-pointer" style={{ height: `${Math.max(4, (d.count / stats.maxDaily) * 100)}%` }} />
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 hidden group-hover:block bg-black text-white text-[8px] font-pixel rounded py-0.5 px-1 whitespace-nowrap z-20">
                         {d.count}
                       </div>
@@ -654,7 +669,7 @@ export default function StatsPage() {
               {/* Runway Per Game */}
               <div className="mt-3 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
                 <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
-                  <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
+                  <span className="font-pixel-fat text-[11px] text-[#00f0ff] uppercase tracking-wider">
                     {t.perGameLabel[l]}
                   </span>
                 </div>
@@ -672,7 +687,7 @@ export default function StatsPage() {
                       <td className="px-3 py-1.5 text-center text-gray-300">
                         {fmtUSDT(stats.treasuryBalanceUSD)}
                       </td>
-                      <td className="px-3 py-1.5 text-right text-[#facc15] font-pixel-fat">
+                      <td className="px-3 py-1.5 text-right text-[#ff9e2c] font-pixel-fat">
                         {stats.runwayDays === Infinity ? t.infinite[l] : `${fmt(Math.round(stats.runwayDays))} ${t.days[l]}`}
                       </td>
                     </tr>
@@ -710,7 +725,7 @@ export default function StatsPage() {
               {/* Transaction Types Table */}
               <div className="mt-3 bg-black/45 rounded-lg border border-white/5 overflow-hidden">
                 <div className="px-3 py-1.5 border-b border-white/5 bg-white/[0.02]">
-                  <span className="font-pixel-fat text-[11px] text-[#38d08f] uppercase tracking-wider">
+                  <span className="font-pixel-fat text-[11px] text-[#00f0ff] uppercase tracking-wider">
                     {t.txTableTitle[l]}
                   </span>
                 </div>
@@ -752,7 +767,7 @@ export default function StatsPage() {
             <Section title={t.webAnalytics[l]}>
               {webLoading ? (
                 <div className="flex items-center justify-center py-8 gap-2">
-                  <span className="inline-block w-4 h-4 border-2 border-[#00b4d8]/30 border-t-[#00b4d8] rounded-full animate-spin" />
+                  <span className="inline-block w-4 h-4 border-2 border-[#00f0ff]/30 border-t-[#00f0ff] rounded-full animate-spin" />
                   <span className="font-pixel text-[11px] text-gray-500">Loading Web Analytics...</span>
                 </div>
               ) : !webData ? (
@@ -763,13 +778,13 @@ export default function StatsPage() {
               ) : (
                 <>
                   {webData.configured === false && (
-                    <div className="bg-[#facc15]/15 border border-[#facc15]/30 rounded-lg p-3 mb-3 text-center">
-                      <span className="font-pixel-fat text-[11px] text-[#facc15] block mb-1">⚠️ Modo Demo Activado</span>
+                    <div className="bg-[#ff9e2c]/15 border border-[#ff9e2c]/30 rounded-lg p-3 mb-3 text-center">
+                      <span className="font-pixel-fat text-[11px] text-[#ff9e2c] block mb-1">⚠️ Modo Demo Activado</span>
                       <p className="font-pixel text-[9px] text-gray-300 leading-relaxed">
                         Para cargar estadísticas reales en vivo, configura las variables de entorno{" "}
-                        <code className="text-[#ec4899]">MIXPANEL_SERVICE_ACCOUNT_USER</code>,{" "}
-                        <code className="text-[#ec4899]">MIXPANEL_SERVICE_ACCOUNT_SECRET</code> y{" "}
-                        <code className="text-[#ec4899]">MIXPANEL_PROJECT_ID</code> en Cloudflare Pages (como plaintext, no encrypted secrets).
+                        <code className="text-[#ff2e88]">MIXPANEL_SERVICE_ACCOUNT_USER</code>,{" "}
+                        <code className="text-[#ff2e88]">MIXPANEL_SERVICE_ACCOUNT_SECRET</code> y{" "}
+                        <code className="text-[#ff2e88]">MIXPANEL_PROJECT_ID</code> en Cloudflare Pages (como plaintext, no encrypted secrets).
                       </p>
                     </div>
                   )}
@@ -796,10 +811,10 @@ export default function StatsPage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 mt-3">
-                    <BreakdownBars title={t.topCountries[l]} color="#facc15" items={webData.countries} />
-                    <BreakdownBars title={t.deviceDistrib[l]} color="#00b4d8" items={webData.devices} />
-                    <BreakdownBars title={t.topBrowsers[l]} color="#ec4899" items={webData.browsers} />
-                    <BreakdownBars title={t.topReferrers[l]} color="#38d08f" items={webData.referrers} />
+                    <BreakdownBars title={t.topCountries[l]} color="#ff9e2c" items={webData.countries} />
+                    <BreakdownBars title={t.deviceDistrib[l]} color="#00f0ff" items={webData.devices} />
+                    <BreakdownBars title={t.topBrowsers[l]} color="#ff2e88" items={webData.browsers} />
+                    <BreakdownBars title={t.topReferrers[l]} color="#00f0ff" items={webData.referrers} />
                   </div>
                 </>
               )}
@@ -815,15 +830,15 @@ export default function StatsPage() {
             MiniCard · Celo Mainnet · Powered by MiniPay
           </div>
           <div className="flex items-center gap-2">
-            <Link href="/legal/terms" className="font-pixel text-[10px] text-gray-500 hover:text-[#38d08f] transition-colors">
+            <Link href="/legal/terms" className="font-pixel text-[10px] text-gray-500 hover:text-[#00f0ff] transition-colors">
               Terms
             </Link>
             <span className="text-gray-700 text-[10px]">·</span>
-            <Link href="/legal/privacy" className="font-pixel text-[10px] text-gray-500 hover:text-[#38d08f] transition-colors">
+            <Link href="/legal/privacy" className="font-pixel text-[10px] text-gray-500 hover:text-[#00f0ff] transition-colors">
               Privacy
             </Link>
             <span className="text-gray-700 text-[10px]">·</span>
-            <Link href="/support" className="font-pixel text-[10px] text-gray-500 hover:text-[#38d08f] transition-colors">
+            <Link href="/support" className="font-pixel text-[10px] text-gray-500 hover:text-[#00f0ff] transition-colors">
               Support
             </Link>
           </div>
@@ -838,10 +853,10 @@ export default function StatsPage() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="bg-black/35 backdrop-blur-[2px] rounded-xl border border-white/5 p-4 flex flex-col gap-3 shadow-md">
-      <h2 className="font-pixel-fat text-base text-[#00b4d8] flex items-center gap-2">
-        <span className="flex-1 h-px bg-[#00b4d8]/20" />
+      <h2 className="font-pixel-fat text-base text-[#00f0ff] flex items-center gap-2">
+        <span className="flex-1 h-px bg-[#00f0ff]/20" />
         {title}
-        <span className="flex-1 h-px bg-[#00b4d8]/20" />
+        <span className="flex-1 h-px bg-[#00f0ff]/20" />
       </h2>
       <div className="flex flex-col gap-1">
         {children}
@@ -854,7 +869,7 @@ function Card({ label, value, sub, accent }: { label: string; value: string | nu
   return (
     <div className="bg-black/40 rounded-lg border border-white/5 px-3 py-2.5 flex flex-col items-center justify-center text-center shadow-sm">
       <span className="font-pixel text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-1">{label}</span>
-      <span className={`font-pixel-fat text-xl leading-none mt-0.5 ${accent ? "text-[#facc15]" : "text-white"}`}>{value}</span>
+      <span className={`font-pixel-fat text-xl leading-none mt-0.5 ${accent ? "text-[#ff9e2c]" : "text-white"}`}>{value}</span>
       {sub && <span className="font-pixel text-[9px] text-gray-500 mt-1 leading-tight">{sub}</span>}
     </div>
   );
@@ -866,10 +881,10 @@ function ContractRow({ label, address }: { label: string; address: string }) {
       href={`https://celo.blockscout.com/address/${address}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-3 bg-black/40 rounded-lg border border-white/5 px-3 py-2.5 mb-1.5 hover:border-[#ec4899]/30 transition-all group shadow-sm hover:scale-[1.01]"
+      className="flex items-center gap-3 bg-black/40 rounded-lg border border-white/5 px-3 py-2.5 mb-1.5 hover:border-[#ff2e88]/30 transition-all group shadow-sm hover:scale-[1.01]"
     >
       <span className="font-pixel text-[11px] text-gray-300 w-[90px] shrink-0">{label}</span>
-      <span className="font-pixel text-[12px] text-[#ec4899] group-hover:text-[#f472b6] truncate flex-1">
+      <span className="font-pixel text-[12px] text-[#ff2e88] group-hover:text-[#ff5fa8] truncate flex-1">
         {address}
       </span>
       <span className="text-gray-500 text-xs">↗</span>

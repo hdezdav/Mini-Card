@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, custom, http } from "viem";
+import { createPublicClient, createWalletClient, custom, http, parseEventLogs } from "viem";
 import { celo } from "viem/chains";
 
 // ─── Celo Mainnet Configuration ───
@@ -40,6 +40,28 @@ export const MINICARD_LEADERBOARD_ABI = [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "uint256", name: "_offset", type: "uint256" },
+      { internalType: "uint256", name: "_limit", type: "uint256" },
+    ],
+    name: "getScoresRange",
+    outputs: [
+      {
+        components: [
+          { internalType: "address", name: "player", type: "address" },
+          { internalType: "uint256", name: "score", type: "uint256" },
+          { internalType: "uint256", name: "round", type: "uint256" },
+          { internalType: "uint256", name: "timestamp", type: "uint256" },
+        ],
+        internalType: "struct MiniCardLeaderboard.ScoreEntry[]",
+        name: "",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [],
     name: "getAllScores",
     outputs: [
@@ -72,6 +94,13 @@ export const MINICARD_LEADERBOARD_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "hasUsername",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export interface LeaderboardEntry {
@@ -81,6 +110,110 @@ export interface LeaderboardEntry {
   round: number;
   date: string;
 }
+
+// ─── BoosterPack Contract ───
+// Deploy via:  cd contracts && npm run deploy:mainnet
+// Then paste the deployed address here:
+export const BOOSTER_PACK_CONTRACT_ADDRESS: string = "0x0000000000000000000000000000000000000000"; // TODO: set after deploy
+
+export const BOOSTER_PACK_ABI = [
+  {
+    type: "event",
+    name: "PackOpened",
+    inputs: [
+      { indexed: true, internalType: "address", name: "player", type: "address" },
+      { indexed: false, internalType: "uint8", name: "jokerId", type: "uint8" },
+      { indexed: false, internalType: "bytes32", name: "blockhashUsed", type: "bytes32" },
+      { indexed: false, internalType: "uint256", name: "blockNumber", type: "uint256" },
+    ],
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "_usdt", type: "address" },
+      { internalType: "address", name: "_feeReceiver", type: "address" },
+    ],
+    stateMutability: "nonpayable",
+    type: "constructor",
+  },
+  {
+    inputs: [],
+    name: "buyPack",
+    outputs: [{ internalType: "uint8", name: "jokerId", type: "uint8" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getPackCount",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "offset", type: "uint256" },
+      { internalType: "uint256", name: "limit", type: "uint256" },
+    ],
+    name: "getPackResultsRange",
+    outputs: [
+      {
+        components: [
+          { internalType: "address", name: "player", type: "address" },
+          { internalType: "uint8", name: "jokerId", type: "uint8" },
+          { internalType: "uint256", name: "blockNumber", type: "uint256" },
+          { internalType: "bytes32", name: "blockhashUsed", type: "bytes32" },
+          { internalType: "uint256", name: "timestamp", type: "uint256" },
+        ],
+        internalType: "struct BoosterPack.PackResult[]",
+        name: "",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "player", type: "address" }],
+    name: "getPlayerPacks",
+    outputs: [
+      {
+        components: [
+          { internalType: "address", name: "player", type: "address" },
+          { internalType: "uint8", name: "jokerId", type: "uint8" },
+          { internalType: "uint256", name: "blockNumber", type: "uint256" },
+          { internalType: "bytes32", name: "blockhashUsed", type: "bytes32" },
+          { internalType: "uint256", name: "timestamp", type: "uint256" },
+        ],
+        internalType: "struct BoosterPack.PackResult[]",
+        name: "",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "PACK_PRICE",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+// ERC20 ABI for approve (used by BoosterPack)
+const ERC20_APPROVE_ABI = [
+  {
+    name: "approve",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
 
 // ─── USDT on Celo Mainnet ───
 // USDT contract address: 0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e
@@ -250,7 +383,8 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
 }
 
 /**
- * Fetches all scores from the leaderboard contract.
+ * Fetches all scores from the leaderboard contract using pagination.
+ * Fetches in chunks of 100 to avoid gas/size limits as the scores array grows.
  */
 export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
   if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
@@ -260,16 +394,35 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
   try {
     const publicClient = getPublicClient();
 
-    const result = (await publicClient.readContract({
+    // Get total count first
+    const totalCount = (await publicClient.readContract({
       address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
       abi: MINICARD_LEADERBOARD_ABI,
-      functionName: "getAllScores",
-    })) as any[];
+      functionName: "getScoresCount",
+    })) as bigint;
 
-    if (!result || result.length === 0) return [];
+    const total = Number(totalCount);
+    if (total === 0) return [];
+
+    // Paginate: fetch in chunks of 100
+    const PAGE_SIZE = 100;
+    const allResults: any[] = [];
+
+    for (let offset = 0; offset < total; offset += PAGE_SIZE) {
+      const limit = Math.min(PAGE_SIZE, total - offset);
+      const page = (await publicClient.readContract({
+        address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
+        abi: MINICARD_LEADERBOARD_ABI,
+        functionName: "getScoresRange",
+        args: [BigInt(offset), BigInt(limit)],
+      })) as any[];
+      allResults.push(...page);
+    }
+
+    if (allResults.length === 0) return [];
 
     // Batch resolve usernames
-    const players = Array.from(new Set(result.map((entry: any) => entry.player as string))) as `0x${string}`[];
+    const players = Array.from(new Set(allResults.map((entry: any) => entry.player as string))) as `0x${string}`[];
     let usernamesList: string[] = [];
     try {
       usernamesList = (await publicClient.readContract({
@@ -289,7 +442,7 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
       }
     });
 
-    const mapped = result.map((entry: any) => ({
+    const mapped = allResults.map((entry: any) => ({
       address: entry.player,
       username: usernameMap[entry.player.toLowerCase()] || undefined,
       score: Number(entry.score),
@@ -389,6 +542,30 @@ export async function getUsernameFromCelo(address: string): Promise<string> {
   } catch (err) {
     console.warn("Failed to fetch username for address:", err);
     return "";
+  }
+}
+
+/**
+ * Checks whether a wallet address has set a username on-chain.
+ */
+export async function checkHasUsername(address: string): Promise<boolean> {
+  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000" || !address || address.startsWith("0xceloGuest")) {
+    return false;
+  }
+
+  try {
+    const publicClient = getPublicClient();
+    const has = (await publicClient.readContract({
+      address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
+      abi: MINICARD_LEADERBOARD_ABI,
+      functionName: "hasUsername",
+      args: [address as `0x${string}`],
+    })) as boolean;
+
+    return has;
+  } catch (err) {
+    console.warn("Failed to check hasUsername for address:", err);
+    return false;
   }
 }
 
@@ -530,4 +707,137 @@ export async function payRestartWithMiniPay(): Promise<boolean> {
     return false;
   }
 }
+
+// ─── Booster Pack ($0.02 USDT, on-chain RNG) ───
+
+/**
+ * Step 1: Approve USDT spending for the BoosterPack contract.
+ * Required before calling buyPack(). Approves exactly PACK_PRICE ($0.02).
+ */
+export async function approveBoosterPack(): Promise<boolean> {
+  const walletClient = getWalletClient();
+  if (!walletClient) return false;
+  if (BOOSTER_PACK_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") return false;
+
+  try {
+    const [address] = await walletClient.requestAddresses();
+    if (!address) return false;
+
+    try {
+      const chainId = await walletClient.getChainId();
+      if (chainId !== celo.id) {
+        await walletClient.switchChain({ id: celo.id });
+      }
+    } catch (switchErr) {
+      console.warn("Network switch skipped/failed:", switchErr);
+    }
+
+    const publicClient = getPublicClient();
+
+    // Approve PACK_PRICE = 20000 (0.02 USDT, 6 decimals)
+    const hash = await walletClient.writeContract({
+      account: address,
+      address: USDT_ADDRESS as `0x${string}`,
+      abi: ERC20_APPROVE_ABI,
+      functionName: "approve",
+      args: [BOOSTER_PACK_CONTRACT_ADDRESS as `0x${string}`, BigInt(20000)],
+    });
+
+    console.info("BoosterPack approve TX:", hash);
+    await publicClient.waitForTransactionReceipt({ hash });
+    return true;
+  } catch (err) {
+    if (isInsufficientBalanceError(err)) throw err;
+    console.error("Failed to approve BoosterPack:", err);
+    return false;
+  }
+}
+
+/**
+ * Outcome of a booster pack purchase.
+ * - "opened": the pack was opened on-chain and the joker ID was read back.
+ * - "reverted": the transaction reverted — no USDT moved, no pack opened. Safe to retry.
+ * - "unreadable": the transaction SUCCEEDED (USDT was paid, a pack was opened) but the
+ *   PackOpened event could not be parsed. The caller MUST NOT retry — the user already paid.
+ *   The joker exists on-chain in packResults but the frontend could not read it.
+ */
+export type BoosterPackResult =
+  | { status: "opened"; jokerId: number }
+  | { status: "reverted" }
+  | { status: "unreadable" };
+
+/**
+ * Buys a booster pack in a single transaction. Pays $0.02 USDT and derives
+ * the joker from blockhash(block.number - 1) on-chain. The joker ID is read
+ * back from the PackOpened event in the transaction receipt.
+ *
+ * Returns a discriminated result so the caller can tell a reverted tx (safe to
+ * retry) from a succeeded tx whose result could not be parsed (the user already
+ * paid — do NOT retry).
+ *
+ * Throws on insufficient balance so the caller can redirect to Deposit deeplink.
+ */
+export async function buyBoosterPack(): Promise<BoosterPackResult> {
+  const walletClient = getWalletClient();
+  if (!walletClient) return { status: "reverted" };
+  if (BOOSTER_PACK_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
+    return { status: "reverted" };
+  }
+
+  try {
+    const [address] = await walletClient.requestAddresses();
+    if (!address) return { status: "reverted" };
+
+    try {
+      const chainId = await walletClient.getChainId();
+      if (chainId !== celo.id) {
+        await walletClient.switchChain({ id: celo.id });
+      }
+    } catch (switchErr) {
+      console.warn("Network switch skipped/failed:", switchErr);
+    }
+
+    const publicClient = getPublicClient();
+
+    const hash = await walletClient.writeContract({
+      account: address,
+      address: BOOSTER_PACK_CONTRACT_ADDRESS as `0x${string}`,
+      abi: BOOSTER_PACK_ABI,
+      functionName: "buyPack",
+    });
+
+    console.info("BoosterPack buy TX:", hash);
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+    // A reverted tx moved no funds and opened no pack — safe to retry.
+    if (receipt.status === "reverted") {
+      console.warn("BoosterPack buy tx reverted:", hash);
+      return { status: "reverted" };
+    }
+
+    // Parse the PackOpened event to get the jokerId
+    const decodedLogs = parseEventLogs({
+      abi: BOOSTER_PACK_ABI,
+      logs: receipt.logs,
+    });
+
+    for (const log of decodedLogs) {
+      if (log.eventName === "PackOpened" && log.args) {
+        const jokerId = Number((log.args as any).jokerId);
+        console.info("BoosterPack opened jokerId:", jokerId);
+        return { status: "opened", jokerId };
+      }
+    }
+
+    // Tx SUCCEEDED but no PackOpened log was parsed. The user paid and a pack
+    // was opened on-chain, but the frontend cannot read the result. Do NOT retry.
+    console.error("BoosterPack tx succeeded but PackOpened event not found:", hash);
+    return { status: "unreadable" };
+  } catch (err) {
+    if (isInsufficientBalanceError(err)) throw err;
+    console.error("Failed to buy booster pack:", err);
+    return { status: "reverted" };
+  }
+}
+
 

@@ -165,37 +165,38 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
       isRotate: gl.getUniformLocation(program, "u_isRotate"),
     };
 
-    // Beautiful original color palettes distinct from Balatro
+    // Synthwave/outrun palettes — retuned from the original GBA set. The swirl
+    // math is untouched; only the 3-color palettes change to magenta/cyan/purple/sun.
     const palettes = {
       small: {
-        // Amethyst Violet / Lavender (Original)
-        c1: [0.65, 0.25, 0.85, 1.0],
-        c2: [0.35, 0.12, 0.55, 1.0],
-        c3: [0.18, 0.05, 0.32, 1.0],
+        // Magenta / Purple (Synthwave default)
+        c1: [1.0, 0.18, 0.53, 1.0],
+        c2: [0.69, 0.15, 1.0, 1.0],
+        c3: [0.16, 0.05, 0.32, 1.0],
       },
       big: {
-        // Amber Gold / Copper (Original)
-        c1: [0.95, 0.55, 0.15, 1.0],
-        c2: [0.65, 0.32, 0.08, 1.0],
-        c3: [0.35, 0.15, 0.02, 1.0],
+        // Sun / Purple (warm amber→violet)
+        c1: [1.0, 0.62, 0.17, 1.0],
+        c2: [0.69, 0.15, 1.0, 1.0],
+        c3: [0.20, 0.08, 0.40, 1.0],
       },
       boss: {
-        // Electric Teal & Cyan / Navy (Original)
-        c1: [0.12, 0.85, 0.75, 1.0],
-        c2: [0.05, 0.45, 0.52, 1.0],
-        c3: [0.02, 0.18, 0.28, 1.0],
+        // Intense red-magenta / crimson (boss threat)
+        c1: [1.0, 0.18, 0.18, 1.0],
+        c2: [0.69, 0.05, 0.27, 1.0],
+        c3: [0.16, 0.02, 0.10, 1.0],
       },
       shop: {
-        // Dark Forest Sage & Emerald Green
-        c1: [0.18, 0.35, 0.22, 1.0],
-        c2: [0.08, 0.18, 0.12, 1.0],
-        c3: [0.03, 0.07, 0.05, 1.0],
+        // Cyan / Purple (calm shop vibe)
+        c1: [0.0, 0.94, 1.0, 1.0],
+        c2: [0.43, 0.15, 0.78, 1.0],
+        c3: [0.05, 0.02, 0.20, 1.0],
       },
       lost: {
-        // Somber Deep Crimson Red & Dark Charcoal
-        c1: [0.38, 0.08, 0.08, 1.0],
-        c2: [0.18, 0.03, 0.03, 1.0],
-        c3: [0.07, 0.01, 0.01, 1.0],
+        // Somber crimson / charcoal (game over) — kept dark
+        c1: [0.45, 0.10, 0.12, 1.0],
+        c2: [0.20, 0.03, 0.05, 1.0],
+        c3: [0.07, 0.01, 0.02, 1.0],
       },
     };
 
@@ -280,12 +281,23 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
   }, [blindKind]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 h-full w-full pointer-events-none"
-      style={{
-        zIndex: 0,
-      }}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full pointer-events-none"
+        style={{
+          zIndex: 0,
+        }}
+      />
+      {/* Synthwave CSS overlay (sun + perspective grid + scanlines + CRT flicker).
+          Sits IN FRONT of the WebGL swirl (zIndex:1) but BEHIND game content
+          (which is z-10+). data-blind drives per-blind color variation. */}
+      <div
+        className="synthwave-overlay"
+        data-blind={blindKind}
+        aria-hidden="true"
+        style={{ zIndex: 1 }}
+      />
+    </>
   );
 }

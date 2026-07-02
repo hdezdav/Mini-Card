@@ -125,8 +125,8 @@ export function MusicToggle() {
         title={on ? "Mute music" : "Play music"}
         className={`flex items-center gap-1 min-w-[40px] px-2.5 py-1.5 rounded-r-lg rounded-l-none border-y-2 border-r-2 border-black/40 text-center transition-[transform,box-shadow] duration-75 active:translate-y-[2px] ${
           on
-            ? "bg-[#f7931a] text-white shadow-[0_4px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3)] active:shadow-[0_2px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3)]"
-            : "bg-[#3b4249] text-gray-300 shadow-[0_3px_0_#1e2226,inset_0_1px_0_rgba(255,255,255,0.15)] active:shadow-[0_1px_0_#1e2226,inset_0_1px_0_rgba(255,255,255,0.15)]"
+            ? "bg-[#ff9e2c] text-white shadow-[0_4px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3),0_0_12px_rgba(255,158,44,0.5)] active:shadow-[0_2px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3),0_0_8px_rgba(255,158,44,0.4)]"
+            : "bg-[#1a0d3a] text-[#b8aeff] shadow-[0_3px_0_#0a0420,inset_0_1px_0_rgba(255,255,255,0.15),0_0_8px_rgba(176,38,255,0.25)] active:shadow-[0_1px_0_#0a0420,inset_0_1px_0_rgba(255,255,255,0.15)]"
         }`}
       >
         <span className="font-pixel-fat text-base leading-none txt-shadow">
@@ -143,7 +143,7 @@ export function MusicToggle() {
         <div
           onMouseEnter={() => { cancelHide(); setVolOpen(true); }}
           onMouseLeave={() => on && armHide()}
-          className={`bg-[#1a1d20] border-y-2 border-r-2 border-black/40 rounded-r-lg rounded-l-none px-2 py-1.5 flex items-center gap-1.5 shadow-[0_3px_0_#1e2226,inset_0_2px_4px_rgba(0,0,0,0.6)] transition-all duration-300 origin-top ${
+          className={`bg-[#0a0420] border-y-2 border-r-2 border-black/40 rounded-r-lg rounded-l-none px-2 py-1.5 flex items-center gap-1.5 shadow-[0_3px_0_#0a0420,inset_0_2px_4px_rgba(0,0,0,0.7),inset_0_0_8px_rgba(0,240,255,0.08)] transition-all duration-300 origin-top ${
             volOpen
               ? "opacity-100 scale-100 max-h-10 mt-0"
               : "opacity-0 scale-90 max-h-0 -mt-1.5 pointer-events-none overflow-hidden"
@@ -160,7 +160,7 @@ export function MusicToggle() {
             onPointerDown={() => cancelHide()}
             onPointerUp={() => armHide()}
             aria-label="Music volume"
-            className="music-slider w-16 h-1 accent-[#facc15]"
+            className="music-slider w-16 h-1 accent-[#00f0ff]"
           />
         </div>
       )}

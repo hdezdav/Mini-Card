@@ -6,25 +6,39 @@
 
 :root {
   color-scheme: dark;
-  --bg: #07110f;
-  --panel: rgba(12, 26, 22, 0.84);
-  --panel-strong: rgba(8, 18, 15, 0.95);
-  --border: rgba(148, 201, 171, 0.18);
-  --text: #edf6ef;
-  --muted: #9cb4a7;
-  --accent: #38d08f;
-  --accent-2: #f6c96b;
-  --shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
-  /* Playing card face colors */
+  /* ─── Synthwave / Outrun palette (single source of truth) ─── */
+  --synth-magenta: #ff2e88;
+  --synth-cyan: #00f0ff;
+  --synth-purple: #b026ff;
+  --synth-sun: #ff9e2c;
+  --synth-bg: #0a0420;
+  --synth-bg-2: #120630;
+  --synth-surface: #1a0d3a;
+  --synth-surface-2: #241047;
+  --synth-text: #e8e6ff;
+  --synth-muted: #b8aeff;
+
+  /* Legacy tokens — remapped to synthwave so existing classes/callers
+     auto-update without editing every file. Keep names for back-compat. */
+  --bg: var(--synth-bg);
+  --panel: rgba(26, 13, 58, 0.84);
+  --panel-strong: rgba(10, 4, 32, 0.95);
+  --border: rgba(176, 38, 255, 0.32);
+  --text: var(--synth-text);
+  --muted: var(--synth-muted);
+  --accent: var(--synth-cyan);
+  --accent-2: var(--synth-magenta);
+  --shadow: 0 24px 80px rgba(176, 38, 255, 0.18), 0 0 40px rgba(0, 240, 255, 0.06);
+  /* Playing card face colors — kept traditional for suit legibility */
   --card-face: #fff8f0;
   --card-edge: #b8a89a;
   --suit-red: #d0131a;
   --suit-black: #1a1a1a;
-  /* GBA-style palette additions */
-  --gba-blue: #00b4d8;
-  --gba-red: #ec4899;
-  --gba-gold: #f2c93b;
-  --gba-green: #3aa35a;
+  /* Legacy GBA tokens — remapped to synthwave hues */
+  --gba-blue: var(--synth-cyan);
+  --gba-red: var(--synth-magenta);
+  --gba-gold: var(--synth-sun);
+  --gba-green: var(--synth-purple);
 }
 
 * {
@@ -39,7 +53,7 @@ body {
   height: 100%;
   width: 100%;
   overflow: hidden;
-  background-color: #000;
+  background-color: var(--synth-bg);
   color: var(--text);
   font-family: 'VT323', monospace;
   -webkit-font-smoothing: none;
@@ -71,31 +85,42 @@ select {
   letter-spacing: 0.05em;
 }
 
-/* GBA-style felt background with subtle animated rotating gradient */
+/* Synthwave base felt — navy/violet gradient. Name kept (.felt-bg) because
+   stats/page.tsx and page.tsx mount it; only the look changes. Sits BEHIND the
+   WebGL canvas + .synthwave-overlay. */
 .felt-bg {
   background:
-    radial-gradient(circle at top, rgba(34, 90, 73, 0.45), transparent 42%),
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.04), transparent 20%),
-    linear-gradient(180deg, #15392f 0%, #0c1c18 100%);
+    radial-gradient(circle at 50% 18%, rgba(176, 38, 255, 0.28), transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(255, 46, 136, 0.14), transparent 45%),
+    linear-gradient(180deg, var(--synth-bg-2) 0%, var(--synth-bg) 70%, #050218 100%);
   position: relative;
 }
 
-
+/* Chrome/neon text for big headings — white→cyan→purple gradient clip */
+.txt-chrome {
+  background: linear-gradient(180deg, #ffffff 0%, var(--synth-cyan) 45%, var(--synth-purple) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  text-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6));
+}
 
 .panel {
-  background: linear-gradient(180deg, rgba(22, 42, 36, 0.95), rgba(11, 24, 20, 0.98));
-  border: 2px solid rgba(148, 201, 171, 0.22);
+  background: linear-gradient(180deg, rgba(36, 16, 71, 0.95), rgba(10, 4, 32, 0.98));
+  border: 2px solid rgba(176, 38, 255, 0.38);
   border-radius: 8px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.5), 0 0 22px rgba(176, 38, 255, 0.12);
 }
 
 .panel-inset {
-  background: #101614;
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+  background: #0a0420;
+  border: 2px solid rgba(0, 240, 255, 0.14);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 240, 255, 0.05);
 }
 
-/* Chunky button styles from user template */
+/* Chunky button styles — synthwave neon, 3D press preserved */
 .btn-chunky {
   font-family: 'VT323', monospace;
   border-radius: 8px;
@@ -107,57 +132,60 @@ select {
   justify-content: center;
   transition: transform 0.05s, box-shadow 0.05s;
   color: white;
-  text-shadow: 1.5px 1.5px 0 #000;
+  text-shadow: 1.5px 1.5px 0 rgba(0, 0, 0, 0.55);
   border: 2px solid rgba(0, 0, 0, 0.35);
   cursor: pointer;
   user-select: none;
 }
 
 .btn-orange {
-  background-color: #f7931a;
-  box-shadow: 0 5px 0 #b35900, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  background-color: var(--synth-sun);
+  box-shadow: 0 5px 0 #b35900, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 14px rgba(255, 158, 44, 0.45);
 }
 .btn-orange:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #b35900, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 0 #b35900, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 8px rgba(255, 158, 44, 0.35);
 }
 
 .btn-red {
-  background-color: #ec4899;
-  box-shadow: 0 5px 0 #be185d, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  background-color: var(--synth-magenta);
+  box-shadow: 0 5px 0 #a01657, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 14px rgba(255, 46, 136, 0.5);
 }
 .btn-red:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #be185d, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 0 #a01657, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 8px rgba(255, 46, 136, 0.35);
 }
 
 .btn-blue {
-  background-color: #00b4d8;
-  box-shadow: 0 5px 0 #0077b6, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  background-color: var(--synth-cyan);
+  box-shadow: 0 5px 0 #0077b6, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 14px rgba(0, 240, 255, 0.5);
+  color: #04243a;
+  text-shadow: 1.5px 1.5px 0 rgba(255, 255, 255, 0.25);
 }
 .btn-blue:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #0077b6, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 0 #0077b6, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 8px rgba(0, 240, 255, 0.35);
 }
 
 .btn-green {
-  background-color: #3aa35a;
-  box-shadow: 0 5px 0 #236d3c, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  background-color: var(--synth-purple);
+  box-shadow: 0 5px 0 #6a13a8, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 14px rgba(176, 38, 255, 0.5);
 }
 .btn-green:active:not(:disabled) {
   transform: translateY(3px);
-  box-shadow: 0 2px 0 #236d3c, inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 0 #6a13a8, inset 0 2px 0 rgba(255, 255, 255, 0.3), 0 0 8px rgba(176, 38, 255, 0.35);
 }
 
 .btn-dark {
-  background-color: #3b4249;
-  box-shadow: 0 3px 0 #1e2226, inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: white;
-  border: 2px solid rgba(0, 0, 0, 0.3);
+  background-color: var(--synth-surface);
+  box-shadow: 0 3px 0 #0a0420, inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 10px rgba(176, 38, 255, 0.2);
+  color: var(--synth-cyan);
+  border: 2px solid rgba(176, 38, 255, 0.4);
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
 }
 .btn-dark:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 #1e2226;
+  box-shadow: 0 1px 0 #0a0420, 0 0 6px rgba(176, 38, 255, 0.15);
 }
 
 .btn-chunky:disabled {
@@ -167,25 +195,25 @@ select {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2) !important;
 }
 
-/* Stat boxes from user template */
+/* Stat boxes — navy recess with neon inner glow */
 .stat-box {
-  background-color: #2b3035;
+  background-color: var(--synth-surface);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 0 #1a1d20;
+  box-shadow: 0 3px 0 #0a0420, 0 0 8px rgba(176, 38, 255, 0.12);
   padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(176, 38, 255, 0.28);
 }
 
 /* Inner dark recess panel inside stat boxes */
 .stat-inner {
-  background: #1a1d20;
+  background: #0a0420;
   border-radius: 5px;
-  border: 1px solid rgba(0, 0, 0, 0.5);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(0, 240, 255, 0.16);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7), inset 0 0 8px rgba(0, 240, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -195,19 +223,20 @@ select {
 }
 
 .txt-shadow {
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 240, 255, 0.25);
 }
 
 .txt-outline {
   text-shadow:
-    -1.5px -1.5px 0 rgba(0, 0, 0, 0.6),
-    1.5px -1.5px 0 rgba(0, 0, 0, 0.6),
-    -1.5px 1.5px 0 rgba(0, 0, 0, 0.6),
-    1.5px 1.5px 0 rgba(0, 0, 0, 0.6);
+    -1.5px -1.5px 0 rgba(0, 0, 0, 0.7),
+    1.5px -1.5px 0 rgba(0, 0, 0, 0.7),
+    -1.5px 1.5px 0 rgba(0, 0, 0, 0.7),
+    1.5px 1.5px 0 rgba(0, 0, 0, 0.7),
+    0 0 14px rgba(0, 240, 255, 0.3);
 }
 
 .bevel {
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.4);
 }
 
 /* ─── Animations ─── */
@@ -315,16 +344,16 @@ select {
 @keyframes flame {
   from {
     text-shadow:
-      0 0 4px #ff6b00,
-      0 0 8px #ff4500,
-      0 -2px 12px rgba(255, 69, 0, 0.5);
+      0 0 4px #ff9e2c,
+      0 0 8px #ff2e88,
+      0 -2px 12px rgba(255, 46, 136, 0.5);
     filter: brightness(1.1);
   }
   to {
     text-shadow:
-      0 0 8px #ff8c00,
-      0 0 16px #ff4500,
-      0 -4px 20px rgba(255, 69, 0, 0.7);
+      0 0 8px #ffb84d,
+      0 0 16px #ff2e88,
+      0 -4px 20px rgba(255, 46, 136, 0.7);
     filter: brightness(1.3);
   }
 }
@@ -356,29 +385,29 @@ select {
 
 @keyframes jokerGlow {
   0% {
-    box-shadow: 0 0 0 0 rgba(210, 59, 210, 0);
+    box-shadow: 0 0 0 0 rgba(255, 46, 136, 0);
   }
   50% {
-    box-shadow: 0 0 12px 3px rgba(210, 59, 210, 0.6);
+    box-shadow: 0 0 12px 3px rgba(255, 46, 136, 0.6);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(210, 59, 210, 0);
+    box-shadow: 0 0 0 0 rgba(255, 46, 136, 0);
   }
 }
 
-/* Shop overlay styles */
+/* Shop overlay styles — synthwave navy with cyan/magenta neon border */
 .shop-panel {
-  background: linear-gradient(180deg, #1c2833 0%, #0e1a24 100%);
-  border: 2px solid rgba(43, 147, 255, 0.3);
+  background: linear-gradient(180deg, #1a0d3a 0%, #0a0420 100%);
+  border: 2px solid rgba(0, 240, 255, 0.35);
   border-radius: 10px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 30px rgba(176, 38, 255, 0.15);
 }
 
-/* Joker rarity colors (from GBA card_rarity_pal_gfx) */
-.rarity-common { color: #94b4a7; }
-.rarity-uncommon { color: #3aa35a; }
-.rarity-rare { color: #00b4d8; }
-.rarity-legendary { color: #9b59b6; }
+/* Joker rarity colors — synthwave. KEEP IN SYNC with apps/web/src/lib/rarity.ts */
+.rarity-common { color: #b8aeff; }
+.rarity-uncommon { color: #00f0ff; }
+.rarity-rare { color: #ff2e88; }
+.rarity-legendary { color: #ff9e2c; }
 
 /* Edition card styling */
 .edition-foil {
@@ -564,10 +593,10 @@ select {
   }
 }
 
-/* Rare: gold metallic sweep effect */
+/* Rare: magenta metallic sweep effect */
 .joker-rare-metallic {
   position: relative;
-  border-color: #ffd700 !important;
+  border-color: #ff2e88 !important;
 }
 .joker-rare-metallic::after {
   content: "";
@@ -575,11 +604,11 @@ select {
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(255, 215, 0, 0) 0%,
-    rgba(255, 215, 0, 0.15) 30%,
+    rgba(255, 46, 136, 0) 0%,
+    rgba(255, 46, 136, 0.15) 30%,
     rgba(255, 255, 255, 0.55) 50%,
-    rgba(255, 215, 0, 0.15) 70%,
-    rgba(255, 215, 0, 0) 100%
+    rgba(255, 46, 136, 0.15) 70%,
+    rgba(255, 46, 136, 0) 100%
   );
   background-size: 250% 250%;
   animation: goldSweep 3.5s infinite linear;
@@ -640,14 +669,14 @@ select {
   }
 }
 
-/* ─── Music volume slider (retro GBA style) ─── */
+/* ─── Music volume slider (synthwave neon) ─── */
 .music-slider {
   -webkit-appearance: none;
   appearance: none;
-  background: #1a1d20;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #0a0420;
+  border: 1px solid rgba(0, 240, 255, 0.2);
   border-radius: 999px;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.7), inset 0 0 6px rgba(0, 240, 255, 0.1);
   cursor: pointer;
   outline: none;
 }
@@ -657,21 +686,177 @@ select {
   width: 10px;
   height: 14px;
   border-radius: 2px;
-  background: #facc15;
-  border: 1px solid #b35900;
-  box-shadow: 0 2px 0 #b35900;
+  background: #00f0ff;
+  border: 1px solid #0077b6;
+  box-shadow: 0 2px 0 #0077b6, 0 0 8px rgba(0, 240, 255, 0.6);
   cursor: pointer;
 }
 .music-slider::-moz-range-thumb {
   width: 10px;
   height: 14px;
   border-radius: 2px;
-  background: #facc15;
-  border: 1px solid #b35900;
-  box-shadow: 0 2px 0 #b35900;
+  background: #00f0ff;
+  border: 1px solid #0077b6;
+  box-shadow: 0 2px 0 #0077b6, 0 0 8px rgba(0, 240, 255, 0.6);
   cursor: pointer;
 }
 .music-slider::-moz-range-track {
-  background: #1a1d20;
+  background: #0a0420;
   border-radius: 999px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SYNTHWAVE OVERLAY — sun + perspective grid + scanlines + CRT
+   Rendered IN FRONT of the WebGL swirl canvas (zIndex:1) but
+   BEHIND game content (z-10+). Mounted by GbaBackground.tsx with a
+   data-blind attribute for per-blind variation.
+   ═══════════════════════════════════════════════════════════════ */
+.synthwave-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  /* Static scanlines — low alpha so it never hurts legibility */
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.10) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  animation: crtFlicker 4s steps(1) infinite;
+}
+
+/* The sun — warm orb with horizontal cut bands, screen-blended over the swirl */
+.synthwave-overlay::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  width: 220px;
+  height: 220px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background:
+    /* horizontal cut bands on the lower half */
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(10, 4, 32, 0.9) 8px,
+      rgba(10, 4, 32, 0.9) 12px
+    ),
+    /* the sun body: sun→magenta vertical */
+    linear-gradient(180deg, #ffd27a 0%, #ff9e2c 38%, #ff2e88 100%);
+  background-position: 0 55%, 0 0;
+  background-repeat: no-repeat, no-repeat;
+  background-size: 100% 45%, 100% 100%;
+  box-shadow: 0 0 60px 12px rgba(255, 158, 44, 0.35), 0 0 100px 24px rgba(255, 46, 136, 0.25);
+  mix-blend-mode: screen;
+  opacity: 0.85;
+}
+
+/* The perspective grid floor — magenta lines receding to the horizon */
+.synthwave-overlay::after {
+  content: "";
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  bottom: 0;
+  height: 55%;
+  background-image:
+    linear-gradient(90deg, transparent 0, transparent calc(100% - 2px), rgba(255, 46, 136, 0.55) calc(100% - 2px)),
+    linear-gradient(0deg, transparent 0, transparent calc(100% - 2px), rgba(176, 38, 255, 0.5) calc(100% - 2px));
+  background-size: 44px 100%, 100% 28px;
+  transform: perspective(300px) rotateX(75deg) translateY(0);
+  transform-origin: bottom center;
+  animation: synthGridScroll 2.4s linear infinite;
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 30%, rgba(0, 0, 0, 0.9) 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 30%, rgba(0, 0, 0, 0.9) 100%);
+  opacity: 0.55;
+}
+
+/* Animate the grid via transform (GPU-composited, no repaint) */
+@keyframes synthGridScroll {
+  0% { transform: perspective(300px) rotateX(75deg) translateY(0); }
+  100% { transform: perspective(300px) rotateX(75deg) translateY(28px); }
+}
+
+/* Subtle CRT flicker — very low amplitude, slow */
+@keyframes crtFlicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.97; }
+  94% { opacity: 1; }
+  96% { opacity: 0.98; }
+  97% { opacity: 1; }
+}
+
+/* Per-blind variation — boss = intense red-magenta sun + grid */
+.synthwave-overlay[data-blind="boss"]::before {
+  background:
+    repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(10, 4, 32, 0.9) 8px, rgba(10, 4, 32, 0.9) 12px),
+    linear-gradient(180deg, #ff8a5c 0%, #ff2e2c 38%, #b00020 100%);
+  background-position: 0 55%, 0 0;
+  background-size: 100% 45%, 100% 100%;
+  box-shadow: 0 0 70px 16px rgba(255, 46, 44, 0.45), 0 0 120px 30px rgba(176, 0, 32, 0.3);
+  opacity: 0.95;
+}
+.synthwave-overlay[data-blind="boss"]::after {
+  background-image:
+    linear-gradient(90deg, transparent 0, transparent calc(100% - 2px), rgba(255, 46, 44, 0.6) calc(100% - 2px)),
+    linear-gradient(0deg, transparent 0, transparent calc(100% - 2px), rgba(255, 46, 136, 0.55) calc(100% - 2px));
+  opacity: 0.6;
+}
+
+/* Shop = calm purple/cyan, no aggressive sun */
+.synthwave-overlay[data-blind="shop"]::before {
+  opacity: 0.5;
+  background:
+    repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(10, 4, 32, 0.9) 8px, rgba(10, 4, 32, 0.9) 12px),
+    linear-gradient(180deg, #b8aeff 0%, #b026ff 50%, #6a13a8 100%);
+  background-position: 0 55%, 0 0;
+  background-size: 100% 45%, 100% 100%;
+}
+.synthwave-overlay[data-blind="shop"]::after {
+  background-image:
+    linear-gradient(90deg, transparent 0, transparent calc(100% - 2px), rgba(0, 240, 255, 0.45) calc(100% - 2px)),
+    linear-gradient(0deg, transparent 0, transparent calc(100% - 2px), rgba(176, 38, 255, 0.4) calc(100% - 2px));
+  opacity: 0.4;
+}
+
+/* Lost = somber crimson, dimmed */
+.synthwave-overlay[data-blind="lost"]::before {
+  opacity: 0.55;
+  background:
+    repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(10, 4, 32, 0.92) 8px, rgba(10, 4, 32, 0.92) 12px),
+    linear-gradient(180deg, #b3404a 0%, #7a1a22 50%, #2a0608 100%);
+  background-position: 0 55%, 0 0;
+  background-size: 100% 45%, 100% 100%;
+  box-shadow: 0 0 50px 10px rgba(122, 26, 34, 0.4);
+}
+.synthwave-overlay[data-blind="lost"]::after {
+  opacity: 0.3;
+}
+
+/* Low-perf opt-out: drop the overlay entirely */
+.synthwave-overlay[data-perf="low"] {
+  display: none;
+}
+
+/* ─── Reduced motion: kill flicker, grid scroll, flame, shimmer, sweeps ─── */
+@media (prefers-reduced-motion: reduce) {
+  .synthwave-overlay,
+  .synthwave-overlay::after {
+    animation: none !important;
+  }
+  .anim-flame,
+  .deck-shimmer,
+  .joker-shiny::after,
+  .joker-rare-metallic::after,
+  .joker-legendary-iridescent,
+  .joker-legendary-iridescent::after,
+  .edition-polychrome {
+    animation: none !important;
+  }
 }

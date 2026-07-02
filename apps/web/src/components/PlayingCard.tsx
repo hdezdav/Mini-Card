@@ -65,16 +65,25 @@ export function PlayingCard({
         }`}
         style={{
           boxShadow: scoring
-            ? "0 0 0 2.5px #ffd86b, 0 6px 12px rgba(0,0,0,0.5)"
-            : "0 4px 6px rgba(0,0,0,0.35)",
-          background: "#2d241e",
+            ? "0 0 0 2.5px #00f0ff, 0 0 14px rgba(0,240,255,0.6), 0 6px 12px rgba(0,0,0,0.5)"
+            : "0 4px 6px rgba(0,0,0,0.45), 0 0 8px rgba(176,38,255,0.12)",
+          background: "#0a0420",
         }}
       >
         <img
           src={imgSrc}
           alt={facedown ? "Card Back" : `${rank} of ${suit}`}
           className="h-full w-full object-cover pixelated"
-          style={{ imageRendering: "pixelated" }}
+          style={{
+            imageRendering: "pixelated",
+            // Synthwave tint on warm deck backs (red→magenta, green→cyan).
+            // Neutral backs (blue/yellow/black) keep their hue.
+            filter: facedown && backColor === "red"
+              ? "hue-rotate(285deg) saturate(1.4)"
+              : facedown && backColor === "green"
+              ? "hue-rotate(170deg) saturate(1.3)"
+              : undefined,
+          }}
         />
       </div>
     </button>

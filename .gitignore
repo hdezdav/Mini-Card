@@ -30,6 +30,8 @@ yarn-error.log*
 
 # AI Agents
 .agents
+.claude
+.alt
 
 # Cloudflare & Wrangler local state
 .wrangler
@@ -39,3 +41,4 @@ yarn-error.log*
 .vercel
 
 
+skills-lock.json
