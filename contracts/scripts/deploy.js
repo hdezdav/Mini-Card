@@ -3,6 +3,12 @@ const hre = require("hardhat");
 // Fee receiver (operator): 0x0419F23541408EEcab6EC4Bd96a454EE8A1dD1BE
 const FEE_RECEIVER = "0x0419F23541408EEcab6EC4Bd96a454EE8A1dD1BE";
 
+// v1 leaderboard on Celo mainnet. The v2 constructor stores this to read
+// historical data during migration. On mainnet, migrate.js passes the real v1
+// address. On testnet there is no v1, so we pass the zero address — migration
+// functions are simply never called there.
+const V1_LEADERBOARD_MAINNET = "0xfB897EC446b737A99ba8404FCb64821eD2207AeB";
+
 // USDT address differs per network. Verified against celopedia contracts.md.
 // Mainnet: 0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e
 // Sepolia: 0xd077A400968890Eacc75cdc901F0356c943e4fDb
@@ -27,8 +33,12 @@ async function main() {
   console.log("  Fee receiver:", FEE_RECEIVER);
 
   // ─── 1. MiniCardLeaderboard ───
+  // v2 constructor takes the v1 leaderboard address (for migration reads).
+  // On mainnet use the real v1; on testnet there is no v1, so pass zero address.
+  const oldLeaderboard =
+    network === "celo" ? V1_LEADERBOARD_MAINNET : hre.ethers.ZeroAddress;
   const MiniCardLeaderboard = await hre.ethers.getContractFactory("MiniCardLeaderboard");
-  const leaderboard = await MiniCardLeaderboard.deploy();
+  const leaderboard = await MiniCardLeaderboard.deploy(oldLeaderboard);
   await leaderboard.waitForDeployment();
   const leaderboardAddr = await leaderboard.getAddress();
 

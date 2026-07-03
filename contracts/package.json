@@ -6,6 +6,7 @@
     "compile": "npx hardhat compile",
     "deploy:mainnet": "npx hardhat run scripts/deploy.js --network celo",
     "deploy:testnet": "npx hardhat run scripts/deploy.js --network celoSepolia",
+    "migrate:mainnet": "npx hardhat run scripts/migrate.js --network celo",
     "verify": "npx hardhat verify --network celo"
   },
   "devDependencies": {
