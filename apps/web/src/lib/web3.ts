@@ -8,7 +8,7 @@ export const TARGET_CHAIN = celo;
 // ─── Leaderboard Contract ───
 // Deploy via:  cd contracts && npm run deploy:mainnet
 // Then paste the deployed address here:
-export const LEADERBOARD_CONTRACT_ADDRESS: string = "0xfB897EC446b737A99ba8404FCb64821eD2207AeB";
+export const LEADERBOARD_CONTRACT_ADDRESS: string = "0x2c617C7FEa23e4C824279951e94Fa5994C025063";
 
 export const MINICARD_LEADERBOARD_ABI = [
   {
@@ -114,7 +114,7 @@ export interface LeaderboardEntry {
 // ─── BoosterPack Contract ───
 // Deploy via:  cd contracts && npm run deploy:mainnet
 // Then paste the deployed address here:
-export const BOOSTER_PACK_CONTRACT_ADDRESS: string = "0x0000000000000000000000000000000000000000"; // TODO: set after deploy
+export const BOOSTER_PACK_CONTRACT_ADDRESS: string = "0x3d27B1B090DAD9D9ff8E42B4D892B62f1E40C6Cb"; // TODO: set after deploy
 
 export const BOOSTER_PACK_ABI = [
   {
