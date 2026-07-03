@@ -30,7 +30,7 @@ export default function TermsPage() {
             <h2 className="font-pixel-fat text-base text-white mb-1">1. Acceptance</h2>
             <p>
               By playing MiniCard, you agree to these Terms. If you do not agree, do not use the app.
-              MiniCard is a browser-based card game that runs inside the MiniPay wallet on the Celo network.
+              MiniCard is a browser-based card game that runs inside the MiniPay wallet.
             </p>
           </section>
 
@@ -47,9 +47,9 @@ export default function TermsPage() {
             <h2 className="font-pixel-fat text-base text-white mb-1">3. Blockchain Transactions</h2>
             <p>
               Score submissions, username registration, and optional payments are on-chain
-              transactions on Celo. You are responsible for approving each transaction in your wallet.
-              Transactions are final and cannot be reversed. Network fees are paid in stablecoins
-              (USDT) and are handled automatically by MiniPay.
+              transactions. You are responsible for approving each transaction in your wallet.
+              Transactions are final and cannot be reversed. Network fees are handled automatically
+              by MiniPay.
             </p>
           </section>
 

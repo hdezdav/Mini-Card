@@ -31,7 +31,7 @@ export default function PrivacyPage() {
             <p>
               MiniCard is a non-custodial app. We do not ask for your name, email, phone number, or
               personal information. The only identifier we use is your wallet address, which is
-              public on the Celo blockchain.
+              public on the blockchain.
             </p>
           </section>
 
@@ -39,7 +39,7 @@ export default function PrivacyPage() {
             <h2 className="font-pixel-fat text-base text-white mb-1">2. On-Chain Data</h2>
             <p>
               When you submit a score, register a username, or make an optional payment, that data is
-              recorded publicly on the Celo blockchain. This includes your wallet address, your chosen
+              recorded publicly on the blockchain. This includes your wallet address, your chosen
               username, your score, the round reached, and the transaction timestamp. This data is
               visible to anyone and cannot be deleted.
             </p>
@@ -72,8 +72,8 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-pixel-fat text-base text-white mb-1">6. Third-Party Services</h2>
             <p>
-              The app runs inside MiniPay and on the Celo network. Their respective privacy practices
-              apply to data they process. We encourage you to review MiniPay’s and Celo’s policies.
+              The app runs inside MiniPay. MiniPay's privacy practices apply to data it processes.
+              We encourage you to review MiniPay's policies.
             </p>
           </section>
 

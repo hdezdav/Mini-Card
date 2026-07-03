@@ -759,7 +759,7 @@ export default function StatsPage() {
             {/* 7. CONTRATOS */}
             <Section title={t.contracts[l]}>
               <ContractRow label="Leaderboard" address={LEADERBOARD_CONTRACT_ADDRESS} />
-              <ContractRow label="USDT (Celo)" address={USDT_ADDRESS} />
+              <ContractRow label="USDT" address={USDT_ADDRESS} />
               <ContractRow label={t.operator[l]} address={OPERATOR_ADDRESS} />
             </Section>
 
@@ -827,7 +827,7 @@ export default function StatsPage() {
         {/* Footer info — legal + support links required for MiniPay listing */}
         <div className="text-center mt-12 mb-6 relative z-10 flex flex-col items-center gap-2">
           <div className="font-pixel text-xs text-gray-500">
-            MiniCard · Celo Mainnet · Powered by MiniPay
+            MiniCard · Powered by MiniPay
           </div>
           <div className="flex items-center gap-2">
             <Link href="/legal/terms" className="font-pixel text-[10px] text-gray-500 hover:text-[#00f0ff] transition-colors">

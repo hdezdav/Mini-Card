@@ -126,121 +126,13 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col bg-black/50 backdrop-blur-[2px] overflow-hidden">
+    <div className="absolute inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-[3px] overflow-hidden">
       <GbaBackground blindKind="shop" />
+      {/* Dark scrim on top of the background so text stays readable */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50 pointer-events-none z-0" />
       <div className="flex-1 flex flex-col p-3 overflow-y-auto relative z-10">
         <div className="font-pixel-fat text-2xl txt-chrome text-center mb-2">SHOP</div>
         <div className="font-pixel text-sm text-[#ff9e2c] text-center mb-3">💰 ${money}</div>
-
-      {/* Booster Packs — 3 floating packs to choose from */}
-      <div className="mb-3">
-        <div className="font-pixel text-xs text-gray-400 mb-2 text-center">— Booster Packs —</div>
-        <div className="flex justify-center gap-3">
-
-          {PACK_THEMES.map((pack) => {
-            const isActive = activePack === pack.id;
-            const showSpinner = isActive && isBusy;
-            const showSuccess = isActive && packState === "success";
-            const showError = isActive && packState === "error";
-
-            return (
-              <button
-                key={pack.id}
-                type="button"
-                onClick={() => handleBuyPack(pack.id)}
-                disabled={isBusy}
-                className="relative flex flex-col items-center gap-1 group disabled:opacity-50"
-                style={{
-                  animation: isBusy && !isActive ? "none" : "float 3s ease-in-out infinite",
-                  animationDelay: `${pack.id * 0.4}s`,
-                }}
-              >
-                {/* Pack body */}
-                <div
-                  className="relative w-[56px] h-[72px] rounded-lg border-2 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:scale-105 group-active:scale-95"
-                  style={{
-                    borderColor: pack.color,
-                    background: `linear-gradient(160deg, ${pack.color}30 0%, ${pack.color}10 60%, #0a0420 100%)`,
-                    boxShadow: showSuccess
-                      ? `0 0 20px ${pack.glow}, 0 4px 12px rgba(0,0,0,0.5)`
-                      : `0 4px 12px rgba(0,0,0,0.5), 0 0 8px ${pack.glow}`,
-                  }}
-                >
-                  {/* Pack shine */}
-                  <div
-                    className="absolute inset-0 opacity-30 pointer-events-none"
-                    style={{ background: `linear-gradient(135deg, transparent 40%, ${pack.color}40 50%, transparent 60%)` }}
-                  />
-
-                  {/* Content */}
-                  {showSpinner ? (
-                    <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin z-10" />
-                  ) : showSuccess ? (
-                    <span className="text-2xl z-10" style={{ animation: "pop 0.3s ease-out" }}>✨</span>
-                  ) : showError ? (
-                    <span className="text-2xl z-10">❌</span>
-                  ) : (
-                    <>
-                      <span className="text-2xl z-10" style={{ filter: `drop-shadow(0 0 4px ${pack.glow})` }}>📦</span>
-                    </>
-                  )}
-                </div>
-
-                {/* Pack label */}
-                <span className="font-pixel text-[9px] text-gray-300 leading-none">{pack.name}</span>
-                <span className="font-pixel text-[9px] text-[#ff9e2c] leading-none">$0.02</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Status label for active pack */}
-        {activePack !== null && (isBusy || packState === "success" || packState === "error") && (
-          <div className="font-pixel text-[10px] text-center mt-2 leading-tight"
-            style={{ color: packState === "error" ? "#ff2e88" : packState === "success" ? "#00f0ff" : "#ff9e2c" }}>
-            {packStatusLabel()}
-          </div>
-        )}
-
-        {/* Pack result display */}
-        {packResult && (
-          <div className={`mt-2 rounded-md p-2 flex items-center gap-2 anim-pop mx-auto max-w-[260px] ${
-            packResult.duplicate ? "bg-[#2a0d5a] border border-[#ff9e2c]/30" : "bg-[#0a2a24] border border-[#00f0ff]/40"
-          }`}>
-            <div className={`w-8 h-10 rounded overflow-hidden bg-[#0a0420] flex items-center justify-center shrink-0 ${
-              packResult.rarity === "uncommon" ? "joker-shiny border border-white/10" :
-              packResult.rarity === "rare" ? "joker-rare-metallic" :
-              packResult.rarity === "legendary" ? "joker-legendary-iridescent" : "border border-white/10"
-            }`}>
-              <JokerArt />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-pixel-fat text-sm text-white leading-none">{packResult.name}</div>
-              <div style={{ color: RARITY_COLOR[packResult.rarity] }} className="font-pixel text-[10px] leading-none mt-0.5 capitalize">
-                {packResult.rarity}
-              </div>
-              <div className="font-pixel text-[9px] text-gray-400 mt-0.5">
-                {packResult.duplicate ? "Duplicate — refunded sell value" : "New joker added!"}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error display */}
-        {packError && (
-          <div className="font-pixel text-[10px] text-[#ff2e88] text-center mt-1 leading-tight">
-            {packError}
-          </div>
-        )}
-
-        {/* Odds — transparent, no crypto jargon */}
-        <div className="font-pixel text-[8px] text-white/20 leading-tight flex gap-3 flex-wrap justify-center mt-2">
-          <span>Common 60%</span>
-          <span>Uncommon 25%</span>
-          <span>Rare 12%</span>
-          <span>Legendary 3%</span>
-        </div>
-      </div>
 
       {/* For Sale header */}
       <div className="flex items-center justify-between mb-1">
@@ -286,6 +178,137 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
         })}
       </div>
 
+      {/* Booster Packs — 3 TCG-style 3D packs, now BELOW the For Sale jokers.
+          Wrapped in a translucent purple panel so the info text stays readable
+          against the animated background. */}
+      <div className="mb-3 mt-2 rounded-xl border border-[#b026ff]/30 bg-[#1a0d3a]/70 backdrop-blur-sm p-3">
+        <div className="font-pixel text-xs text-[#c9b8ff] mb-4 text-center">— Booster Packs —</div>
+        <div className="flex justify-center gap-5 items-center pt-2 pb-6 px-2">
+
+          {PACK_THEMES.map((pack) => {
+            const isActive = activePack === pack.id;
+            const showSpinner = isActive && isBusy;
+            const showSuccess = isActive && packState === "success";
+            const showError = isActive && packState === "error";
+
+            return (
+              <button
+                key={pack.id}
+                type="button"
+                onClick={() => handleBuyPack(pack.id)}
+                disabled={isBusy}
+                className="booster-pack-3d relative flex flex-col items-center gap-1 group disabled:opacity-50"
+                style={{
+                  animation: isBusy && !isActive ? "none" : "float 3s ease-in-out infinite",
+                  animationDelay: `${pack.id * 0.4}s`,
+                }}
+              >
+                {/* Pack body — lives in 3D space, tilts toward the player. */}
+                <div className="pack-body">
+                  {/* Tear-strip tab on top */}
+                  <div className="pack-tear" style={{ background: `linear-gradient(180deg, ${pack.color}, ${pack.color}40)` }} />
+
+                  {/* Pack face */}
+                  <div
+                    className="pack-face w-[60px] h-[84px] flex flex-col items-center justify-center"
+                    style={{
+                      borderColor: pack.color,
+                      background: `linear-gradient(160deg, ${pack.color}30 0%, ${pack.color}10 55%, #0a0420 100%)`,
+                      boxShadow: showSuccess
+                        ? `0 0 20px ${pack.glow}, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -8px 16px rgba(0,0,0,0.55), 0 8px 14px rgba(0,0,0,0.55)`
+                        : `inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -8px 16px rgba(0,0,0,0.55), 0 8px 14px rgba(0,0,0,0.55), 0 0 10px ${pack.glow}`,
+                    }}
+                  >
+                    {/* Diagonal static shine */}
+                    <div className="pack-shine" />
+
+                    {/* Moving foil sweep */}
+                    <div className="pack-foil" />
+
+                    {/* Center content */}
+                    {showSpinner ? (
+                      <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin z-10" />
+                    ) : showSuccess ? (
+                      <span className="text-2xl z-10" style={{ animation: "pop 0.3s ease-out", filter: `drop-shadow(0 0 6px ${pack.glow})` }}>✨</span>
+                    ) : showError ? (
+                      <span className="text-2xl z-10">❌</span>
+                    ) : (
+                      <span
+                        className="text-2xl z-10"
+                        style={{ filter: `drop-shadow(0 0 4px ${pack.glow})` }}
+                      >
+                        📦
+                      </span>
+                    )}
+
+                    {/* Pack name embossed on the face */}
+                    <span
+                      className="font-pixel text-[8px] mt-1 z-10 leading-none uppercase tracking-wider"
+                      style={{ color: pack.color, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
+                    >
+                      {pack.name}
+                    </span>
+                  </div>
+
+                  {/* Ground shadow */}
+                  <div className="pack-shadow" />
+                </div>
+
+                {/* Price tag below */}
+                <span className="font-pixel text-[9px] text-[#ff9e2c] leading-none mt-1">$0.02</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Status label for active pack */}
+        {activePack !== null && (isBusy || packState === "success" || packState === "error") && (
+          <div className="font-pixel text-[10px] text-center mt-2 leading-tight"
+            style={{ color: packState === "error" ? "#ff2e88" : packState === "success" ? "#00f0ff" : "#ff9e2c" }}>
+            {packStatusLabel()}
+          </div>
+        )}
+
+        {/* Pack result display */}
+        {packResult && (
+          <div className={`mt-2 rounded-md p-2 flex items-center gap-2 anim-pop mx-auto max-w-[260px] ${
+            packResult.duplicate ? "bg-[#2a0d5a] border border-[#ff9e2c]/30" : "bg-[#0a2a24] border border-[#00f0ff]/40"
+          }`}>
+            <div className={`w-8 h-10 rounded overflow-hidden bg-[#0a0420] flex items-center justify-center shrink-0 ${
+              packResult.rarity === "uncommon" ? "joker-shiny border border-white/10" :
+              packResult.rarity === "rare" ? "joker-rare-metallic" :
+              packResult.rarity === "legendary" ? "joker-legendary-iridescent" : "border border-white/10"
+            }`}>
+              <JokerArt />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-pixel-fat text-sm text-white leading-none">{packResult.name}</div>
+              <div style={{ color: RARITY_COLOR[packResult.rarity] }} className="font-pixel text-[10px] leading-none mt-0.5 capitalize">
+                {packResult.rarity}
+              </div>
+              <div className="font-pixel text-[9px] text-gray-400 mt-0.5">
+                {packResult.duplicate ? "Duplicate — refunded sell value" : "New joker added!"}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error display */}
+        {packError && (
+          <div className="font-pixel text-[10px] text-[#ff2e88] text-center mt-1 leading-tight">
+            {packError}
+          </div>
+        )}
+
+        {/* Odds — transparent, no crypto jargon */}
+        <div className="font-pixel text-[8px] text-white/55 leading-tight flex gap-3 flex-wrap justify-center mt-2">
+          <span>Common 60%</span>
+          <span>Uncommon 25%</span>
+          <span>Rare 12%</span>
+          <span>Legendary 3%</span>
+        </div>
+      </div>
+
       {ownedJokers.length > 0 && (
         <>
           <div className="font-pixel text-xs text-gray-400 mb-1">— Your Jokers (click to sell) —</div>
@@ -314,7 +337,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       )}
 
       {/* Info note — no crypto/blockchain/on-chain jargon per MiniPay rules */}
-      <div className="font-pixel text-[9px] text-white/25 text-center mb-2 leading-tight px-2">
+      <div className="font-pixel text-[9px] text-white/60 text-center mb-2 leading-tight px-2">
          Each pack contains 1 random joker · $0.02 USDT
       </div>
 

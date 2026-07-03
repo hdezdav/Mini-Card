@@ -792,6 +792,9 @@ export default function HomePage() {
                 <span className="text-lg font-pixel-fat flex items-center gap-1"><span className="text-gray-400 text-sm">✺</span> {roundScore}</span>
               </div>
 
+              {/* Blind progress — Minecraft-style XP bar: 10 thin segments */}
+              <BlindXpBar score={roundScore} target={blind.target} kind={blind.kind} />
+
               {/* Current Hand Type */}
               <div className="flex-1 bg-[#120630] rounded-lg p-1.5 flex flex-col items-center justify-center border-b-4 border-black/40">
                 <div className="text-[16px] font-pixel mb-1.5 leading-none">
@@ -875,7 +878,7 @@ export default function HomePage() {
                   disabled={submittingScore || scoreSubmitted}
                   className="btn-chunky btn-orange w-full py-2 text-sm leading-none flex items-center justify-center gap-1.5"
                 >
-                  {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SAVE SCORE TO CELO"}
+                  {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SAVE SCORE ON-CHAIN"}
                 </button>
               )}
 
@@ -951,7 +954,7 @@ export default function HomePage() {
                 REGISTER USERNAME
               </div>
               <div className="font-pixel text-[11px] text-gray-300 text-center leading-tight">
-                You need a unique username to play and save your scores on the Celo leaderboard.
+                You need a unique username to play and save your scores on the leaderboard.
               </div>
               <input
                 type="text"
@@ -992,7 +995,7 @@ export default function HomePage() {
                 )}
               </button>
               <div className="font-pixel text-[9px] text-gray-500 text-center leading-tight">
-                This requires an on-chain transaction on Celo. You'll approve it in your wallet.
+                This requires an on-chain transaction. You'll approve it in your wallet.
               </div>
             </div>
           </div>
@@ -1141,6 +1144,41 @@ function DeckPile({ count, total, deckType = "red" }: { count: number; total: nu
           {count}<span className="text-white/40 font-pixel text-[10px]">/{total}</span>
         </span>
       </div>
+    </div>
+  );
+}
+
+function BlindXpBar({
+  score,
+  target,
+  kind,
+}: {
+  score: number;
+  target: number;
+  kind: Blind["kind"];
+}) {
+  // Minecraft-style XP bar: 10 thin segments that light up as you progress.
+  // Color follows the blind kind (small=cyan, big=orange, boss=magenta).
+  const color = kind === "small" ? "#00f0ff" : kind === "big" ? "#ff9e2c" : "#ff2e88";
+  const glow = kind === "small" ? "rgba(0,240,255,0.6)" : kind === "big" ? "rgba(255,158,44,0.6)" : "rgba(255,46,136,0.65)";
+  const pct = Math.min(1, target > 0 ? score / target : 0);
+  const filled = Math.floor(pct * 10);
+
+  return (
+    <div className="flex gap-[2px] h-[5px] px-[1px]" aria-label={`Blind progress: ${Math.round(pct * 100)}%`}>
+      {Array.from({ length: 10 }, (_, i) => {
+        const on = i < filled;
+        return (
+          <div
+            key={i}
+            className="flex-1 rounded-[1px] transition-colors duration-150"
+            style={{
+              backgroundColor: on ? color : "rgba(255,255,255,0.08)",
+              boxShadow: on ? `0 0 4px ${glow}` : "none",
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -1299,7 +1337,7 @@ function LeaderboardOverlay({
         {/* Wallet connection info — show username as primary identifier, address only as secondary hint */}
         <div className="text-[10px] text-gray-300 font-pixel mb-3 flex items-center justify-center gap-1.5 bg-black/40 px-2.5 py-0.5 rounded-full border border-white/5">
           <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse"></div>
-          <span>{registeredUsername ? registeredUsername : (walletAddress.startsWith("0xceloGuest") ? walletAddress : `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)}</span>
+          <span>{registeredUsername ? registeredUsername : (walletAddress.startsWith("0xceloGuest") ? "Guest" : `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)}</span>
         </div>
 
         {/* Username Registration Form (if connected to a wallet) */}
@@ -1358,7 +1396,7 @@ function LeaderboardOverlay({
               disabled={submittingScore || scoreSubmitted}
               className="btn-chunky btn-orange w-full py-1 text-[10px] leading-none flex items-center justify-center gap-1"
             >
-              {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SUBMIT SCORE TO CELO"}
+              {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SUBMIT SCORE ON-CHAIN"}
             </button>
           </div>
         )}
@@ -1394,7 +1432,7 @@ function LeaderboardOverlay({
                         {entry.username
                           ? entry.username
                           : entry.address.startsWith("0xceloGuest")
-                          ? entry.address
+                          ? "Guest"
                           : `Player ${entry.address.slice(2, 6)}`}
                       </td>
                       <td className="py-1 text-right text-gray-400">{entry.round}</td>

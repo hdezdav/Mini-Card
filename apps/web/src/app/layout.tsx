@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 // Web analytics (Mixpanel) disabled — not in use. To re-enable, uncomment the
 // import and the <Script> block below.
@@ -36,6 +36,14 @@ export const metadata: Metadata = {
   other: {
     "talentapp:project_verification": "2c3ccaeb4c6fa4451f9ea1b16da94c4e54861c10418c17765bff26deb12760d4d6ae1b221f983854d723eb0a0c688b004b0e8fada0181d1df4c7ebd9b6984e06",
   },
+};
+
+// Explicit viewport for MiniPay mobile-only target: safe-area insets for
+// notched phones and prevent zoom/scale issues on small screens.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
