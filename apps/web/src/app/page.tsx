@@ -323,18 +323,27 @@ export default function HomePage() {
     });
   };
 
-  const drawTo = (current: Card[], pool: Card[]) => {
-    const need = HAND_SIZE - current.length;
-    const drawn = pool.slice(0, need);
-    return { newHand: [...current, ...drawn], rest: pool.slice(need) };
+  // Refill the hand in place: cards in `removedIds` are replaced by fresh draws
+  // from `pool` in their original positions. Surviving cards never move, so any
+  // sort order the player applied (rank/suit) is preserved after a discard or
+  // play. New cards land in the exact slots of the removed ones; the player
+  // re-sorts manually if they want the new cards merged into that order.
+  const refillInPlace = (current: Card[], removedIds: Set<string>, pool: Card[]) => {
+    const drawn = pool.slice(0, removedIds.size);
+    const rest = pool.slice(removedIds.size);
+    let drawIdx = 0;
+    const next = current
+      .map((card) => (removedIds.has(card.id) ? drawn[drawIdx++] ?? null : card))
+      .filter((card): card is Card => card !== null);
+    return { newHand: next, rest };
   };
 
   const doDiscard = () => {
     if (phase !== "playing" || busy.current) return;
     if (selected.length === 0 || discardsLeft <= 0) return;
     sfx.play("discard");
-    const remaining = hand.filter((card) => !selected.includes(card.id));
-    const { newHand, rest } = drawTo(remaining, deck);
+    const removedIds = new Set(selected);
+    const { newHand, rest } = refillInPlace(hand, removedIds, deck);
     setHand(newHand);
     setDeck(rest);
     setSelected([]);
@@ -452,7 +461,8 @@ export default function HomePage() {
 
     await delay(250);
 
-    const { newHand, rest } = drawTo(remaining, deck);
+    const playedIds = new Set(played.map((card) => card.id));
+    const { newHand, rest } = refillInPlace(hand, playedIds, deck);
     const newHands = handsLeft - 1;
 
     setPlayZone([]);
@@ -690,7 +700,7 @@ export default function HomePage() {
                       scoring={inHand}
                       dimmed={!inHand}
                       deckType={deckType}
-                      className={`h-[74px] w-[52px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
+                      className={`h-[80px] w-[56px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
                       style={{
                         transform: isScoring
                           ? "translateY(-18px) scale(1.1)"
@@ -710,7 +720,7 @@ export default function HomePage() {
  
         {/* Player Hand */}
         <div className="relative z-10 flex flex-col items-center px-2 pb-1.5 pt-2">
-          <div className="flex min-h-[80px] items-end justify-center w-full pl-[16px]">
+          <div className="flex min-h-[96px] items-end justify-center w-full pl-[16px]">
             {hand.map((card, idx) => {
               const isSelected = selected.includes(card.id);
               const isHovered = hoveredIdx === idx;
@@ -725,7 +735,7 @@ export default function HomePage() {
                 <div
                   key={card.id}
                   style={{
-                    marginLeft: idx > 0 ? "-16px" : "0px",
+                    marginLeft: idx > 0 ? "-14px" : "0px",
                     transform: `rotate(${rot}deg) translateY(${translateY}px)`,
                     transformOrigin: "bottom center",
                     zIndex: isHovered ? 100 : isSelected ? 50 + idx : 10 + idx,
@@ -739,7 +749,7 @@ export default function HomePage() {
                     onMouseEnter={() => setHoveredIdx(idx)}
                     onMouseLeave={() => setHoveredIdx(null)}
                     deckType={deckType}
-                    className="h-[74px] w-[52px] anim-draw-card"
+                    className="h-[80px] w-[56px] anim-draw-card"
                     style={{
                       animationDelay: `${idx * 80}ms`,
                     }}
