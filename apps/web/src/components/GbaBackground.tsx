@@ -5,9 +5,10 @@ import { type BlindKind } from "@/lib/game";
 
 interface GbaBackgroundProps {
   blindKind: BlindKind | "shop" | "lost";
+  phase?: string;
 }
 
-export function GbaBackground({ blindKind }: GbaBackgroundProps) {
+export function GbaBackground({ blindKind, phase }: GbaBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -200,12 +201,15 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
       },
     };
 
-    // Keep size responsive
+    // Keep size responsive. Cap drawing buffer resolution for mobile performance.
     const resize = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
-      canvas.width = parent.clientWidth;
-      canvas.height = parent.clientHeight;
+      // Scale down canvas buffer size to 50% for a 75% GPU fill-rate reduction.
+      // The browser upscales the low-res buffer to fill parent container, matching the retro pixel theme.
+      const scale = 0.5;
+      canvas.width = Math.ceil(parent.clientWidth * scale);
+      canvas.height = Math.ceil(parent.clientHeight * scale);
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
     resize();
@@ -295,6 +299,7 @@ export function GbaBackground({ blindKind }: GbaBackgroundProps) {
       <div
         className="synthwave-overlay"
         data-blind={blindKind}
+        data-phase={phase}
         aria-hidden="true"
         style={{ zIndex: 1 }}
       />

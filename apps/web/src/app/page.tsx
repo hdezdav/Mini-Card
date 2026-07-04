@@ -612,7 +612,7 @@ export default function HomePage() {
   return (
     <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-[#0a0420]">
       <div className="felt-bg relative flex h-full w-full max-w-[480px] flex-col overflow-hidden">
-        <GbaBackground blindKind={blind.kind} />
+        <GbaBackground blindKind={phase === "shop" ? "shop" : phase === "lost" ? "lost" : blind.kind} phase={phase} />
         {/* Top Stats Bar */}
         <div className="relative z-10 flex gap-[5px] px-2 pb-1 pt-1.5 items-stretch">
           <StatBox label="Hands" value={handsLeft} color="#00f0ff" />

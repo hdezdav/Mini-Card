@@ -188,11 +188,11 @@ export class SfxEngine {
     }
     const t = ctx.currentTime;
     switch (name) {
-      case "select":   return this.blip(t, 72, 0.06, "square", 0.22, 0.0, 0.0, false, 0.0);
-      case "deselect": return this.blip(t, 64, 0.06, "square", 0.18, 0.0, 0.0, false, 0.0);
-      case "play":     return this.chordStab(t, [57, 60, 64], 0.22, 0);
-      case "chip":     return this.blip(t, 84, 0.05, "triangle", 0.2, 0.0, 0.0, true, this.randPan());
-      case "mult":     return this.blip(t, 67, 0.08, "sawtooth", 0.22, 0.0, 0.0, true, this.randPan());
+      case "select":   return this.cardTap(t, 290, 0.05);
+      case "deselect": return this.cardTap(t, 210, -0.05);
+      case "play":     return this.chordStab(t, [57, 60, 64], 0.24, 0);
+      case "chip":     return this.chipClack(t, this.randPan());
+      case "mult":     return this.multZap(t, this.randPan());
       case "joker":    return this.zap(t, 60, 83);
       case "buy":      return this.arpeggio(t, [60, 64, 67, 72], 0.05);
       case "sell":     return this.arpeggio(t, [72, 67, 64, 60], 0.05);
@@ -233,10 +233,113 @@ export class SfxEngine {
     g.exponentialRampToValueAtTime(0.0001, t + a + d + s + r);
   }
 
-  // Single oscillator blip — the workhorse for select / chip / mult ticks.
-  // `up` adds a quick upward pitch slide for a brighter "tick".
-  // `pan` spreads the voice in the stereo field. A subtle sub-octave sine adds
-  // body so the tick isn't a thin bare oscillator.
+  // Tactile card tap: high-frequency friction click + damped low-frequency thud
+  private cardTap(t: number, pitch: number, pan = 0): void {
+    const ctx = this.ctx!;
+    
+    // 1. Damped low thud (card body resonance)
+    const body = ctx.createOscillator();
+    body.type = "sine";
+    body.frequency.setValueAtTime(pitch, t);
+    body.frequency.exponentialRampToValueAtTime(pitch * 0.4, t + 0.032);
+    
+    const bodyG = ctx.createGain();
+    bodyG.gain.setValueAtTime(0.0001, t);
+    bodyG.gain.exponentialRampToValueAtTime(0.18, t + 0.002);
+    bodyG.gain.exponentialRampToValueAtTime(0.0001, t + 0.038);
+    
+    // 2. High friction transient (paper click)
+    const noise = ctx.createBufferSource();
+    const noiseLen = Math.floor(ctx.sampleRate * 0.012);
+    const buf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < noiseLen; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1.0 - i / noiseLen);
+    }
+    noise.buffer = buf;
+    
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.setValueAtTime(4500, t);
+    
+    const noiseG = ctx.createGain();
+    noiseG.gain.setValueAtTime(0.0001, t);
+    noiseG.gain.exponentialRampToValueAtTime(0.12, t + 0.001);
+    noiseG.gain.exponentialRampToValueAtTime(0.0001, t + 0.012);
+    
+    const outNode = this.withPan(bodyG, pan);
+    const noiseOut = this.withPan(noiseG, pan);
+    
+    body.connect(bodyG); bodyG.connect(outNode); outNode.connect(this.out());
+    noise.connect(hp); hp.connect(noiseG); noiseG.connect(noiseOut); noiseOut.connect(this.out());
+    
+    body.start(t); body.stop(t + 0.05);
+    noise.start(t); noise.stop(t + 0.02);
+  }
+
+  // Crisp poker chip click: non-harmonic high-frequency metallic rings + triangle body
+  private chipClack(t: number, pan = 0): void {
+    const ctx = this.ctx!;
+    
+    const osc1 = ctx.createOscillator();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(2600, t);
+    
+    const osc2 = ctx.createOscillator();
+    osc2.type = "sine";
+    osc2.frequency.setValueAtTime(3700, t);
+    
+    const body = ctx.createOscillator();
+    body.type = "triangle";
+    body.frequency.setValueAtTime(950, t);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.24, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+
+    const outNode = this.withPan(g, pan);
+    osc1.connect(g);
+    osc2.connect(g);
+    body.connect(g);
+    g.connect(outNode);
+    outNode.connect(this.out());
+
+    osc1.start(t); osc1.stop(t + 0.05);
+    osc2.start(t); osc2.stop(t + 0.05);
+    body.start(t); body.stop(t + 0.05);
+  }
+
+  // Resonant multiplier tick: swept sawtooth wave mimicking analog synth filter envelopes
+  private multZap(t: number, pan = 0): void {
+    const ctx = this.ctx!;
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(180, t);
+    osc.frequency.exponentialRampToValueAtTime(130, t + 0.075);
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.Q.value = 5.0; // resonant peaks
+    filter.frequency.setValueAtTime(3200, t);
+    filter.frequency.exponentialRampToValueAtTime(380, t + 0.068);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+
+    const outNode = this.withPan(g, pan);
+    osc.connect(filter);
+    filter.connect(g);
+    g.connect(outNode);
+    outNode.connect(this.out());
+
+    osc.start(t);
+    osc.stop(t + 0.09);
+  }
+
+  // Single oscillator blip (retained for arpeggios / generic fallbacks)
   private blip(
     t: number,
     midi: number,
@@ -260,7 +363,6 @@ export class SfxEngine {
     const g = ctx.createGain();
     this.env(g, t, 0.004, 0.02, Math.max(dur - 0.05, 0.02), 0.04, peak, peak * 0.4);
 
-    // Sub-octave sine for body (one octave down, quieter)
     const sub = ctx.createOscillator();
     sub.type = "sine";
     sub.frequency.value = noteFreq(midi - 12);
@@ -275,26 +377,44 @@ export class SfxEngine {
     osc.stop(t + dur + 0.1); sub.stop(t + dur + 0.1);
   }
 
-  // Short bright chord stab for "Play Hand". Layered with a noise transient
-  // for a percussive "hit" attack, and panned slightly wide for width.
+  // Detuned analog chorus chord stab for playing hands
   private chordStab(t: number, midiList: number[], dur: number, pan = 0): void {
     const ctx = this.ctx!;
     const spread = 0.18;
     midiList.forEach((midi, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.value = noteFreq(midi);
+      // Detuned pair for fat stereo chorus
+      const osc1 = ctx.createOscillator();
+      osc1.type = "sawtooth";
+      osc1.frequency.value = noteFreq(midi);
+      osc1.detune.value = -7;
+
+      const osc2 = ctx.createOscillator();
+      osc2.type = "triangle";
+      osc2.frequency.value = noteFreq(midi);
+      osc2.detune.value = 7;
+
       const g = ctx.createGain();
-      this.env(g, t, 0.005, 0.04, Math.max(dur - 0.08, 0.05), 0.08, 0.18, 0.08);
-      // Spread chord voices across the stereo field
+      this.env(g, t, 0.006, 0.05, Math.max(dur - 0.08, 0.05), 0.1, 0.16, 0.06);
+
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(2200, t);
+      lp.frequency.exponentialRampToValueAtTime(800, t + dur);
+
       const voicePan = pan + (i - (midiList.length - 1) / 2) * spread;
       const outNode = this.withPan(g, voicePan);
-      osc.connect(g); g.connect(outNode); outNode.connect(this.out());
-      osc.start(t);
-      osc.stop(t + dur + 0.12);
+
+      osc1.connect(lp);
+      osc2.connect(lp);
+      lp.connect(g);
+      g.connect(outNode);
+      outNode.connect(this.out());
+
+      osc1.start(t); osc2.start(t);
+      osc1.stop(t + dur + 0.15); osc2.stop(t + dur + 0.15);
     });
-    // Noise transient for a percussive attack
-    this.noiseTick(t, 0.04, 3000, 0.06, pan);
+
+    this.noiseTick(t, 0.06, 2800, 0.08, pan);
   }
 
   // Rising "zap" for joker triggers — pitch sweeps up with a bright timbre.
@@ -321,7 +441,6 @@ export class SfxEngine {
   // Quick ascending / descending arpeggio for buy / sell.
   private arpeggio(t: number, midiList: number[], step: number): void {
     midiList.forEach((midi, i) => {
-      // Pan each note a little further right for a sense of motion
       this.blip(t + i * step, midi, step * 2.2, "square", 0.2, 0.0, 0.0, false, (i / (midiList.length - 1) - 0.5) * 0.6);
     });
   }
@@ -333,7 +452,6 @@ export class SfxEngine {
       const tt = t + i * 0.09;
       this.chordStab(tt, [midi, midi + 7], 0.18, (i - 2) * 0.12);
     });
-    // final bright stab
     this.chordStab(t + notes.length * 0.09, [72, 76, 79], 0.4, 0);
   }
 
@@ -348,7 +466,6 @@ export class SfxEngine {
       osc.frequency.value = noteFreq(midi);
       const g = ctx.createGain();
       this.env(g, tt, 0.01, 0.08, 0.18, 0.2, 0.22, 0.12);
-      // Sub for body
       const sub = ctx.createOscillator();
       sub.type = "sine";
       sub.frequency.value = noteFreq(midi - 12);
@@ -387,25 +504,51 @@ export class SfxEngine {
     noise.start(t); noise.stop(t + dur + 0.02);
   }
 
-  // Short noise "deal" tick — a card sliding off the deck.
-  // Randomized filter freq + pan so each dealt card sounds slightly different.
+  // Sliding card sound: high-frequency noise bandpass sweep + soft thud thud
   private deal(t: number): void {
     const pan = this.randPan();
-    const freq = 2000 + Math.random() * 900; // 2000–2900 Hz
-    this.noiseTick(t, 0.08, freq, 0.18, pan);
-    // Add a faint low "thud" body so it reads as a card hitting the table
     const ctx = this.ctx!;
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(180, t);
-    osc.frequency.exponentialRampToValueAtTime(90, t + 0.06);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.1, t + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
-    const outNode = this.withPan(g, pan);
-    osc.connect(g); g.connect(outNode); outNode.connect(this.out());
-    osc.start(t); osc.stop(t + 0.1);
+    
+    // Friction slide (noise sweep)
+    const noise = ctx.createBufferSource();
+    const noiseLen = Math.floor(ctx.sampleRate * 0.08);
+    const buf = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < noiseLen; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1.0 - i / noiseLen);
+    }
+    noise.buffer = buf;
+    
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 1.0;
+    bp.frequency.setValueAtTime(3600, t);
+    bp.frequency.exponentialRampToValueAtTime(1400, t + 0.075);
+    
+    const noiseG = ctx.createGain();
+    noiseG.gain.setValueAtTime(0.0001, t);
+    noiseG.gain.exponentialRampToValueAtTime(0.15, t + 0.004);
+    noiseG.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    
+    // Low thud (card hitting table)
+    const thud = ctx.createOscillator();
+    thud.type = "sine";
+    thud.frequency.setValueAtTime(160, t);
+    thud.frequency.exponentialRampToValueAtTime(80, t + 0.05);
+    
+    const thudG = ctx.createGain();
+    thudG.gain.setValueAtTime(0.0001, t);
+    thudG.gain.exponentialRampToValueAtTime(0.12, t + 0.003);
+    thudG.gain.exponentialRampToValueAtTime(0.0001, t + 0.065);
+    
+    const outNoise = this.withPan(noiseG, pan);
+    const outThud = this.withPan(thudG, pan);
+    
+    noise.connect(bp); bp.connect(noiseG); noiseG.connect(outNoise); outNoise.connect(this.out());
+    thud.connect(thudG); thudG.connect(outThud); outThud.connect(this.out());
+    
+    noise.start(t); noise.stop(t + 0.09);
+    thud.start(t); thud.stop(t + 0.08);
   }
 
   // Airy swoosh for discarding cards. Randomized sweep range + pan.

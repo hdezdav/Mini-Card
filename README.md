@@ -8,7 +8,8 @@
 
 MiniCard is designed to run seamlessly inside mobile wallets like **MiniPay** or standard Web3 browsers. 
 
-* **On-Chain Leaderboard Contract:** [`0xfb897ec446b737a99ba8404fcb64821ed2207aeb`](https://celoscan.io/address/0xfb897ec446b737a99ba8404fcb64821ed2207aeb)
+* **On-Chain Leaderboard Contract (v2):** [`0x2c617C7FEa23e4C824279951e94Fa5994C025063`](https://celoscan.io/address/0x2c617C7FEa23e4C824279951e94Fa5994C025063)
+* **On-Chain BoosterPack Contract:** [`0x3d27B1B090DAD9D9ff8E42B4D892B62f1E40C6Cb`](https://celoscan.io/address/0x3d27B1B090DAD9D9ff8E42B4D892B62f1E40C6Cb)
 * **Gasless / Guest Mode:** For users without connected wallets, the game automatically provisions an ephemeral guest wallet so anyone can play and save scores locally.
 
 ---
