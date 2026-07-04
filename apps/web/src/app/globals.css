@@ -108,6 +108,7 @@ select {
     radial-gradient(circle at 20% 80%, rgba(255, 46, 136, 0.14), transparent 45%),
     linear-gradient(180deg, var(--synth-bg-2) 0%, var(--synth-bg) 70%, #050218 100%);
   position: relative;
+  z-index: 0;
 }
 
 /* Chrome/neon text for big headings — white→cyan→purple gradient clip */
@@ -915,114 +916,6 @@ select {
   animation: crtFlicker 4s steps(1) infinite;
 }
 
-/* The sun — warm orb with tapered horizontal cuts, screen-blended over the swirl */
-.synthwave-overlay::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 8%;
-  width: 220px;
-  height: 220px;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: linear-gradient(180deg, #ffd27a 0%, #ff9e2c 38%, #ff2e88 100%);
-  
-  /* Progressive, tapered cuts (wider at the bottom) using an actual mask.
-     This lets the animated WebGL background show through the sun's slices! */
-  -webkit-mask-image: linear-gradient(to bottom,
-    #fff 0%,
-    #fff 50%,
-    transparent 50%,
-    transparent 53%,
-    #fff 53%,
-    #fff 62%,
-    transparent 62%,
-    transparent 66%,
-    #fff 66%,
-    #fff 74%,
-    transparent 74%,
-    transparent 79%,
-    #fff 79%,
-    #fff 86%,
-    transparent 86%,
-    transparent 92%,
-    #fff 92%,
-    #fff 96%,
-    transparent 96%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(to bottom,
-    #fff 0%,
-    #fff 50%,
-    transparent 50%,
-    transparent 53%,
-    #fff 53%,
-    #fff 62%,
-    transparent 62%,
-    transparent 66%,
-    #fff 66%,
-    #fff 74%,
-    transparent 74%,
-    transparent 79%,
-    #fff 79%,
-    #fff 86%,
-    transparent 86%,
-    transparent 92%,
-    #fff 92%,
-    #fff 96%,
-    transparent 96%,
-    transparent 100%
-  );
-  
-  /* Plasma inner glow + retro hot halo */
-  box-shadow: 
-    inset 0 0 24px rgba(255, 255, 255, 0.45), 
-    0 0 60px 12px rgba(255, 158, 44, 0.35), 
-    0 0 100px 24px rgba(255, 46, 136, 0.25);
-  mix-blend-mode: screen;
-  opacity: 0.88;
-  
-  /* Organic heat haze shimmer */
-  animation: sunHeatShimmer 7s ease-in-out infinite;
-}
-
-@keyframes sunHeatShimmer {
-  0%, 100% {
-    transform: translateX(-50%) scale(1);
-    filter: brightness(1) saturate(1) contrast(1);
-  }
-  50% {
-    transform: translateX(-50%) scale(1.02);
-    filter: brightness(1.06) saturate(1.12) contrast(1.02);
-  }
-}
-
-/* The perspective grid floor — magenta lines receding to the horizon */
-.synthwave-overlay::after {
-  content: "";
-  position: absolute;
-  left: -50%;
-  right: -50%;
-  bottom: 0;
-  height: 55%;
-  background-image:
-    linear-gradient(90deg, transparent 0, transparent calc(100% - 2px), rgba(255, 46, 136, 0.55) calc(100% - 2px)),
-    linear-gradient(0deg, transparent 0, transparent calc(100% - 2px), rgba(176, 38, 255, 0.5) calc(100% - 2px));
-  background-size: 44px 100%, 100% 28px;
-  transform: perspective(300px) rotateX(75deg) translateY(0);
-  transform-origin: bottom center;
-  animation: synthGridScroll 2.4s linear infinite;
-  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 30%, rgba(0, 0, 0, 0.9) 100%);
-  -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 30%, rgba(0, 0, 0, 0.9) 100%);
-  opacity: 0.55;
-}
-
-/* Animate the grid via transform (GPU-composited, no repaint) */
-@keyframes synthGridScroll {
-  0% { transform: perspective(300px) rotateX(75deg) translateY(0); }
-  100% { transform: perspective(300px) rotateX(75deg) translateY(28px); }
-}
-
 /* Subtle CRT flicker — very low amplitude, slow */
 @keyframes crtFlicker {
   0%, 100% { opacity: 1; }
@@ -1031,53 +924,6 @@ select {
   94% { opacity: 1; }
   96% { opacity: 0.98; }
   97% { opacity: 1; }
-}
-
-/* Per-blind variation — boss = intense red-magenta sun + grid */
-.synthwave-overlay[data-blind="boss"]::before {
-  background:
-    repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(10, 4, 32, 0.9) 8px, rgba(10, 4, 32, 0.9) 12px),
-    linear-gradient(180deg, #ff8a5c 0%, #ff2e2c 38%, #b00020 100%);
-  background-position: 0 55%, 0 0;
-  background-size: 100% 45%, 100% 100%;
-  box-shadow: 0 0 70px 16px rgba(255, 46, 44, 0.45), 0 0 120px 30px rgba(176, 0, 32, 0.3);
-  opacity: 0.95;
-}
-.synthwave-overlay[data-blind="boss"]::after {
-  background-image:
-    linear-gradient(90deg, transparent 0, transparent calc(100% - 2px), rgba(255, 46, 44, 0.6) calc(100% - 2px)),
-    linear-gradient(0deg, transparent 0, transparent calc(100% - 2px), rgba(255, 46, 136, 0.55) calc(100% - 2px));
-  opacity: 0.6;
-}
-
-/* Shop = calm purple/cyan, no aggressive sun — dimmed for readability */
-.synthwave-overlay[data-blind="shop"]::before {
-  opacity: 0.78;
-  background:
-    repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(10, 4, 32, 0.92) 8px, rgba(10, 4, 32, 0.92) 12px),
-    linear-gradient(180deg, #3a2a5a 0%, #2a0d4a 50%, #1a0628 100%);
-  background-position: 0 55%, 0 0;
-  background-size: 100% 45%, 100% 100%;
-}
-.synthwave-overlay[data-blind="shop"]::after {
-  background-image:
-    linear-gradient(90deg, transparent 0, transparent calc(100% - 2px), rgba(0, 240, 255, 0.25) calc(100% - 2px)),
-    linear-gradient(0deg, transparent 0, transparent calc(100% - 2px), rgba(176, 38, 255, 0.22) calc(100% - 2px));
-  opacity: 0.28;
-}
-
-/* Lost = somber crimson, dimmed */
-.synthwave-overlay[data-blind="lost"]::before {
-  opacity: 0.55;
-  background:
-    repeating-linear-gradient(0deg, transparent 0px, transparent 8px, rgba(10, 4, 32, 0.92) 8px, rgba(10, 4, 32, 0.92) 12px),
-    linear-gradient(180deg, #b3404a 0%, #7a1a22 50%, #2a0608 100%);
-  background-position: 0 55%, 0 0;
-  background-size: 100% 45%, 100% 100%;
-  box-shadow: 0 0 50px 10px rgba(122, 26, 34, 0.4);
-}
-.synthwave-overlay[data-blind="lost"]::after {
-  opacity: 0.3;
 }
 
 /* Low-perf opt-out: drop the overlay entirely */

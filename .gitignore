@@ -42,3 +42,5 @@ yarn-error.log*
 
 
 skills-lock.json
+waves.html
+apps/web/dev_out.log
