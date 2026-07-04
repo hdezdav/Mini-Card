@@ -181,9 +181,9 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       {/* Booster Packs — 3 TCG-style 3D packs, now BELOW the For Sale jokers.
           Wrapped in a translucent purple panel so the info text stays readable
           against the animated background. */}
-      <div className="mb-3 mt-2 rounded-xl border border-[#b026ff]/30 bg-[#1a0d3a]/70 backdrop-blur-sm p-3">
-        <div className="font-pixel text-xs text-[#c9b8ff] mb-4 text-center">— Booster Packs —</div>
-        <div className="flex justify-center gap-5 items-center pt-2 pb-6 px-2">
+      <div className="mb-2 mt-1.5 rounded-xl border border-[#b026ff]/30 bg-[#1a0d3a]/70 backdrop-blur-sm p-2">
+        <div className="font-pixel text-xs text-[#c9b8ff] mb-1.5 text-center">— Booster Packs —</div>
+        <div className="flex justify-center gap-4 items-center pt-1 pb-4 px-2">
 
           {PACK_THEMES.map((pack) => {
             const isActive = activePack === pack.id;
@@ -210,13 +210,13 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
 
                   {/* Pack face */}
                   <div
-                    className="pack-face w-[60px] h-[84px] flex flex-col items-center justify-center"
+                    className="pack-face w-[50px] h-[72px] flex flex-col items-center justify-center"
                     style={{
                       borderColor: pack.color,
                       background: `linear-gradient(160deg, ${pack.color}30 0%, ${pack.color}10 55%, #0a0420 100%)`,
                       boxShadow: showSuccess
-                        ? `0 0 20px ${pack.glow}, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -8px 16px rgba(0,0,0,0.55), 0 8px 14px rgba(0,0,0,0.55)`
-                        : `inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -8px 16px rgba(0,0,0,0.55), 0 8px 14px rgba(0,0,0,0.55), 0 0 10px ${pack.glow}`,
+                        ? `0 0 15px ${pack.glow}, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -6px 12px rgba(0,0,0,0.55), 0 6px 10px rgba(0,0,0,0.55)`
+                        : `inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -6px 12px rgba(0,0,0,0.55), 0 6px 10px rgba(0,0,0,0.55), 0 0 8px ${pack.glow}`,
                     }}
                   >
                     {/* Diagonal static shine */}
@@ -227,14 +227,14 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
 
                     {/* Center content */}
                     {showSpinner ? (
-                      <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin z-10" />
+                      <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin z-10" />
                     ) : showSuccess ? (
-                      <span className="text-2xl z-10" style={{ animation: "pop 0.3s ease-out", filter: `drop-shadow(0 0 6px ${pack.glow})` }}>✨</span>
+                      <span className="text-xl z-10" style={{ animation: "pop 0.3s ease-out", filter: `drop-shadow(0 0 6px ${pack.glow})` }}>✨</span>
                     ) : showError ? (
-                      <span className="text-2xl z-10">❌</span>
+                      <span className="text-xl z-10">❌</span>
                     ) : (
                       <span
-                        className="text-2xl z-10"
+                        className="text-xl z-10"
                         style={{ filter: `drop-shadow(0 0 4px ${pack.glow})` }}
                       >
                         📦
@@ -243,7 +243,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
 
                     {/* Pack name embossed on the face */}
                     <span
-                      className="font-pixel text-[8px] mt-1 z-10 leading-none uppercase tracking-wider"
+                      className="font-pixel text-[7.5px] mt-0.5 z-10 leading-none uppercase tracking-wider"
                       style={{ color: pack.color, textShadow: "0 1px 2px rgba(0,0,0,0.8)" }}
                     >
                       {pack.name}
@@ -341,7 +341,11 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
          Each pack contains 1 random joker · $0.02 USDT
       </div>
 
-        <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base mt-auto">
+      </div>
+
+      {/* Sticky bottom panel for Next Blind action */}
+      <div className="relative z-20 px-3 pb-3 pt-1.5 border-t border-[#b026ff]/35 bg-[#120630] flex shrink-0">
+        <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base">
           Next Blind →
         </button>
       </div>

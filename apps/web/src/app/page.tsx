@@ -56,6 +56,7 @@ export default function HomePage() {
   const [deckType, setDeckType] = useState<DeckType>("red");
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(60);
+  const [isTouch, setIsTouch] = useState(false);
 
   const [deck, setDeck] = useState<Card[]>([]);
   const [hand, setHand] = useState<Card[]>([]);
@@ -101,6 +102,9 @@ export default function HomePage() {
   useEffect(() => {
     const nav = navigator.language || (navigator as any).userLanguage || "en";
     setLang(nav.toLowerCase().startsWith("es") ? "es" : "en");
+    if (typeof window !== "undefined") {
+      setIsTouch(window.matchMedia("(pointer: coarse)").matches);
+    }
 
     autoConnect().then(async (addr) => {
       if (addr && !addr.startsWith("0xceloGuest")) {
@@ -728,7 +732,7 @@ export default function HomePage() {
               const rot = x * 2.8; // Fan rotation angle factor
               const fanY = Math.abs(x) * 1.5;
               const selectY = isSelected ? -16 : 0;
-              const hoverY = isHovered ? -12 : 0;
+              const hoverY = (isHovered && !isTouch) ? -12 : 0;
               const translateY = fanY + selectY + hoverY;
 
               return (
@@ -1017,7 +1021,7 @@ export default function HomePage() {
 
 function StatBox({ label, value, color, className = "" }: { label: string; value: number | string; color: string; className?: string }) {
   return (
-    <div className={`stat-box flex-1 py-1 px-1 ${className}`}>
+    <div className={`stat-box flex-1 py-1 px-1 flex flex-col justify-between ${className}`}>
       <span className="text-[11px] text-gray-300 leading-none">{label}</span>
       <div className="stat-inner">
         <span className="text-lg font-pixel-fat leading-none" style={{ color }}>
@@ -1030,11 +1034,11 @@ function StatBox({ label, value, color, className = "" }: { label: string; value
 
 function AnteBox({ ante }: { ante: number }) {
   return (
-    <div className="stat-box flex-1 py-1 px-1">
+    <div className="stat-box flex-1 py-1 px-1 flex flex-col justify-between">
       <span className="text-[11px] text-gray-300 leading-none">Ante</span>
-      <div className="stat-inner">
-        <span className="text-lg font-pixel-fat text-[#ff9e2c]">{ante}</span>
-        <span className="text-[9px] text-gray-400">/8</span>
+      <div className="stat-inner flex items-baseline justify-center">
+        <span className="text-lg font-pixel-fat text-[#ff9e2c] leading-none">{ante}</span>
+        <span className="text-[9px] text-gray-400 ml-0.5">/8</span>
       </div>
     </div>
   );
