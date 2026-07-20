@@ -51,7 +51,7 @@ export default function SupportPage() {
             <div className="font-pixel text-[11px] text-gray-400 mb-1">Common issues</div>
             <ul className="text-[11px] text-gray-400 space-y-1 list-disc list-inside">
               <li>Payment didn’t go through? Make sure you have enough USDT for the $0.01 plus the network fee.</li>
-              <li>Score not on the leaderboard? You must approve the on-chain transaction in your wallet.</li>
+              <li>Score not on the leaderboard? You must confirm the submission in your wallet.</li>
               <li>Stuck on cooldown? Wait 24h or pay $0.01 USDT to play again immediately.</li>
             </ul>
           </div>

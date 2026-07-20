@@ -269,45 +269,73 @@ export class SfxEngine {
     
     const outNode = this.withPan(bodyG, pan);
     const noiseOut = this.withPan(noiseG, pan);
-    
+
     body.connect(bodyG); bodyG.connect(outNode); outNode.connect(this.out());
     noise.connect(hp); hp.connect(noiseG); noiseG.connect(noiseOut); noiseOut.connect(this.out());
-    
+
+    // 3. Subtle felt-table resonance (the table absorbing the card).
+    const felt = ctx.createOscillator();
+    felt.type = "sine";
+    felt.frequency.setValueAtTime(130, t);
+    felt.frequency.exponentialRampToValueAtTime(90, t + 0.04);
+    const feltG = ctx.createGain();
+    feltG.gain.setValueAtTime(0.0001, t);
+    feltG.gain.exponentialRampToValueAtTime(0.05, t + 0.004);
+    feltG.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    const feltOut = this.withPan(feltG, pan);
+    felt.connect(feltG); feltG.connect(feltOut); feltOut.connect(this.out());
+
     body.start(t); body.stop(t + 0.05);
     noise.start(t); noise.stop(t + 0.02);
+    felt.start(t); felt.stop(t + 0.06);
   }
 
-  // Crisp poker chip click: non-harmonic high-frequency metallic rings + triangle body
+  // Crisp poker-chip click: a cluster of inharmonic metallic partials (the
+  // clay/plastic ring) with staggered decays, a low body resonance, a sharp
+  // noise transient for the "clack", and a tiny second hit as the chips settle.
   private chipClack(t: number, pan = 0): void {
     const ctx = this.ctx!;
-    
-    const osc1 = ctx.createOscillator();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(2600, t);
-    
-    const osc2 = ctx.createOscillator();
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(3700, t);
-    
+
+    // Metallic partials — inharmonic, each with its own slightly different
+    // decay so the ring sounds like a real chip, not a sine.
+    const partials = [
+      { f: 2600, g: 0.30, dur: 0.05 },
+      { f: 3700, g: 0.22, dur: 0.04 },
+      { f: 5400, g: 0.16, dur: 0.035 },
+      { f: 7300, g: 0.10, dur: 0.028 },
+    ];
+    const ring = ctx.createGain();
+    ring.gain.setValueAtTime(0.0001, t);
+    ring.gain.exponentialRampToValueAtTime(0.24, t + 0.002);
+    ring.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    for (const p of partials) {
+      const o = ctx.createOscillator();
+      o.type = "sine";
+      o.frequency.value = p.f;
+      const pg = ctx.createGain();
+      pg.gain.setValueAtTime(p.g, t);
+      pg.gain.exponentialRampToValueAtTime(0.0001, t + p.dur);
+      o.connect(pg); pg.connect(ring);
+      o.start(t); o.stop(t + p.dur + 0.01);
+    }
+    // Low chip-body resonance.
     const body = ctx.createOscillator();
     body.type = "triangle";
-    body.frequency.setValueAtTime(950, t);
-
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.24, t + 0.002);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
-
-    const outNode = this.withPan(g, pan);
-    osc1.connect(g);
-    osc2.connect(g);
-    body.connect(g);
-    g.connect(outNode);
-    outNode.connect(this.out());
-
-    osc1.start(t); osc1.stop(t + 0.05);
-    osc2.start(t); osc2.stop(t + 0.05);
+    body.frequency.value = 950;
+    const bG = ctx.createGain();
+    bG.gain.setValueAtTime(0.0001, t);
+    bG.gain.exponentialRampToValueAtTime(0.14, t + 0.002);
+    bG.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+    body.connect(bG); bG.connect(ring);
     body.start(t); body.stop(t + 0.05);
+
+    // Sharp clack transient (chips striking) + a quieter settling hit.
+    this.noiseTick(t, 0.012, 4200, 0.18, pan);
+    this.noiseTick(t + 0.018, 0.01, 3600, 0.08, pan);
+
+    const outNode = this.withPan(ring, pan);
+    ring.connect(outNode);
+    outNode.connect(this.out());
   }
 
   // Resonant multiplier tick: swept sawtooth wave mimicking analog synth filter envelopes

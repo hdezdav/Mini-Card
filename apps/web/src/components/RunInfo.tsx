@@ -31,7 +31,7 @@ export function RunInfo({
   onClose,
 }: RunInfoProps) {
   return (
-    <div className="absolute inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm p-3 overflow-y-auto">
+    <div className="absolute inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm p-3 overflow-y-auto" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
       <div className="font-pixel-fat text-2xl txt-chrome text-center mb-3">RUN INFO</div>
 
       <div className="flex gap-2 mb-3 text-center">

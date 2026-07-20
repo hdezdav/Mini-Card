@@ -54,7 +54,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       const approved = await approveBoosterPack();
       if (!approved) {
         setPackState("error");
-        setPackError("Approval rejected. Please approve the transaction.");
+        setPackError("Approval rejected. Please confirm it in your wallet.");
         setTimeout(() => setPackState("idle"), 3000);
         return;
       }
@@ -76,7 +76,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
         // Tx SUCCEEDED — the user paid and a pack was opened on-chain, but the
         // result could not be read back. Do NOT retry (would charge twice).
         setPackState("error");
-        setPackError("Pack opened on-chain, but the result could not be read. Do not retry — check your packs later.");
+        setPackError("Pack opened, but the result could not be read. Do not retry — check your packs later.");
         setTimeout(() => setPackState("idle"), 6000);
         return;
       }
@@ -110,7 +110,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       if (handlePaymentFailure(err)) return;
       console.error("Booster pack error:", err);
       setPackState("error");
-      setPackError("Transaction failed. Please try again.");
+      setPackError("Payment failed. Please try again.");
       setTimeout(() => setPackState("idle"), 3000);
     }
   }, [isBusy, ownedIds, onBoosterJoker]);
@@ -130,7 +130,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       <GbaBackground blindKind="shop" />
       {/* Dark scrim on top of the background so text stays readable */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50 pointer-events-none z-0" />
-      <div className="flex-1 flex flex-col p-3 overflow-y-auto relative z-10">
+      <div className="flex-1 flex flex-col p-3 overflow-y-auto relative z-10" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
         <div className="font-pixel-fat text-2xl txt-chrome text-center mb-2">SHOP</div>
         <div className="font-pixel text-sm text-[#ff9e2c] text-center mb-3">💰 ${money}</div>
 
@@ -197,26 +197,48 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
                 type="button"
                 onClick={() => handleBuyPack(pack.id)}
                 disabled={isBusy}
+                onPointerMove={(e) => {
+                  // Parallax tilt toward the cursor (mouse only — on touch the
+                  // static 3D pose + press-flatten carry the feedback).
+                  if (e.pointerType !== "mouse") return;
+                  const r = e.currentTarget.getBoundingClientRect();
+                  const px = (e.clientX - r.left) / r.width - 0.5;
+                  const py = (e.clientY - r.top) / r.height - 0.5;
+                  e.currentTarget.style.setProperty("--ry", `${(px * 22).toFixed(1)}deg`);
+                  e.currentTarget.style.setProperty("--rx", `${(-py * 16).toFixed(1)}deg`);
+                }}
+                onPointerLeave={(e) => {
+                  e.currentTarget.style.removeProperty("--ry");
+                  e.currentTarget.style.removeProperty("--rx");
+                }}
                 className="booster-pack-3d relative flex flex-col items-center gap-1 group disabled:opacity-50"
                 style={{
                   animation: isBusy && !isActive ? "none" : "float 3s ease-in-out infinite",
                   animationDelay: `${pack.id * 0.4}s`,
                 }}
               >
-                {/* Pack body — lives in 3D space, tilts toward the player. */}
+                {/* Pack body — a real 6-face 3D box. Tilt is driven by --rx/--ry
+                    (pointer parallax, mouse only); press flattens on tap. */}
                 <div className="pack-body">
+                  {/* Rear panel + four foil edges = the pack's real thickness */}
+                  <div className="pack-back" />
+                  <div className="pack-edge pack-edge--left" />
+                  <div className="pack-edge pack-edge--right" />
+                  <div className="pack-edge pack-edge--top" />
+                  <div className="pack-edge pack-edge--bottom" />
+
                   {/* Tear-strip tab on top */}
                   <div className="pack-tear" style={{ background: `linear-gradient(180deg, ${pack.color}, ${pack.color}40)` }} />
 
-                  {/* Pack face */}
+                  {/* Pack face (front) — artwork, foil sweep, gloss, content */}
                   <div
-                    className="pack-face w-[50px] h-[72px] flex flex-col items-center justify-center"
+                    className="pack-face flex flex-col items-center justify-center"
                     style={{
                       borderColor: pack.color,
                       background: `linear-gradient(160deg, ${pack.color}30 0%, ${pack.color}10 55%, #0a0420 100%)`,
                       boxShadow: showSuccess
-                        ? `0 0 15px ${pack.glow}, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -6px 12px rgba(0,0,0,0.55), 0 6px 10px rgba(0,0,0,0.55)`
-                        : `inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -6px 12px rgba(0,0,0,0.55), 0 6px 10px rgba(0,0,0,0.55), 0 0 8px ${pack.glow}`,
+                        ? `0 0 18px ${pack.glow}, inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -8px 14px rgba(0,0,0,0.55), inset 2px 0 0 rgba(255,255,255,0.06), inset -2px 0 0 rgba(0,0,0,0.25), 0 12px 20px rgba(0,0,0,0.55)`
+                        : `inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -8px 14px rgba(0,0,0,0.55), inset 2px 0 0 rgba(255,255,255,0.06), inset -2px 0 0 rgba(0,0,0,0.25), 0 12px 20px rgba(0,0,0,0.55), 0 0 10px ${pack.glow}`,
                     }}
                   >
                     {/* Diagonal static shine */}
@@ -344,7 +366,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       </div>
 
       {/* Sticky bottom panel for Next Blind action */}
-      <div className="relative z-20 px-3 pb-3 pt-1.5 border-t border-[#b026ff]/35 bg-[#120630] flex shrink-0">
+      <div className="relative z-20 px-3 pb-3 pt-1.5 border-t border-[#b026ff]/35 bg-[#120630] flex shrink-0" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
         <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base">
           Next Blind →
         </button>

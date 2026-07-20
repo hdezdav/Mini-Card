@@ -38,11 +38,17 @@ export const metadata: Metadata = {
   },
 };
 
-// Explicit viewport for MiniPay mobile-only target: safe-area insets for
-// notched phones and prevent zoom/scale issues on small screens.
+// Explicit viewport for MiniPay mobile-only target. viewport-fit=cover paints
+// edge-to-edge under the notch / home indicator (safe-area insets keep content
+// clear). Zoom is disabled so the fixed, non-scrolling board can't be pinched
+// or auto-zoomed — iPhone Safari zooms the viewport when an input <16px gains
+// focus, which would jump the layout. env(safe-area-inset-*) resolves to 0 on
+// non-notched devices, so this is a no-op there.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 
@@ -53,6 +59,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=VT323&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body suppressHydrationWarning>
         {children}
         {/* Mixpanel web analytics disabled — not in use. To re-enable, uncomment this block.

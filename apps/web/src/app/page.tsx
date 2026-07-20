@@ -205,7 +205,7 @@ export default function HomePage() {
   const handleSubmitLastScore = useCallback(async () => {
     if (lastScore <= 0 || submittingScore || scoreSubmitted) return;
     if (!walletAddress || walletAddress.startsWith("0xceloGuest")) {
-      alert("Open this app inside MiniPay to save your score to the on-chain leaderboard.");
+      alert("Open this app inside MiniPay to save your score to the global leaderboard.");
       return;
     }
 
@@ -214,13 +214,13 @@ export default function HomePage() {
       const success = await submitScoreToCelo(lastScore, lastRound);
       if (success) {
         setScoreSubmitted(true);
-        alert("Score successfully saved to the blockchain leaderboard!");
+        alert("Score successfully saved to the global leaderboard!");
       } else {
-        alert("Failed to submit score. Make sure you approved the transaction in your wallet.");
+        alert("Failed to submit score. Make sure you confirmed the submission in your wallet.");
       }
     } catch (err) {
       console.error("Score submission error:", err);
-      alert("Error submitting score to the blockchain.");
+      alert("Error saving your score.");
     } finally {
       setSubmittingScore(false);
     }
@@ -569,7 +569,7 @@ export default function HomePage() {
       } else {
         // Rejected or no wallet — keep the user in-app. (Insufficient balance
         // throws and is handled in the catch block via the Deposit deeplink.)
-        alert("Payment was rejected. Please approve the transaction to play again.");
+        alert("Payment was rejected. Please confirm the payment to play again.");
       }
     } catch (e) {
       // Insufficient balance → redirect to MiniPay Deposit deeplink.
@@ -603,11 +603,11 @@ export default function HomePage() {
         setNeedsUsername(false);
         setUsernameInput("");
       } else {
-        setUsernameError("Failed to register. Make sure you approved the transaction.");
+        setUsernameError("Failed to register. Make sure you confirmed the registration.");
       }
     } catch (err) {
       console.error("Username registration error:", err);
-      setUsernameError("Transaction failed. Please try again.");
+      setUsernameError("Registration failed. Please try again.");
     } finally {
       setRegisteringUsername(false);
     }
@@ -770,7 +770,7 @@ export default function HomePage() {
         </div>
 
         {/* Bottom Controls Panel */}
-        <footer className="relative z-10 border-t-4 px-2 pb-3 pt-2 flex flex-col gap-1.5" style={{ borderColor: "#00f0ff", background: "#1a0d3a" }}>
+        <footer className="relative z-10 border-t-4 px-2 pb-3 pt-2 flex flex-col gap-1.5" style={{ borderColor: "#00f0ff", background: "#1a0d3a", paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
           <div className="flex gap-1.5 items-stretch justify-between">
             {/* Left Column: Options */}
             <div className="w-[84px] shrink-0 flex flex-col gap-1.5">
@@ -892,7 +892,7 @@ export default function HomePage() {
                   disabled={submittingScore || scoreSubmitted}
                   className="btn-chunky btn-orange w-full py-2 text-sm leading-none flex items-center justify-center gap-1.5"
                 >
-                  {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SAVE SCORE ON-CHAIN"}
+                  {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ✓" : "SAVE SCORE"}
                 </button>
               )}
 
@@ -1009,7 +1009,7 @@ export default function HomePage() {
                 )}
               </button>
               <div className="font-pixel text-[9px] text-gray-500 text-center leading-tight">
-                This requires an on-chain transaction. You'll approve it in your wallet.
+                This registers your username. You'll confirm it in your wallet.
               </div>
             </div>
           </div>
@@ -1335,7 +1335,7 @@ function LeaderboardOverlay({
       setUsernameInput("");
       loadLeaderboard();
     } else {
-      alert("Failed to set username. Make sure you approved the transaction and have a small network fee in USDT.");
+      alert("Failed to set username. Make sure you confirmed the registration and have a small network fee in USDT.");
     }
     setRegistering(false);
   };
@@ -1410,7 +1410,7 @@ function LeaderboardOverlay({
               disabled={submittingScore || scoreSubmitted}
               className="btn-chunky btn-orange w-full py-1 text-[10px] leading-none flex items-center justify-center gap-1"
             >
-              {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ON-CHAIN ✓" : "SUBMIT SCORE ON-CHAIN"}
+              {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ✓" : "SUBMIT SCORE"}
             </button>
           </div>
         )}

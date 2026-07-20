@@ -25,6 +25,28 @@ function softCurve(amount: number): Float32Array<ArrayBuffer> {
   return c;
 }
 
+// Synthesized small-room impulse response for the master reverb — puts the
+// whole ensemble in a lounge space. Stereo, with decorrelated channels and a
+// few early reflections for a sense of room size.
+function makeRoomIR(ctx: AudioContext, seconds = 1.8, decay = 2.2): AudioBuffer {
+  const rate = ctx.sampleRate;
+  const len = Math.floor(rate * seconds);
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = buf.getChannelData(ch);
+    const phase = ch === 1 ? 0.7 : 0;
+    for (let i = 0; i < len; i++) {
+      const t = i / len;
+      let env = Math.pow(1 - t, decay);
+      if (i === Math.floor(len * 0.025)) env *= 1.22;
+      if (i === Math.floor(len * 0.06)) env *= 1.14;
+      if (i === Math.floor(len * 0.11)) env *= 1.07;
+      data[i] = (Math.random() * 2 - 1) * env * (0.6 + 0.4 * Math.sin(i * 0.009 + phase));
+    }
+  }
+  return buf;
+}
+
 // 4-bar progression in D minor (psychedelic lounge turnaround).
 // Each bar: [root, rootless chord voicing]. The voicings use upper
 // extensions (9 / 13 / #9) for that colorful, slightly "out" Balatro feel.
@@ -86,7 +108,13 @@ export class MusicEngine {
   private rhodesBus: GainNode | null = null;
   private rhodesTrem: OscillatorNode | null = null;
   private rhodesTremDepth: GainNode | null = null;
+  private rhodesPan: StereoPannerNode | null = null;
   private brassCurve: Float32Array<ArrayBuffer> | null = null;
+
+  // Master reverb (lounge space) + dry/wet split.
+  private reverb: ConvolverNode | null = null;
+  private reverbGain: GainNode | null = null;
+  private dryGain: GainNode | null = null;
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private nextStepTime = 0;
@@ -192,16 +220,31 @@ export class MusicEngine {
     this.master = ctx.createGain();
     this.master.gain.value = this.volume;
 
-    // instrument bus -> filter -> saturator -> compressor -> master -> out
+    // Master reverb — convolution with a synthesized lounge-room IR. The mix
+    // splits into a dry path and a wet (reverb) path after the compressor,
+    // both summing at master so the whole ensemble sits in one space.
+    this.dryGain = ctx.createGain();
+    this.dryGain.gain.value = 0.85;
+    this.reverb = ctx.createConvolver();
+    this.reverb.buffer = makeRoomIR(ctx, 1.8, 2.2);
+    this.reverbGain = ctx.createGain();
+    this.reverbGain.gain.value = 0.15; // wet mix — present but subtle
+
+    // instrument bus -> filter -> saturator -> compressor -> [dry | wet] -> master -> out
     this.filter.connect(this.shaper);
     this.shaper.connect(this.comp);
-    this.comp.connect(this.master);
+    this.comp.connect(this.dryGain);
+    this.dryGain.connect(this.master);
+    this.comp.connect(this.reverb);
+    this.reverb.connect(this.reverbGain);
+    this.reverbGain.connect(this.master);
     this.master.connect(ctx.destination);
 
     // ─── Rhodes tremolo bus ───
     // A gain node whose level is modulated by a ~5.4Hz sine LFO, giving the
     // electric piano its woozy, pulsing Balatro wobble. All Rhodes notes
-    // route through here instead of straight to the filter.
+    // route through here, then through a stereo panner (Rhodes sits left) to
+    // the filter.
     this.rhodesBus = ctx.createGain();
     this.rhodesBus.gain.value = 0.75;
     this.rhodesTrem = ctx.createOscillator();
@@ -212,7 +255,10 @@ export class MusicEngine {
     this.rhodesTrem.connect(this.rhodesTremDepth);
     this.rhodesTremDepth.connect(this.rhodesBus.gain);
     this.rhodesTrem.start();
-    this.rhodesBus.connect(this.filter);
+    this.rhodesPan = ctx.createStereoPanner();
+    this.rhodesPan.pan.value = -0.3; // Rhodes panned left
+    this.rhodesBus.connect(this.rhodesPan);
+    this.rhodesPan.connect(this.filter);
 
     // Pre-computed brassy soft-clip curve for the muted-trumpet lead.
     this.brassCurve = softCurve(2.2);
@@ -220,6 +266,17 @@ export class MusicEngine {
 
   private bus(): AudioNode {
     return this.filter!;
+  }
+
+  // Connect a voice into the filter, panned across the stereo field. Returns
+  // a StereoPanner (pan != 0) or the filter directly (center). Panning before
+  // the shared filter keeps the sweeping low-pass on the whole stereo mix.
+  private out(pan: number): AudioNode {
+    if (pan === 0) return this.filter!;
+    const p = this.ctx!.createStereoPanner();
+    p.pan.value = pan;
+    p.connect(this.filter!);
+    return p;
   }
 
   // ─── Scheduler (lookahead pattern, Chris Wilson "A Tale of Two Clocks") ───
@@ -277,7 +334,8 @@ export class MusicEngine {
     g.exponentialRampToValueAtTime(0.0001, t + a + d + s + r);
   }
 
-  // Round upright-bass: saw + sine sub-octave through a soft low-pass.
+  // Round upright-bass: saw + sine sub-octave through a soft low-pass, with a
+  // short finger-pluck transient at the attack for a real plucked feel.
   private bass(midi: number, t: number, dur: number): void {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
@@ -299,6 +357,24 @@ export class MusicEngine {
     osc.start(t); sub.start(t);
     const stopAt = t + dur + 0.12;
     osc.stop(stopAt); sub.stop(stopAt);
+
+    // Pluck transient — a tiny filtered-noise flick at the finger attack.
+    const pLen = Math.floor(ctx.sampleRate * 0.018);
+    const pBuf = ctx.createBuffer(1, pLen, ctx.sampleRate);
+    const pDat = pBuf.getChannelData(0);
+    for (let i = 0; i < pLen; i++) pDat[i] = (Math.random() * 2 - 1) * (1 - i / pLen);
+    const pNoise = ctx.createBufferSource();
+    pNoise.buffer = pBuf;
+    const pBp = ctx.createBiquadFilter();
+    pBp.type = "bandpass";
+    pBp.frequency.value = noteFreq(midi) * 2;
+    pBp.Q.value = 1.2;
+    const pG = ctx.createGain();
+    pG.gain.setValueAtTime(0.0001, t);
+    pG.gain.exponentialRampToValueAtTime(0.12, t + 0.001);
+    pG.gain.exponentialRampToValueAtTime(0.0001, t + 0.02);
+    pNoise.connect(pBp); pBp.connect(pG); pG.connect(this.bus());
+    pNoise.start(t); pNoise.stop(t + 0.03);
   }
 
   // Rhodes-style electric piano: FM-sine bell tone routed through the
@@ -357,13 +433,13 @@ export class MusicEngine {
 
     const g = ctx.createGain();
     this.env(g, t, 0.025, 0.14, Math.max(dur - 0.18, 0.1), 0.14, 0.2, 0.13);
-    osc.connect(bp); bp.connect(shaper); shaper.connect(g); g.connect(this.bus());
+    osc.connect(bp); bp.connect(shaper); shaper.connect(g); g.connect(this.out(0.32));
     osc.start(t); lfo.start(t);
     const stopAt = t + dur + 0.3;
     osc.stop(stopAt); lfo.stop(stopAt);
   }
 
-  // Soft, round kick.
+  // Soft, round kick with a beater "click" transient at the attack.
   private kick(t: number): void {
     const ctx = this.ctx!;
     const osc = ctx.createOscillator();
@@ -376,11 +452,47 @@ export class MusicEngine {
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
     osc.connect(g); g.connect(this.bus());
     osc.start(t); osc.stop(t + 0.22);
+
+    // Beater click — a 3ms high-frequency noise flick for the pedal attack.
+    const nLen = Math.floor(ctx.sampleRate * 0.004);
+    const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+    const nDat = nBuf.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nDat[i] = (Math.random() * 2 - 1) * (1 - i / nLen);
+    const click = ctx.createBufferSource();
+    click.buffer = nBuf;
+    const hp = ctx.createBiquadFilter();
+    hp.type = "highpass";
+    hp.frequency.value = 6000;
+    const cG = ctx.createGain();
+    cG.gain.setValueAtTime(0.0001, t);
+    cG.gain.exponentialRampToValueAtTime(0.22, t + 0.0008);
+    cG.gain.exponentialRampToValueAtTime(0.0001, t + 0.006);
+    click.connect(hp); hp.connect(cG); cG.connect(this.bus());
+    click.start(t); click.stop(t + 0.01);
   }
 
-  // Brushed snare / cross-stick — soft noise burst.
+  // Brushed snare / cross-stick — noise burst plus a tonal snare-wire body
+  // for a snappier, more realistic hit. Panned slightly left.
   private snare(t: number): void {
     const ctx = this.ctx!;
+    const out = this.out(-0.18);
+
+    // Tonal body — two detuned oscillators for the snare-wire resonance.
+    const bodyA = ctx.createOscillator();
+    bodyA.type = "triangle";
+    bodyA.frequency.value = 220;
+    const bodyB = ctx.createOscillator();
+    bodyB.type = "triangle";
+    bodyB.frequency.value = 331;
+    const bG = ctx.createGain();
+    bG.gain.setValueAtTime(0.0001, t);
+    bG.gain.exponentialRampToValueAtTime(0.1, t + 0.004);
+    bG.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    bodyA.connect(bG); bodyB.connect(bG); bG.connect(out);
+    bodyA.start(t); bodyB.start(t);
+    bodyA.stop(t + 0.1); bodyB.stop(t + 0.1);
+
+    // Brushed noise burst.
     const noise = ctx.createBufferSource();
     const buf = ctx.createBuffer(1, ctx.sampleRate * 0.18, ctx.sampleRate);
     const data = buf.getChannelData(0);
@@ -393,7 +505,7 @@ export class MusicEngine {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(0.2, t + 0.005);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
-    noise.connect(bp); bp.connect(g); g.connect(this.bus());
+    noise.connect(bp); bp.connect(g); g.connect(out);
     noise.start(t); noise.stop(t + 0.16);
   }
 
@@ -412,7 +524,7 @@ export class MusicEngine {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(peak, t + 0.002);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
-    noise.connect(hp); hp.connect(g); g.connect(this.bus());
+    noise.connect(hp); hp.connect(g); g.connect(this.out(0.22));
     noise.start(t); noise.stop(t + 0.06);
   }
 }

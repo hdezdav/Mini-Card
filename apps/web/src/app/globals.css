@@ -2,7 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=VT323&display=swap');
+/* Google Fonts loaded via <link> in layout.tsx <head> with preconnect — NOT via
+   @import here. @import chains the font request serially and blocks first paint
+   (MiniPay performance playbook: never @import fonts; it hurts LCP/PageSpeed,
+   which is a listing gate). Font-family names ('VT323', 'Outfit') are unchanged. */
 
 :root {
   color-scheme: dark;
@@ -49,6 +52,7 @@
 /* Global Android / Mobile Web view optimizations */
 * {
   -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important; /* iOS: no long-press "save image" callout on pixel art */
   outline: none;
 }
 
@@ -59,6 +63,8 @@ body {
   height: 100%;
   width: 100%;
   overflow: hidden;
+  overscroll-behavior: none; /* iOS: kill rubber-band bounce / scroll chaining */
+  -webkit-text-size-adjust: 100%; /* iOS: prevent text inflation on rotation */
   background-color: var(--synth-bg);
   color: var(--text);
   font-family: 'VT323', monospace;
@@ -521,12 +527,14 @@ select {
   animation: deckFloat 3s ease-in-out infinite;
 }
 
-/* ─── Booster Pack 3D (TCG-style) ─── */
-/* Float animation — referenced by Shop packs; defined here so it actually animates.
-   Small translateY so the floating pack never climbs into the section above. */
+/* ─── Booster Pack 3D (TCG-style, realistic depth) ─── */
+/* The pack is a real 6-face 3D box: front + back + 4 foil edges, with a
+   pointer-driven parallax tilt (mouse) and a press-flatten (tap). The idle
+   bob is translateY-only on the button so it never fights the tilt transform
+   on .pack-body. Geometry lives in CSS vars (--pw/--ph/--pd) on .pack-body. */
 @keyframes float {
-  0%, 100% { transform: translateY(0) rotateX(8deg) rotateY(-12deg); }
-  50%      { transform: translateY(-3px) rotateX(8deg) rotateY(-12deg); }
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
 }
 
 /* Foil / holographic sweep across the pack surface */
@@ -540,59 +548,134 @@ select {
 /* Subtle glow pulse so the pack "breathes" */
 @keyframes packPulse {
   0%, 100% { filter: brightness(1); }
-  50%      { filter: brightness(1.12); }
+  50%      { filter: brightness(1.1); }
 }
 
-/* Wrapper holds the 3D scene — perspective + preserve-3d for real depth */
+/* Scene wrapper — deeper perspective for a realistic lens, looking slightly
+   down at the pack so the top + side edges read as real thickness. */
 .booster-pack-3d {
-  perspective: 600px;
-  perspective-origin: 50% 30%;
+  perspective: 820px;
+  perspective-origin: 50% 28%;
+  touch-action: manipulation;
 }
 
-/* The pack body lives in 3D space. Default pose tilts it like a real TCG
-   booster held in the hand: slight rotateX + rotateY. */
+/* The pack body is a real 3D box. Tilt is driven by --rx/--ry (set by pointer
+   parallax in Shop.tsx); defaults give the "held in the hand" resting pose. */
 .booster-pack-3d .pack-body {
+  --pw: 50px;
+  --ph: 72px;
+  --pd: 22px;
   position: relative;
+  width: var(--pw);
+  height: var(--ph);
   transform-style: preserve-3d;
-  transform: rotateX(8deg) rotateY(-12deg);
-  transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transform: rotateX(var(--rx, 9deg)) rotateY(var(--ry, -16deg));
+  transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   will-change: transform;
 }
 
-/* On hover/active the pack lifts and turns to face the player */
+/* Snappier tracking while the cursor is over the pack */
 .booster-pack-3d:hover .pack-body {
-  transform: rotateX(2deg) rotateY(4deg) translateY(-4px) scale(1.06);
+  transition: transform 0.08s ease-out;
 }
+/* Press flattens the box face-on and shrinks it (tap feedback — especially
+   important on touch, where pointer parallax doesn't apply). */
 .booster-pack-3d:active .pack-body {
-  transform: rotateX(0deg) rotateY(0deg) translateY(-1px) scale(0.97);
+  transform: rotateX(0deg) rotateY(0deg) scale(0.95);
+  transition: transform 0.08s ease-out;
 }
 
-/* The pack face itself — thick metallic border, deep gradient, foil sheen */
+/* Every box face is absolutely centered, then rotated/translated into place. */
+.booster-pack-3d .pack-body > .pack-face,
+.booster-pack-3d .pack-body > .pack-back,
+.booster-pack-3d .pack-body > .pack-edge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  backface-visibility: hidden;
+}
+
+/* Front face — the pack artwork. translateZ(half-depth) puts it at the box
+   front. box-shadow bevel + the ::before key-light sell a lacquered foil
+   surface. (box-shadow is set inline in Shop.tsx so the per-pack glow can
+   vary; the ::below gloss is static here.) */
 .pack-face {
-  position: relative;
+  width: var(--pw);
+  height: var(--ph);
+  margin-top: calc(var(--ph) / -2);
+  margin-left: calc(var(--pw) / -2);
+  transform: translateZ(calc(var(--pd) / 2));
   overflow: hidden;
   border-radius: 10px;
   border-width: 2px;
   border-style: solid;
-  /* translateZ lifts the face above the stacked cards behind it */
-  transform: translateZ(18px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -8px 16px rgba(0, 0, 0, 0.55),
-    0 10px 18px rgba(0, 0, 0, 0.55);
+}
+/* Static key-light gloss from an upper-left light source */
+.pack-face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(130% 90% at 22% 6%, rgba(255, 255, 255, 0.32), transparent 55%);
+  mix-blend-mode: screen;
 }
 
-/* Top tear-strip — the foil tab you pull to open a real booster */
+/* Rear panel — dark, sits at the box back. Gives the box real volume. */
+.pack-back {
+  width: var(--pw);
+  height: var(--ph);
+  margin-top: calc(var(--ph) / -2);
+  margin-left: calc(var(--pw) / -2);
+  transform: rotateY(180deg) translateZ(calc(var(--pd) / 2));
+  border-radius: 10px;
+  background:
+    radial-gradient(120% 80% at 50% 120%, rgba(176, 38, 255, 0.18), transparent 60%),
+    linear-gradient(160deg, #1a0d3a 0%, #0a0420 70%, #050210 100%);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.7);
+}
+
+/* Foil edges — the pack's thickness. Neutral dark-metallic so they read as
+   real foil regardless of the face color; lighter in the middle to fake a
+   rounded edge bevel. */
+.pack-edge {
+  background: linear-gradient(90deg, #06031a 0%, #22134d 50%, #06031a 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+/* Left/right edges: depth × height, rotated to the sides */
+.pack-edge--left,
+.pack-edge--right {
+  width: var(--pd);
+  height: var(--ph);
+  margin-top: calc(var(--ph) / -2);
+  margin-left: calc(var(--pd) / -2);
+}
+.pack-edge--left  { transform: rotateY(-90deg) translateZ(calc(var(--pw) / 2)); }
+.pack-edge--right { transform: rotateY(90deg)  translateZ(calc(var(--pw) / 2)); }
+/* Top/bottom edges: width × depth — vertical bevel gradient */
+.pack-edge--top,
+.pack-edge--bottom {
+  width: var(--pw);
+  height: var(--pd);
+  margin-top: calc(var(--pd) / -2);
+  margin-left: calc(var(--pw) / -2);
+  background: linear-gradient(180deg, #06031a 0%, #22134d 50%, #06031a 100%);
+}
+.pack-edge--top    { transform: rotateX(90deg)  translateZ(calc(var(--ph) / 2)); }
+.pack-edge--bottom { transform: rotateX(-90deg) translateZ(calc(var(--ph) / 2)); }
+
+/* Top tear-strip — the foil tab you pull to open a real booster. Sits just
+   above the front face so it catches the light. */
 .pack-tear {
   position: absolute;
   top: -2px;
   left: 50%;
-  transform: translateX(-50%) translateZ(20px);
-  width: 40%;
+  width: 38%;
   height: 6px;
   border-radius: 0 0 4px 4px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.15));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.15));
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  transform: translateX(-50%) translateZ(calc(var(--pd) / 2 + 4px));
 }
 
 /* Moving foil highlight that sweeps across the pack face */
@@ -602,6 +685,7 @@ select {
   pointer-events: none;
   overflow: hidden;
   border-radius: 8px;
+  z-index: 2;
 }
 .pack-foil::after {
   content: "";
@@ -628,20 +712,22 @@ select {
   inset: 0;
   pointer-events: none;
   border-radius: 8px;
-  background: linear-gradient(135deg, transparent 38%, rgba(255, 255, 255, 0.18) 48%, transparent 58%);
+  z-index: 2;
+  background: linear-gradient(135deg, transparent 38%, rgba(255, 255, 255, 0.2) 48%, transparent 58%);
 }
 
-/* Ground shadow under the pack — scales with the float to sell the hover */
+/* Contact shadow on the floor — a soft ellipse behind/below the pack */
 .pack-shadow {
   position: absolute;
   left: 50%;
-  bottom: -10px;
-  width: 70%;
-  height: 10px;
-  transform: translateX(-50%) translateZ(-10px) rotateX(90deg);
+  bottom: -12px;
+  width: 78%;
+  height: 12px;
+  transform: translateX(-50%) translateZ(calc(var(--pd) / -2)) rotateX(90deg);
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, transparent 70%);
   filter: blur(3px);
   animation: packPulse 3s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* Mobile Viewport Height Adaptation (MiniPay / iPhones / Android) ─── */
