@@ -1,8 +1,6 @@
-// Synthwave rarity color map — single source of truth.
-// KEEP IN SYNC with the .rarity-* classes in apps/web/src/app/globals.css.
-// Used by Shop.tsx and RunInfo.tsx (previously duplicated in both).
+import type { JokerRarity } from "@/lib/game";
 
-export const RARITY_COLOR: Record<string, string> = {
+export const RARITY_COLOR: Record<JokerRarity, string> = {
   common: "#b8aeff",
   uncommon: "#00f0ff",
   rare: "#ff2e88",

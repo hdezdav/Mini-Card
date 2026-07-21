@@ -18,6 +18,13 @@
 // button) is that gesture, so SFX "just work" once the user starts playing.
 
 type MaybeAudioContext = AudioContext & { resume?: () => Promise<void> };
+type AudioContextConstructor = new () => AudioContext;
+
+function getAudioContextConstructor(): AudioContextConstructor | null {
+  if (typeof window === "undefined") return null;
+  const browserWindow = window as typeof window & { webkitAudioContext?: AudioContextConstructor };
+  return browserWindow.AudioContext ?? browserWindow.webkitAudioContext ?? null;
+}
 
 const noteFreq = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12);
 
@@ -87,14 +94,15 @@ export class SfxEngine {
 
   /** True if Web Audio is available in this environment. */
   static supported(): boolean {
-    return typeof window !== "undefined" && typeof AudioContext !== "undefined";
+    return getAudioContextConstructor() !== null;
   }
 
   /** Lazily build the graph on first use (from a user gesture). */
   private ensure(): boolean {
     if (this.ctx) return true;
     if (!SfxEngine.supported()) return false;
-    const Ctx = (window.AudioContext || (window as any).webkitAudioContext);
+    const Ctx = getAudioContextConstructor();
+    if (!Ctx) return false;
     this.ctx = new Ctx() as MaybeAudioContext;
     const ctx = this.ctx;
 

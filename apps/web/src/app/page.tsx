@@ -8,7 +8,8 @@ import { GbaBackground } from "@/components/GbaBackground";
 import { Shop } from "@/components/Shop";
 import { RunInfo } from "@/components/RunInfo";
 import { MusicToggle } from "@/components/MusicToggle";
-import { JokerArt } from "@/components/PixelSprite";
+import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
+import { RARITY_COLOR } from "@/lib/rarity";
 import {
   type Blind,
   type Card,
@@ -92,7 +93,8 @@ export default function HomePage() {
   const [usernameError, setUsernameError] = useState("");
 
   // Procedural SFX engine (cards / plays / scoring / shop). Shares one
-  // AudioContext; created lazily on first use. Muted when the user has music
+  // AudioContext; created lazily on first use. SFX and music use separate
+  // contexts. Muted when the user has music
   // off — we treat "music on" as the master audio toggle for the whole app.
   const sfx = useMemo(() => getSfx(), []);
 
@@ -656,14 +658,11 @@ export default function HomePage() {
                       e.stopPropagation();
                       setActiveTooltipIdx(activeTooltipIdx === i ? null : i);
                     }}
-                    className={`relative overflow-hidden rounded-[9px] border-[2.5px] h-full w-full outline-none focus:ring-1 focus:ring-[#00f0ff]/50 ${
-                      oj.def.rarity === "uncommon" ? "joker-shiny border-[#00f0ff]" :
-                      oj.def.rarity === "rare" ? "joker-rare-metallic" :
-                      oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border-[#b026ff]/60"
-                    }`}
-                    style={{ background: "linear-gradient(160deg,#2a0d5a 0%, #1a0d3a 60%, #0a0420 100%)", boxShadow: "inset 0 2px 0 rgba(0,240,255,0.18), 0 6px 10px rgba(0,0,0,0.55), 0 0 12px rgba(176,38,255,0.3)" }}
+                    className="relative overflow-hidden rounded-[9px] h-full w-full outline-none focus:ring-1 focus:ring-[#00f0ff]/50"
                   >
-                    <div className="absolute inset-[10%] flex items-center justify-center"><JokerArt /></div>
+                    <div className="absolute inset-[10%] flex items-center justify-center">
+                      <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
+                    </div>
                   </button>
                   <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-36 bg-black/95 border border-white/20 rounded-lg p-2 text-left pointer-events-none flex flex-col gap-0.5 shadow-xl transition-all duration-200 origin-bottom transform ${
                     activeTooltipIdx === i
@@ -671,7 +670,7 @@ export default function HomePage() {
                       : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
                   }`}>
                     <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{oj.def.name}</div>
-                    <div className="font-pixel text-[8px] text-[#b8aeff] capitalize leading-none mb-1">{oj.def.rarity}</div>
+                    <div className="font-pixel text-[8px] capitalize leading-none mb-1" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{oj.def.rarity}</div>
                     <div className="font-pixel text-[9px] text-gray-300 leading-tight">{oj.def.desc}</div>
                   </div>
                 </div>

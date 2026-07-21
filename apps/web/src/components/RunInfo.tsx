@@ -1,7 +1,7 @@
 "use client";
 import { HAND_BASE, HAND_LEVEL_BUMP, type HandType, type OwnedJoker, type DeckType } from "@/lib/game";
 import { RARITY_COLOR } from "@/lib/rarity";
-import { JokerArt } from "@/components/PixelSprite";
+import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
 
 const ALL_HANDS: HandType[] = [
   "High Card","Pair","Two Pair","Three of a Kind",
@@ -93,12 +93,8 @@ export function RunInfo({
           <div className="flex flex-col gap-1.5 mb-3">
             {jokers.map((oj, i) => (
               <div key={i} className="panel rounded-lg p-2 flex items-center gap-2">
-                <div className={`w-8 h-10 shrink-0 rounded overflow-hidden bg-[#0a0420] flex items-center justify-center relative ${
-                  oj.def.rarity === "uncommon" ? "joker-shiny border border-white/10" :
-                  oj.def.rarity === "rare" ? "joker-rare-metallic" :
-                  oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border border-white/10"
-                }`}>
-                  <JokerArt />
+                <div className="w-8 h-10 shrink-0 rounded overflow-hidden flex items-center justify-center relative p-0.5">
+                  <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
                 </div>
                 <div>
                   <div className="font-pixel-fat text-xs text-white">{oj.def.name}</div>

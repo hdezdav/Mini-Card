@@ -16,9 +16,12 @@ const VOL_KEY = "minicard_music_volume";
 
 export function MusicToggle() {
   const engineRef = useRef<MusicEngine | null>(null);
+  const startRef = useRef<Promise<boolean> | null>(null);
+  const intentRef = useRef(0);
   const [on, setOn] = useState(false);
   const [ready, setReady] = useState(false);
   const [volume, setVolume] = useState(0.5);
+  const [pendingRestore, setPendingRestore] = useState(false);
 
   // Volume slider visibility. When music is turned on we flash the slider so
   // the user can fine-tune, then auto-collapse it after a few seconds of
@@ -45,42 +48,44 @@ export function MusicToggle() {
     const savedOn = localStorage.getItem(PREF_KEY) === "1";
     const savedVol = Number(localStorage.getItem(VOL_KEY));
     if (!Number.isNaN(savedVol) && savedVol > 0) setVolume(savedVol);
-    if (savedOn) setOn(true);
+    if (savedOn) setPendingRestore(true);
   }, []);
 
-  // Autoplay policy: an AudioContext resumed inside a non-gesture effect can
-  // stay suspended on some browsers, leaving the toggle "on" but silent. When
-  // the user has music enabled, latch onto the first user gesture anywhere on
-  // the page to (re)start the engine for real, then detach the listeners.
+  const startFromGesture = () => {
+    if (startRef.current) return startRef.current;
+    const engine = engineRef.current ?? new MusicEngine();
+    engineRef.current = engine;
+    engine.setVolume(volume);
+    const intent = ++intentRef.current;
+    const start = engine.start().then((success) => {
+      if (success && intent === intentRef.current) {
+        setOn(true);
+        setPendingRestore(false);
+        localStorage.setItem(PREF_KEY, "1");
+        window.dispatchEvent(new CustomEvent("minicard:audio", { detail: { on: true } }));
+        setVolOpen(true);
+        armHide();
+      }
+      return success;
+    }).finally(() => {
+      startRef.current = null;
+    });
+    startRef.current = start;
+    return start;
+  };
+
+  // A restored preference is only an intent. The first explicit gesture gets
+  // the engine through autoplay policy and removes these listeners on success.
   useEffect(() => {
-    if (!ready || !on) return;
-    const kick = () => {
-      engineRef.current?.start();
-      window.removeEventListener("pointerdown", kick);
-      window.removeEventListener("keydown", kick);
-    };
-    window.addEventListener("pointerdown", kick, { once: false });
-    window.addEventListener("keydown", kick, { once: false });
+    if (!ready || !pendingRestore) return;
+    const kick = () => { void startFromGesture(); };
+    window.addEventListener("pointerdown", kick);
+    window.addEventListener("keydown", kick);
     return () => {
       window.removeEventListener("pointerdown", kick);
       window.removeEventListener("keydown", kick);
     };
-  }, [ready, on]);
-
-  // Sync the engine with the toggle state.
-  useEffect(() => {
-    if (!ready) return;
-    if (!engineRef.current) {
-      engineRef.current = new MusicEngine();
-      engineRef.current.setVolume(volume);
-    }
-    const eng = engineRef.current;
-    if (on) {
-      eng.start();
-    } else {
-      eng.stop();
-    }
-  }, [on, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ready, pendingRestore, volume]);
 
   // Persist volume + push to engine live.
   useEffect(() => {
@@ -89,18 +94,18 @@ export function MusicToggle() {
   }, [volume]);
 
   const handleToggle = () => {
-    const next = !on;
-    setOn(next);
-    localStorage.setItem(PREF_KEY, next ? "1" : "0");
-    // Broadcast the master audio toggle so SFX (and anything else) can follow.
-    window.dispatchEvent(new CustomEvent("minicard:audio", { detail: { on: next } }));
-    if (next) {
-      setVolOpen(true);
-      armHide();
-    } else {
+    if (on) {
+      ++intentRef.current;
+      engineRef.current?.stop();
+      setOn(false);
+      setPendingRestore(false);
+      localStorage.setItem(PREF_KEY, "0");
+      window.dispatchEvent(new CustomEvent("minicard:audio", { detail: { on: false } }));
       cancelHide();
       setVolOpen(false);
+      return;
     }
+    void startFromGesture();
   };
 
   const handleVolume = (v: number) => {

@@ -122,13 +122,13 @@ export const HAND_BASE: Record<HandType, HandScore> = {
 };
 
 export const HAND_LEVEL_BUMP: Record<HandType, HandScore> = {
-  "High Card": { chips: 10, mult: 1 },
-  Pair: { chips: 15, mult: 1 },
-  "Two Pair": { chips: 20, mult: 1 },
-  "Three of a Kind": { chips: 20, mult: 2 },
-  Straight: { chips: 30, mult: 3 },
-  Flush: { chips: 15, mult: 2 },
-  "Full House": { chips: 25, mult: 2 },
+  "High Card": { chips: 4, mult: 1 },
+  Pair: { chips: 8, mult: 1 },
+  "Two Pair": { chips: 12, mult: 1 },
+  "Three of a Kind": { chips: 16, mult: 2 },
+  Straight: { chips: 20, mult: 2 },
+  Flush: { chips: 22, mult: 2 },
+  "Full House": { chips: 24, mult: 2 },
   "Four of a Kind": { chips: 30, mult: 3 },
   "Straight Flush": { chips: 40, mult: 4 },
   "Royal Flush": { chips: 40, mult: 4 },

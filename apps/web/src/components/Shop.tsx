@@ -1,7 +1,7 @@
 "use client";
-import { jokerBaseCost, jokerConflictsWith, rollShopJokersWeighted, JOKER_DEFS, type OwnedJoker, type JokerDef } from "@/lib/game";
+import { jokerBaseCost, jokerConflictsWith, rollShopJokersWeighted, JOKER_DEFS, type OwnedJoker, type JokerDef, type JokerRarity } from "@/lib/game";
 import { RARITY_COLOR } from "@/lib/rarity";
-import { JokerArt } from "@/components/PixelSprite";
+import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
 import { GbaBackground } from "./GbaBackground";
 import { useState, useCallback } from "react";
 import { approveBoosterPack, buyBoosterPack, handlePaymentFailure } from "@/lib/web3";
@@ -36,7 +36,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
   const [offers] = useState<JokerDef[]>(() => getOffers(ownedJokers, ante));
   const [packState, setPackState] = useState<PackState>("idle");
   const [activePack, setActivePack] = useState<number | null>(null);
-  const [packResult, setPackResult] = useState<{ name: string; rarity: string; duplicate: boolean } | null>(null);
+  const [packResult, setPackResult] = useState<{ name: string; rarity: JokerRarity; duplicate: boolean } | null>(null);
   const [packError, setPackError] = useState("");
 
   const isBusy = packState === "approving" || packState === "buying";
@@ -148,12 +148,8 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
           const blocked = !!conflict;
           return (
             <div key={def.id} className="panel rounded-lg p-2 flex items-center gap-2">
-              <div className={`w-9 h-12 shrink-0 rounded-md overflow-hidden border bg-[#0a0420] flex items-center justify-center relative ${
-                def.rarity === "uncommon" ? "joker-shiny border-white/20" :
-                def.rarity === "rare" ? "joker-rare-metallic" :
-                def.rarity === "legendary" ? "joker-legendary-iridescent" : "border-white/20"
-              }`}>
-                <JokerArt />
+              <div className="w-9 h-12 shrink-0 rounded-md overflow-hidden flex items-center justify-center relative p-0.5">
+                <JokerArtworkFrame rarity={def.rarity} className="h-full w-full" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-pixel-fat text-sm text-white leading-none">{def.name}</div>
@@ -296,12 +292,8 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
           <div className={`mt-2 rounded-md p-2 flex items-center gap-2 anim-pop mx-auto max-w-[260px] ${
             packResult.duplicate ? "bg-[#2a0d5a] border border-[#ff9e2c]/30" : "bg-[#0a2a24] border border-[#00f0ff]/40"
           }`}>
-            <div className={`w-8 h-10 rounded overflow-hidden bg-[#0a0420] flex items-center justify-center shrink-0 ${
-              packResult.rarity === "uncommon" ? "joker-shiny border border-white/10" :
-              packResult.rarity === "rare" ? "joker-rare-metallic" :
-              packResult.rarity === "legendary" ? "joker-legendary-iridescent" : "border border-white/10"
-            }`}>
-              <JokerArt />
+            <div className="w-8 h-10 rounded overflow-hidden flex items-center justify-center shrink-0 p-0.5">
+              <JokerArtworkFrame rarity={packResult.rarity} className="h-full w-full" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-pixel-fat text-sm text-white leading-none">{packResult.name}</div>
@@ -343,12 +335,8 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
                 className="panel rounded-lg p-1.5 flex flex-col items-center gap-1 w-[60px] text-center hover:brightness-110 active:scale-95 transition-transform"
                 title={`Sell for $${Math.floor(jokerBaseCost(oj.def) / 2)}`}
               >
-                <div className={`w-8 h-10 rounded overflow-hidden bg-[#0a0420] flex items-center justify-center relative ${
-                  oj.def.rarity === "uncommon" ? "joker-shiny border border-white/10" :
-                  oj.def.rarity === "rare" ? "joker-rare-metallic" :
-                  oj.def.rarity === "legendary" ? "joker-legendary-iridescent" : "border border-white/10"
-                }`}>
-                  <JokerArt />
+                <div className="w-8 h-10 rounded overflow-hidden flex items-center justify-center relative p-0.5">
+                  <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
                 </div>
                 <div className="font-pixel text-[8px] text-gray-300 leading-none">{oj.def.name}</div>
                 <div className="font-pixel text-[9px] text-[#ff9e2c]">${Math.floor(jokerBaseCost(oj.def) / 2)}</div>

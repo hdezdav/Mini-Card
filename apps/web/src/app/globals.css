@@ -138,7 +138,7 @@ select {
 }
 
 .panel-inset {
-  background: #0a0420;
+  background: transparent;
   border: 2px solid rgba(0, 240, 255, 0.14);
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), inset 0 0 12px rgba(0, 240, 255, 0.05);
 }
@@ -836,13 +836,20 @@ select {
   animation: scoreBounce 0.48s ease-in-out;
 }
 
-/* ─── Rarity-Based Card Styling & Effects ─── */
-
-/* Uncommon: shiny sweep effect */
-.joker-shiny {
+/* ─── Joker Artwork Rarity Frame ─── */
+.joker-artwork-frame {
   position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 2px solid var(--joker-rarity-color);
+  border-radius: 4px;
+  background: transparent;
+  box-shadow:
+    0 0 7px color-mix(in srgb, var(--joker-rarity-color) 75%, transparent),
+    inset 0 0 5px color-mix(in srgb, var(--joker-rarity-color) 35%, transparent);
 }
-.joker-shiny::after {
+
+.joker-artwork-frame::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -850,16 +857,36 @@ select {
     135deg,
     rgba(255, 255, 255, 0) 0%,
     rgba(255, 255, 255, 0) 40%,
-    rgba(255, 255, 255, 0.5) 50%,
+    color-mix(in srgb, var(--joker-rarity-color) 35%, white) 50%,
     rgba(255, 255, 255, 0) 60%,
     rgba(255, 255, 255, 0) 100%
   );
   background-size: 250% 250%;
-  animation: shinySweep 3s infinite linear;
   pointer-events: none;
-  z-index: 5;
+  z-index: 1;
+  opacity: 0;
 }
-@keyframes shinySweep {
+
+.joker-artwork-frame[data-rarity="uncommon"]::after {
+  animation: jokerArtworkSweep 3s infinite linear;
+  opacity: 0.7;
+}
+
+.joker-artwork-frame[data-rarity="rare"]::after {
+  animation: jokerArtworkSweep 3.5s infinite linear;
+  opacity: 0.85;
+}
+
+.joker-artwork-frame[data-rarity="legendary"] {
+  animation: jokerArtworkGlow 2.5s ease-in-out infinite alternate;
+}
+
+.joker-artwork-frame[data-rarity="legendary"]::after {
+  animation: jokerArtworkSweep 2.75s infinite linear;
+  opacity: 1;
+}
+
+@keyframes jokerArtworkSweep {
   0% {
     background-position: -125% -125%;
   }
@@ -868,79 +895,12 @@ select {
   }
 }
 
-/* Rare: magenta metallic sweep effect */
-.joker-rare-metallic {
-  position: relative;
-  border-color: #ff2e88 !important;
-}
-.joker-rare-metallic::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 46, 136, 0) 0%,
-    rgba(255, 46, 136, 0.15) 30%,
-    rgba(255, 255, 255, 0.55) 50%,
-    rgba(255, 46, 136, 0.15) 70%,
-    rgba(255, 46, 136, 0) 100%
-  );
-  background-size: 250% 250%;
-  animation: goldSweep 3.5s infinite linear;
-  pointer-events: none;
-  z-index: 5;
-}
-@keyframes goldSweep {
+@keyframes jokerArtworkGlow {
   0% {
-    background-position: -125% -125%;
+    box-shadow: 0 0 6px color-mix(in srgb, var(--joker-rarity-color) 55%, transparent), inset 0 0 4px color-mix(in srgb, var(--joker-rarity-color) 30%, transparent);
   }
   100% {
-    background-position: 125% 125%;
-  }
-}
-
-/* Legendary: iridescent holographic prism sweep and glow */
-.joker-legendary-iridescent {
-  position: relative;
-  border-color: #ff00ff !important;
-  animation: legendaryGlow 2.5s ease-in-out infinite alternate;
-}
-.joker-legendary-iridescent::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 0, 128, 0.2) 0%,
-    rgba(0, 255, 255, 0.2) 25%,
-    rgba(255, 255, 0, 0.2) 50%,
-    rgba(0, 255, 128, 0.2) 75%,
-    rgba(255, 0, 128, 0.2) 100%
-  );
-  background-size: 300% 300%;
-  animation: rainbowShift 4s infinite linear;
-  mix-blend-mode: color-dodge;
-  pointer-events: none;
-  opacity: 0.95;
-  z-index: 5;
-}
-@keyframes rainbowShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-@keyframes legendaryGlow {
-  0% {
-    box-shadow: 0 0 6px rgba(255, 0, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-  100% {
-    box-shadow: 0 0 18px rgba(0, 255, 255, 0.8), inset 0 2px 0 rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--joker-rarity-color) 90%, transparent), inset 0 0 7px color-mix(in srgb, var(--joker-rarity-color) 55%, transparent);
   }
 }
 
@@ -1025,10 +985,8 @@ select {
   }
   .anim-flame,
   .deck-shimmer,
-  .joker-shiny::after,
-  .joker-rare-metallic::after,
-  .joker-legendary-iridescent,
-  .joker-legendary-iridescent::after,
+  .joker-artwork-frame,
+  .joker-artwork-frame::after,
   .edition-polychrome {
     animation: none !important;
   }

@@ -1,19 +1,24 @@
-import { JokerArt } from "@/components/PixelSprite";
+import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
+import type { JokerRarity } from "@/lib/game";
 
 export function EmptySlot({ className }: { className?: string }) {
   return <div className={`rounded-[8px] border-2 border-dashed border-[#b026ff]/25 bg-[#0a0420]/40 ${className ?? ""}`} style={{ boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6), inset 0 0 8px rgba(176,38,255,0.08)" }} />;
 }
 
-export function JokerCard({ className, onClick }: { className?: string; onClick?: () => void }) {
+export function JokerCard({
+  className,
+  onClick,
+  rarity = "common",
+}: {
+  className?: string;
+  onClick?: () => void;
+  rarity?: JokerRarity;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`anim-bob relative overflow-hidden rounded-[9px] border-[2.5px] border-[#ff2e88] ${className ?? ""}`}
-      style={{
-        background: "linear-gradient(160deg,#2a0d5a 0%, #1a0d3a 60%, #0a0420 100%)",
-        boxShadow: "inset 0 2px 0 rgba(0,240,255,0.18), 0 6px 10px rgba(0,0,0,0.55), 0 0 14px rgba(255,46,136,0.35)",
-      }}
+      className={`anim-bob relative overflow-hidden rounded-[9px] ${className ?? ""}`}
     >
       <span className="font-pixel absolute left-1 top-0 text-[0.7rem] leading-none" style={{ color: "#00f0ff", WebkitTextStroke: "0.4px rgba(0,0,0,0.5)", textShadow: "0 0 6px rgba(0,240,255,0.5)" }}>
         JOKER
@@ -22,7 +27,7 @@ export function JokerCard({ className, onClick }: { className?: string; onClick?
         JOKER
       </span>
       <div className="absolute inset-[16%_14%] flex items-center justify-center">
-        <JokerArt />
+        <JokerArtworkFrame rarity={rarity} className="h-full w-full" />
       </div>
     </button>
   );
