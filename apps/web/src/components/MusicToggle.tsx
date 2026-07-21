@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { MusicEngine } from "@/lib/music";
 
-// Floating music toggle — synthesizes a Balatro-style jazz/funk loop with
-// the Web Audio engine in @/lib/music. The loop is generated in code, so it
+// Floating music toggle — synthesizes an original procedural lounge-jazz loop
+// with the Web Audio engine in @/lib/music. The music is generated in code, so it
 // is fully copyright-free and works offline inside MiniPay / web3 browsers.
 //
 // Browser autoplay policy: AudioContext can only be created/resumed from a
@@ -108,8 +108,12 @@ export function MusicToggle() {
     localStorage.setItem(VOL_KEY, String(v));
   };
 
-  // Clean up the hide timer on unmount.
-  useEffect(() => () => cancelHide(), []);
+  // Release timers, scheduled voices, and the AudioContext on unmount.
+  useEffect(() => () => {
+    cancelHide();
+    engineRef.current?.dispose();
+    engineRef.current = null;
+  }, []);
 
   if (!ready) return null;
 
