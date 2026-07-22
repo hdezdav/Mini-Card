@@ -1,5 +1,6 @@
 import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
 import type { JokerRarity } from "@/lib/game";
+import { dict, type Lang } from "@/lib/i18n";
 
 export function EmptySlot({ className }: { className?: string }) {
   return <div className={`rounded-[8px] border-2 border-dashed border-[#b026ff]/25 bg-[#0a0420]/40 ${className ?? ""}`} style={{ boxShadow: "inset 0 2px 6px rgba(0,0,0,0.6), inset 0 0 8px rgba(176,38,255,0.08)" }} />;
@@ -70,10 +71,12 @@ export function DeckBack({
   className,
   style,
   deckType = "red",
+  lang = "es",
 }: {
   className?: string;
   style?: React.CSSProperties;
   deckType?: string;
+  lang?: Lang;
 }) {
   const backColor =
     deckType === "black"
@@ -96,7 +99,7 @@ export function DeckBack({
     >
       <img
         src={`/assets/cards/back-${backColor}.webp`}
-        alt="Deck Back"
+        alt={dict.deckBack[lang]}
         className="h-full w-full object-cover pixelated"
         style={{
           imageRendering: "pixelated",

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MusicEngine } from "@/lib/music";
+import { dict, type Lang } from "@/lib/i18n";
 
 // Floating music toggle — synthesizes an original procedural lounge-jazz loop
 // with the Web Audio engine in @/lib/music. The music is generated in code, so it
@@ -14,7 +15,7 @@ import { MusicEngine } from "@/lib/music";
 const PREF_KEY = "minicard_music_enabled";
 const VOL_KEY = "minicard_music_volume";
 
-export function MusicToggle() {
+export function MusicToggle({ lang = "es" }: { lang?: Lang }) {
   const engineRef = useRef<MusicEngine | null>(null);
   const startRef = useRef<Promise<boolean> | null>(null);
   const intentRef = useRef(0);
@@ -130,8 +131,8 @@ export function MusicToggle() {
         onMouseEnter={() => { if (on) { cancelHide(); setVolOpen(true); } }}
         onMouseLeave={() => on && armHide()}
         aria-pressed={on}
-        aria-label={on ? "Mute music" : "Play music"}
-        title={on ? "Mute music" : "Play music"}
+        aria-label={on ? dict.muteMusic[lang] : dict.playMusic[lang]}
+        title={on ? dict.muteMusic[lang] : dict.playMusic[lang]}
         className={`flex items-center gap-1 min-w-[40px] px-2.5 py-1.5 rounded-r-lg rounded-l-none border-y-2 border-r-2 border-black/40 text-center transition-[transform,box-shadow] duration-75 active:translate-y-[2px] ${
           on
             ? "bg-[#ff9e2c] text-white shadow-[0_4px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3),0_0_12px_rgba(255,158,44,0.5)] active:shadow-[0_2px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3),0_0_8px_rgba(255,158,44,0.4)]"
@@ -158,7 +159,7 @@ export function MusicToggle() {
               : "opacity-0 scale-90 max-h-0 -mt-1.5 pointer-events-none overflow-hidden"
           }`}
         >
-          <span className="font-pixel text-[7px] text-gray-400 leading-none uppercase tracking-wider">Vol</span>
+          <span className="font-pixel text-[7px] text-gray-400 leading-none uppercase tracking-wider">{dict.vol[lang]}</span>
           <input
             type="range"
             min={0}
@@ -168,7 +169,7 @@ export function MusicToggle() {
             onChange={(e) => handleVolume(Number(e.target.value))}
             onPointerDown={() => cancelHide()}
             onPointerUp={() => armHide()}
-            aria-label="Music volume"
+            aria-label={dict.musicVolume[lang]}
             className="music-slider w-16 h-1 accent-[#00f0ff]"
           />
         </div>

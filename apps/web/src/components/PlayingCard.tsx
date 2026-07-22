@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { Card, Rank, Suit, DeckType } from "@/lib/game";
+import { dict, fmt, suitName, type Lang } from "@/lib/i18n";
 
 interface PlayingCardProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   card: Card;
@@ -8,6 +9,7 @@ interface PlayingCardProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
   dimmed?: boolean;
   facedown?: boolean;
   deckType?: DeckType;
+  lang?: Lang;
 }
 
 export function PlayingCard({
@@ -20,6 +22,7 @@ export function PlayingCard({
   className,
   facedown = false,
   deckType = "red",
+  lang = "es",
   ...rest
 }: PlayingCardProps) {
   const { rank, suit } = card;
@@ -72,7 +75,7 @@ export function PlayingCard({
       >
         <img
           src={imgSrc}
-          alt={facedown ? "Card Back" : `${rank} of ${suit}`}
+          alt={facedown ? dict.cardBack[lang] : fmt(dict.cardOf[lang], { rank, suit: suitName(suit, lang) })}
           className="h-full w-full object-cover pixelated"
           style={{
             imageRendering: "pixelated",

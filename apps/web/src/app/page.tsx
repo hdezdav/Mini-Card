@@ -32,6 +32,18 @@ import {
 } from "@/lib/game";
 import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, checkHasUsername, payRestartWithMiniPay, handlePaymentFailure } from "@/lib/web3";
 import { getSfx } from "@/lib/sfx";
+import {
+  LangProvider,
+  useLang,
+  useSyncHtmlLang,
+  dict,
+  fmt,
+  handName,
+  jokerName,
+  jokerDesc,
+  rarityName,
+  type Lang,
+} from "@/lib/i18n";
 
 const HAND_SIZE = 7;
 const MAX_SELECT = 5;
@@ -49,6 +61,16 @@ interface FloatText {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function HomePage() {
+  return (
+    <LangProvider>
+      <HomeGame />
+    </LangProvider>
+  );
+}
+
+function HomeGame() {
+  const { lang, setLang } = useLang();
+  useSyncHtmlLang(lang);
   const [round, setRound] = useState(1);
   const [money, setMoney] = useState(4);
   const [handsLeft, setHandsLeft] = useState(4);
@@ -75,7 +97,6 @@ export default function HomePage() {
   const [showRunInfo, setShowRunInfo] = useState(false);
   const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
   const [detectedMiniPay, setDetectedMiniPay] = useState(false);
-  const [lang, setLang] = useState<"en" | "es">("en");
   const [activeTooltipIdx, setActiveTooltipIdx] = useState<number | null>(null);
 
   // Score states for manual Celo submission
@@ -102,8 +123,6 @@ export default function HomePage() {
   // Also checks whether the connected wallet has a registered username.
   // If not, shows a modal forcing username registration before playing.
   useEffect(() => {
-    const nav = navigator.language || (navigator as any).userLanguage || "en";
-    setLang(nav.toLowerCase().startsWith("es") ? "es" : "en");
     if (typeof window !== "undefined") {
       setIsTouch(window.matchMedia("(pointer: coarse)").matches);
     }
@@ -207,7 +226,7 @@ export default function HomePage() {
   const handleSubmitLastScore = useCallback(async () => {
     if (lastScore <= 0 || submittingScore || scoreSubmitted) return;
     if (!walletAddress || walletAddress.startsWith("0xceloGuest")) {
-      alert("Open this app inside MiniPay to save your score to the global leaderboard.");
+      alert(dict.openInMinipay[lang]);
       return;
     }
 
@@ -216,17 +235,17 @@ export default function HomePage() {
       const success = await submitScoreToCelo(lastScore, lastRound);
       if (success) {
         setScoreSubmitted(true);
-        alert("Score successfully saved to the global leaderboard!");
+        alert(dict.scoreSavedSuccess[lang]);
       } else {
-        alert("Failed to submit score. Make sure you confirmed the submission in your wallet.");
+        alert(dict.submitFailed[lang]);
       }
     } catch (err) {
       console.error("Score submission error:", err);
-      alert("Error saving your score.");
+      alert(dict.scoreSaveError[lang]);
     } finally {
       setSubmittingScore(false);
     }
-  }, [lastScore, lastRound, submittingScore, scoreSubmitted, walletAddress]);
+  }, [lastScore, lastRound, submittingScore, scoreSubmitted, walletAddress, lang]);
 
   const levels = useRef<Partial<Record<HandType, number>>>({});
   const floatId = useRef(0);
@@ -301,7 +320,7 @@ export default function HomePage() {
   const hasSelection = selected.length > 0;
   const showChips = animChips ?? (hasSelection ? baseScore.chips : 0);
   const showMult = animMult ?? (hasSelection ? baseScore.mult : 0);
-  const showHandType = hasSelection ? evalResult.type : "";
+  const showHandType = hasSelection ? handName(evalResult.type, lang) : "";
 
   const toggleSelect = (id: string) => {
     if (phase !== "playing" || busy.current) return;
@@ -571,13 +590,13 @@ export default function HomePage() {
       } else {
         // Rejected or no wallet — keep the user in-app. (Insufficient balance
         // throws and is handled in the catch block via the Deposit deeplink.)
-        alert("Payment was rejected. Please confirm the payment to play again.");
+        alert(dict.paymentRejected[lang]);
       }
     } catch (e) {
       // Insufficient balance → redirect to MiniPay Deposit deeplink.
       if (handlePaymentFailure(e)) return;
       console.error(e);
-      alert("Payment failed. Please try again.");
+      alert(dict.paymentFailed[lang]);
     } finally {
       setPayingRestart(false);
     }
@@ -589,11 +608,11 @@ export default function HomePage() {
   const handleRegisterUsernameFromGate = async () => {
     const trimmed = usernameInput.trim();
     if (!trimmed) {
-      setUsernameError("Username cannot be empty");
+      setUsernameError(dict.usernameEmpty[lang]);
       return;
     }
     if (trimmed.length > 20) {
-      setUsernameError("Username too long (max 20 chars)");
+      setUsernameError(dict.usernameTooLong[lang]);
       return;
     }
 
@@ -605,11 +624,11 @@ export default function HomePage() {
         setNeedsUsername(false);
         setUsernameInput("");
       } else {
-        setUsernameError("Failed to register. Make sure you confirmed the registration.");
+        setUsernameError(dict.registerFailed[lang]);
       }
     } catch (err) {
       console.error("Username registration error:", err);
-      setUsernameError("Registration failed. Please try again.");
+      setUsernameError(dict.registrationFailed[lang]);
     } finally {
       setRegisteringUsername(false);
     }
@@ -621,15 +640,20 @@ export default function HomePage() {
         <GbaBackground blindKind={phase === "shop" ? "shop" : phase === "lost" ? "lost" : blind.kind} phase={phase} />
         {/* Top Stats Bar */}
         <div className="relative z-10 flex gap-[5px] px-2 pb-1 pt-1.5 items-stretch">
-          <StatBox label="Hands" value={handsLeft} color="#00f0ff" />
-          <StatBox label="Discards" value={discardsLeft} color="#ff2e88" />
-          <AnteBox ante={ante} />
-          <StatBox label="Round" value={round} color="#ff9e2c" />
+          <StatBox label={dict.hands[lang]} value={handsLeft} color="#00f0ff" />
+          <StatBox label={dict.discards[lang]} value={discardsLeft} color="#ff2e88" />
+          <AnteBox ante={ante} lang={lang} />
+          <StatBox label={dict.round[lang]} value={round} color="#ff9e2c" />
           <MoneyBox money={money} />
         </div>
 
         {/* Floating Music Toggle (sits below the joker slots on the left edge) */}
-        <MusicToggle />
+        <MusicToggle lang={lang} />
+
+        {/* Floating EN/ES language toggle (top-right corner; extenders grow
+            into the non-interactive stats bar above and the timer/free space
+            below, so no tappable neighbor is overlapped). */}
+        <LangToggle lang={lang} setLang={setLang} />
 
         {/* Floating Timer Widget (Active from Round 2+) */}
         {round > 1 && phase === "playing" && (
@@ -639,7 +663,7 @@ export default function HomePage() {
                 ? "bg-[#ff2e88] text-white animate-pulse scale-105 border-[#a01657]"
                 : "bg-black text-[#ff2e88] border-[#ff2e88]/85"
             }`}>
-              <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">Time</span>
+              <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">{dict.time[lang]}</span>
               <span className="font-pixel-fat text-sm leading-none mt-0.5">{timeLeft}s</span>
             </div>
           </div>
@@ -651,13 +675,17 @@ export default function HomePage() {
             {Array.from({ length: MAX_JOKER_SLOTS }).map((_, i) => {
               const oj = ownedJokers[i];
               return oj ? (
-                <div key={i} className="relative h-[54px] w-[38px] group">
+                <div
+                  key={i}
+                  className="relative h-[54px] w-[38px] group tap-target"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveTooltipIdx(activeTooltipIdx === i ? null : i);
+                  }}
+                >
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveTooltipIdx(activeTooltipIdx === i ? null : i);
-                    }}
+                    aria-label={jokerName(oj.def, lang)}
                     className="relative overflow-hidden rounded-[9px] h-full w-full outline-none focus:ring-1 focus:ring-[#00f0ff]/50"
                   >
                     <div className="absolute inset-[10%] flex items-center justify-center">
@@ -669,9 +697,9 @@ export default function HomePage() {
                       ? "opacity-100 scale-100 translate-y-0 visible"
                       : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
                   }`}>
-                    <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{oj.def.name}</div>
-                    <div className="font-pixel text-[8px] capitalize leading-none mb-1" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{oj.def.rarity}</div>
-                    <div className="font-pixel text-[9px] text-gray-300 leading-tight">{oj.def.desc}</div>
+                    <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{jokerName(oj.def, lang)}</div>
+                    <div className="font-pixel text-[8px] capitalize leading-none mb-1" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{rarityName(oj.def.rarity, lang)}</div>
+                    <div className="font-pixel text-[9px] text-gray-300 leading-tight">{jokerDesc(oj.def, lang)}</div>
                   </div>
                 </div>
               ) : (
@@ -703,6 +731,7 @@ export default function HomePage() {
                       scoring={inHand}
                       dimmed={!inHand}
                       deckType={deckType}
+                      lang={lang}
                       className={`h-[80px] w-[56px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
                       style={{
                         transform: isScoring
@@ -752,6 +781,7 @@ export default function HomePage() {
                     onMouseEnter={() => setHoveredIdx(idx)}
                     onMouseLeave={() => setHoveredIdx(null)}
                     deckType={deckType}
+                    lang={lang}
                     className="h-[80px] w-[56px] anim-draw-card"
                     style={{
                       animationDelay: `${idx * 80}ms`,
@@ -774,26 +804,26 @@ export default function HomePage() {
             {/* Left Column: Options */}
             <div className="w-[84px] shrink-0 flex flex-col gap-1.5">
               <div className="text-center leading-none">
-                <span className="font-pixel text-[11px] text-gray-300">Sort Hand</span>
+                <span className="font-pixel text-[11px] text-gray-300">{dict.sortHand[lang]}</span>
                 <div className="flex gap-[3px] mt-0.5">
-                  <button type="button" onClick={() => sortBy("rank")} className="btn-chunky btn-orange flex-1 py-0.5 text-[11px] h-6">
-                    Rank
+                  <button type="button" onClick={() => sortBy("rank")} className="btn-chunky btn-orange tap-target-up flex-1 py-0.5 text-[11px] h-6">
+                    {dict.rank[lang]}
                   </button>
-                  <button type="button" onClick={() => sortBy("suit")} className="btn-chunky btn-orange flex-1 py-0.5 text-[11px] h-6">
-                    Suit
+                  <button type="button" onClick={() => sortBy("suit")} className="btn-chunky btn-orange tap-target-up flex-1 py-0.5 text-[11px] h-6">
+                    {dict.suit[lang]}
                   </button>
                 </div>
               </div>
               <button type="button" onClick={() => setShowRunInfo(true)} className="btn-chunky btn-red flex-1 text-base flex flex-col justify-center leading-none py-1 min-h-[36px]">
-                <span>Run</span>
-                <span className="mt-[1px]">Info</span>
+                <span>{dict.runInfoL1[lang]}</span>
+                <span className="mt-[1px]">{dict.runInfoL2[lang]}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowLeaderboard(true)}
-                className="btn-chunky btn-orange py-1 text-[10px] leading-none h-7"
+                className="btn-chunky btn-orange tap-target-down py-1 text-[10px] leading-none h-7"
               >
-                Leaderboard
+                {dict.leaderboard[lang]}
               </button>
             </div>
 
@@ -801,18 +831,18 @@ export default function HomePage() {
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
               {/* Round Score */}
               <div className="bg-[#0a0420] border border-white/10 rounded-md h-8 flex items-center justify-between px-2 shadow-sm">
-                <span className="text-xs leading-none text-left font-pixel text-gray-300">Round<br/>score</span>
+                <span className="text-xs leading-none text-left font-pixel text-gray-300">{dict.roundScoreL1[lang]}<br/>{dict.roundScoreL2[lang]}</span>
                 <span className="text-lg font-pixel-fat flex items-center gap-1"><span className="text-gray-400 text-sm">✺</span> {roundScore}</span>
               </div>
 
               {/* Blind progress — Minecraft-style XP bar: 10 thin segments */}
-              <BlindXpBar score={roundScore} target={blind.target} kind={blind.kind} />
+              <BlindXpBar score={roundScore} target={blind.target} kind={blind.kind} lang={lang} />
 
               {/* Current Hand Type */}
               <div className="flex-1 bg-[#120630] rounded-lg p-1.5 flex flex-col items-center justify-center border-b-4 border-black/40">
                 <div className="text-[16px] font-pixel mb-1.5 leading-none">
                   <span className="text-white txt-outline">{showHandType || "\u00A0"}</span>
-                  {showHandType && <span className="ml-1.5 text-xs text-[#ff9e2c]">lvl.{displayLevel}</span>}
+                  {showHandType && <span className="ml-1.5 text-xs text-[#ff9e2c]">{dict.lvl[lang]}{displayLevel}</span>}
                 </div>
                 <div className="flex w-full gap-1 h-7 items-stretch">
                   <div className="flex-1 bg-[#00f0ff] rounded flex items-center justify-end pr-2 text-base font-pixel-fat shadow-[0_2px_0_#0077b6] border border-black/10 text-[#04243a]">
@@ -831,7 +861,7 @@ export default function HomePage() {
                   className="font-sans text-[9px] font-bold uppercase tracking-wider text-[#00f0ff] hover:text-[#ff9e2c] transition-all select-none flex items-center gap-1.5 hover:underline"
                 >
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse" />
-                  Live Stats
+                  {dict.liveStats[lang]}
                 </Link>
               </div>
             </div>
@@ -839,23 +869,23 @@ export default function HomePage() {
             {/* Right Column: Deck & Actions */}
             <div className="w-[84px] shrink-0 flex flex-col gap-1.5">
               {/* Balatro-style stacked deck */}
-              <DeckPile count={deck.length} total={52} deckType={deckType} />
+              <DeckPile count={deck.length} total={52} deckType={deckType} lang={lang} />
               <button
                 type="button"
                 onClick={doPlay}
                 disabled={!hasSelection || phase !== "playing"}
                 className="btn-chunky btn-blue flex-1 text-base flex flex-col justify-center leading-none py-1 min-h-[36px]"
               >
-                <span>Play</span>
-                <span className="mt-[1px]">Hand</span>
+                <span>{dict.playL1[lang]}</span>
+                <span className="mt-[1px]">{dict.playL2[lang]}</span>
               </button>
               <button
                 type="button"
                 onClick={doDiscard}
                 disabled={!hasSelection || discardsLeft <= 0 || phase !== "playing"}
-                className="btn-chunky btn-red py-1 text-sm leading-none h-7"
+                className="btn-chunky btn-red tap-target-down py-1 text-sm leading-none h-7"
               >
-                Discard
+                {dict.discard[lang]}
               </button>
             </div>
           </div>
@@ -870,20 +900,21 @@ export default function HomePage() {
             onSell={handleSellJoker}
             onClose={enterNextBlind}
             onBoosterJoker={handleBoosterJoker}
+            lang={lang}
           />
         )}
         {phase === "lost" && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-[3px] overflow-hidden">
             <div className="panel anim-pop rounded-xl px-6 py-5 text-center max-w-[280px] flex flex-col gap-3">
               <div className="font-pixel-fat text-3xl txt-outline text-[#ff2e88]">
-                {cooldownEnd && cooldownEnd > Date.now() ? "Cooldown Active" : "Game Over"}
+                {cooldownEnd && cooldownEnd > Date.now() ? dict.cooldownActive[lang] : dict.gameOver[lang]}
               </div>
               {roundScore > 0 && (
                 <div className="font-pixel text-base text-white/85 leading-tight">
-                  Round {round} — Score: {roundScore}
+                  {fmt(dict.roundScoreSummary[lang], { round, score: roundScore })}
                 </div>
               )}
-              
+
               {!walletAddress.startsWith("0xceloGuest") && lastScore > 0 && (
                 <button
                   type="button"
@@ -891,7 +922,7 @@ export default function HomePage() {
                   disabled={submittingScore || scoreSubmitted}
                   className="btn-chunky btn-orange w-full py-2 text-sm leading-none flex items-center justify-center gap-1.5"
                 >
-                  {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ✓" : "SAVE SCORE"}
+                  {submittingScore ? dict.submitting[lang] : scoreSubmitted ? dict.saved[lang] : dict.saveScore[lang]}
                 </button>
               )}
 
@@ -906,11 +937,11 @@ export default function HomePage() {
                     {payingRestart ? (
                       <>
                         <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        <span>PAYING...</span>
+                        <span>{dict.paying[lang]}</span>
                       </>
                     ) : (
                       <>
-                        <span>PLAY AGAIN</span>
+                        <span>{dict.playAgain[lang]}</span>
                         <span className="bg-black/25 rounded px-1.5 py-0.5 font-pixel text-[10px] text-[#ff9e2c]">$0.01</span>
                       </>
                     )}
@@ -918,16 +949,17 @@ export default function HomePage() {
                   <CooldownCountdown
                     cooldownEnd={cooldownEnd}
                     onExpired={() => setCooldownEnd(null)}
+                    lang={lang}
                   />
                   {walletAddress.startsWith("0xceloGuest") && (
                     <div className="font-pixel text-[9px] text-[#ff8b85] mt-1 leading-tight">
-                      Guest mode: Open this app inside MiniPay to pay and bypass, or wait 24h.
+                      {dict.guestModeCooldown[lang]}
                     </div>
                   )}
                 </div>
               ) : (
                 <button type="button" onClick={handleFreeRestart} className="btn-chunky btn-blue w-full py-2 text-lg">
-                  Play Again
+                  {dict.playAgainBlue[lang]}
                 </button>
               )}
             </div>
@@ -944,6 +976,7 @@ export default function HomePage() {
             deckType={deckType}
             onSelectDeck={handleSelectDeck}
             onClose={() => setShowRunInfo(false)}
+            lang={lang}
           />
         )}
 
@@ -956,6 +989,7 @@ export default function HomePage() {
             scoreSubmitted={scoreSubmitted}
             submittingScore={submittingScore}
             onSubmitScore={handleSubmitLastScore}
+            lang={lang}
           />
         )}
 
@@ -964,14 +998,14 @@ export default function HomePage() {
           <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
             <div className="panel anim-pop rounded-xl px-5 py-5 w-full max-w-[300px] flex flex-col items-center gap-3">
               <div className="font-pixel-fat text-2xl txt-chrome text-center">
-                REGISTER USERNAME
+                {dict.registerUsername[lang]}
               </div>
               <div className="font-pixel text-[11px] text-gray-300 text-center leading-tight">
-                You need a unique username to play and save your scores on the leaderboard.
+                {dict.usernameNeeded[lang]}
               </div>
               <input
                 type="text"
-                placeholder="Choose a username (max 20)"
+                placeholder={dict.usernamePlaceholder[lang]}
                 maxLength={20}
                 value={usernameInput}
                 onChange={(e) => {
@@ -1001,14 +1035,14 @@ export default function HomePage() {
                 {registeringUsername ? (
                   <>
                     <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                    <span>REGISTERING…</span>
+                    <span>{dict.registering[lang]}</span>
                   </>
                 ) : (
-                  "CONFIRM USERNAME"
+                  dict.confirmUsername[lang]
                 )}
               </button>
               <div className="font-pixel text-[9px] text-gray-500 text-center leading-tight">
-                This registers your username. You'll confirm it in your wallet.
+                {dict.usernameRegistersNote[lang]}
               </div>
             </div>
           </div>
@@ -1031,10 +1065,10 @@ function StatBox({ label, value, color, className = "" }: { label: string; value
   );
 }
 
-function AnteBox({ ante }: { ante: number }) {
+function AnteBox({ ante, lang }: { ante: number; lang: Lang }) {
   return (
     <div className="stat-box flex-1 py-1 px-1 flex flex-col justify-between">
-      <span className="text-[11px] text-gray-300 leading-none">Ante</span>
+      <span className="text-[11px] text-gray-300 leading-none">{dict.ante[lang]}</span>
       <div className="stat-inner flex items-baseline justify-center">
         <span className="text-lg font-pixel-fat text-[#ff9e2c] leading-none">{ante}</span>
         <span className="text-[9px] text-gray-400 ml-0.5">/8</span>
@@ -1071,7 +1105,7 @@ function ScoreStar({ className }: { className?: string }) {
   );
 }
 
-function DeckPile({ count, total, deckType = "red" }: { count: number; total: number; deckType?: DeckType }) {
+function DeckPile({ count, total, deckType = "red", lang }: { count: number; total: number; deckType?: DeckType; lang: Lang }) {
   // Build a small stack of 4 card backs to simulate the Balatro deck pile
   const layers = Math.min(4, Math.max(1, Math.ceil(count / (total / 4))));
   const empty = count === 0;
@@ -1118,7 +1152,7 @@ function DeckPile({ count, total, deckType = "red" }: { count: number; total: nu
               {!empty && (
                 <img
                   src={`/assets/cards/back-${backColor}.webp`}
-                  alt="Deck Back"
+                  alt={dict.deckBack[lang]}
                   className="h-full w-full object-cover pixelated"
                   style={{
                     imageRendering: "pixelated",
@@ -1147,7 +1181,7 @@ function DeckPile({ count, total, deckType = "red" }: { count: number; total: nu
             className="absolute inset-0 rounded-[6px] border-2 border-dashed border-white/20 flex items-center justify-center"
             style={{ background: "rgba(0,0,0,0.3)" }}
           >
-            <span className="font-pixel text-[9px] text-white/30 text-center leading-tight">EMPTY</span>
+            <span className="font-pixel text-[9px] text-white/30 text-center leading-tight">{dict.empty[lang]}</span>
           </div>
         )}
       </div>
@@ -1165,10 +1199,12 @@ function BlindXpBar({
   score,
   target,
   kind,
+  lang,
 }: {
   score: number;
   target: number;
   kind: Blind["kind"];
+  lang: Lang;
 }) {
   // Minecraft-style XP bar: 10 thin segments that light up as you progress.
   // Color follows the blind kind (small=cyan, big=orange, boss=magenta).
@@ -1178,7 +1214,7 @@ function BlindXpBar({
   const filled = Math.floor(pct * 10);
 
   return (
-    <div className="flex gap-[2px] h-[5px] px-[1px]" aria-label={`Blind progress: ${Math.round(pct * 100)}%`}>
+    <div className="flex gap-[2px] h-[5px] px-[1px]" aria-label={fmt(dict.blindProgress[lang], { pct: Math.round(pct * 100) })}>
       {Array.from({ length: 10 }, (_, i) => {
         const on = i < filled;
         return (
@@ -1196,12 +1232,12 @@ function BlindXpBar({
   );
 }
 
-function BlindToken({ kind }: { kind: Blind["kind"] }) {
+function BlindToken({ kind, lang }: { kind: Blind["kind"]; lang: Lang }) {
   // Synthwave: small→cyan, big→sun, boss→magenta
   const color = kind === "small" ? "#00f0ff" : kind === "big" ? "#ff9e2c" : "#ff2e88";
   const border = kind === "small" ? "#0077b6" : kind === "big" ? "#b35900" : "#a01657";
   const shadow = kind === "small" ? "#003a5a" : kind === "big" ? "#6b3d00" : "#5a0c30";
-  const label = kind === "boss" ? "BOSS\nBLIND" : kind === "big" ? "BIG\nBLIND" : "SML\nBLIND";
+  const label = kind === "boss" ? dict.bossBlind[lang] : kind === "big" ? dict.bigBlind[lang] : dict.smlBlind[lang];
   const glow = kind === "small" ? "rgba(0,240,255,0.5)" : kind === "big" ? "rgba(255,158,44,0.5)" : "rgba(255,46,136,0.55)";
 
   return (
@@ -1253,6 +1289,7 @@ interface LeaderboardOverlayProps {
   scoreSubmitted: boolean;
   submittingScore: boolean;
   onSubmitScore: () => Promise<void>;
+  lang: Lang;
 }
 
 function LeaderboardOverlay({
@@ -1263,6 +1300,7 @@ function LeaderboardOverlay({
   scoreSubmitted,
   submittingScore,
   onSubmitScore,
+  lang,
 }: LeaderboardOverlayProps) {
   const [scores, setScores] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1329,12 +1367,12 @@ function LeaderboardOverlay({
     setRegistering(true);
     const success = await registerUsernameToCelo(usernameInput.trim());
     if (success) {
-      alert("Username set successfully!");
+      alert(dict.usernameSetSuccess[lang]);
       setRegisteredUsername(usernameInput.trim());
       setUsernameInput("");
       loadLeaderboard();
     } else {
-      alert("Failed to set username. Make sure you confirmed the registration and have a small network fee in USDT.");
+      alert(dict.setUsernameFailed[lang]);
     }
     setRegistering(false);
   };
@@ -1344,13 +1382,13 @@ function LeaderboardOverlay({
       <div className="panel anim-pop rounded-xl px-4 py-4 w-full max-w-[310px] flex flex-col items-center">
         {/* Title */}
         <div className="font-pixel-fat mb-1 text-3xl txt-chrome">
-          LEADERBOARD
+          {dict.leaderboardTitle[lang]}
         </div>
 
         {/* Wallet connection info — show username as primary identifier, address only as secondary hint */}
         <div className="text-[10px] text-gray-300 font-pixel mb-3 flex items-center justify-center gap-1.5 bg-black/40 px-2.5 py-0.5 rounded-full border border-white/5">
           <div className="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse"></div>
-          <span>{registeredUsername ? registeredUsername : (walletAddress.startsWith("0xceloGuest") ? "Guest" : `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)}</span>
+          <span>{registeredUsername ? registeredUsername : (walletAddress.startsWith("0xceloGuest") ? dict.guest[lang] : `${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)}</span>
         </div>
 
         {/* Username Registration Form (if connected to a wallet) */}
@@ -1358,23 +1396,23 @@ function LeaderboardOverlay({
           <div className="w-full bg-black/20 border border-white/5 rounded-lg p-2 mb-3 flex flex-col gap-1.5 font-pixel text-xs">
             {registeredUsername ? (
               <div className="text-center py-1">
-                <span className="text-gray-400 text-[10px] block">YOUR USERNAME:</span>
+                <span className="text-gray-400 text-[10px] block">{dict.yourUsername[lang]}</span>
                 <span className="text-[#ff9e2c] font-pixel-fat text-sm">{registeredUsername}</span>
                 <button
                   type="button"
                   onClick={() => setRegisteredUsername(null)}
                   className="text-gray-500 hover:text-gray-300 text-[9px] block mx-auto mt-1 underline font-pixel"
                 >
-                  Change Username
+                  {dict.changeUsername[lang]}
                 </button>
               </div>
             ) : (
               <>
-                <div className="text-gray-400 text-[10px]">REGISTER UNIQUE USERNAME:</div>
+                <div className="text-gray-400 text-[10px]">{dict.registerUniqueUsername[lang]}</div>
                 <div className="flex gap-1.5 w-full">
                   <input
                     type="text"
-                    placeholder="Username (max 20 chars)"
+                    placeholder={dict.usernamePlaceholder2[lang]}
                     maxLength={20}
                     value={usernameInput}
                     onChange={(e) => setUsernameInput(e.target.value)}
@@ -1387,7 +1425,7 @@ function LeaderboardOverlay({
                     disabled={registering || !usernameInput.trim()}
                     className="btn-chunky btn-orange px-3 py-1 text-[10px] leading-none shrink-0"
                   >
-                    {registering ? "..." : "SET"}
+                    {registering ? "..." : dict.set[lang]}
                   </button>
                 </div>
               </>
@@ -1398,9 +1436,9 @@ function LeaderboardOverlay({
         {/* Save score section if user has a score that hasn't been submitted yet */}
         {!walletAddress.startsWith("0xceloGuest") && lastScore > 0 && (
           <div className="w-full bg-[#0a2a24] border border-[#00f0ff]/20 rounded-lg p-2 mb-3 flex flex-col gap-1.5 font-pixel text-xs">
-            <div className="text-gray-400 text-[9px] uppercase tracking-wider text-center">Current Session Score</div>
+            <div className="text-gray-400 text-[9px] uppercase tracking-wider text-center">{dict.currentSessionScore[lang]}</div>
             <div className="flex justify-between items-center px-1">
-              <span className="text-gray-300">Round {lastRound}</span>
+              <span className="text-gray-300">{dict.round[lang]} {lastRound}</span>
               <span className="text-[#00f0ff] font-pixel-fat text-sm">{lastScore} pts</span>
             </div>
             <button
@@ -1409,7 +1447,7 @@ function LeaderboardOverlay({
               disabled={submittingScore || scoreSubmitted}
               className="btn-chunky btn-orange w-full py-1 text-[10px] leading-none flex items-center justify-center gap-1"
             >
-              {submittingScore ? "SUBMITTING..." : scoreSubmitted ? "SAVED ✓" : "SUBMIT SCORE"}
+              {submittingScore ? dict.submitting[lang] : scoreSubmitted ? dict.saved[lang] : dict.submitScore[lang]}
             </button>
           </div>
         )}
@@ -1417,17 +1455,17 @@ function LeaderboardOverlay({
         {/* Scores Table */}
         <div className="w-full flex-1 bg-[#1a1d20] border-2 border-black/40 rounded-lg p-1.5 mb-4 max-h-[200px] overflow-y-auto">
           {loading ? (
-            <div className="text-center text-xs text-gray-500 font-pixel py-8 animate-pulse">LOADING SCORES...</div>
+            <div className="text-center text-xs text-gray-500 font-pixel py-8 animate-pulse">{dict.loadingScores[lang]}</div>
           ) : scores.length === 0 ? (
-            <div className="text-center text-xs text-gray-500 font-pixel py-8">NO SCORES YET</div>
+            <div className="text-center text-xs text-gray-500 font-pixel py-8">{dict.noScoresYet[lang]}</div>
           ) : (
             <table className="w-full text-left font-pixel text-xs border-collapse">
               <thead>
                 <tr className="border-b border-white/10 text-gray-400 text-[10px]">
                   <th className="pb-1 w-6">#</th>
-                  <th className="pb-1">PLAYER</th>
-                  <th className="pb-1 text-right">ROUND</th>
-                  <th className="pb-1 text-right">SCORE</th>
+                  <th className="pb-1">{dict.colPlayer[lang]}</th>
+                  <th className="pb-1 text-right">{dict.colRound[lang]}</th>
+                  <th className="pb-1 text-right">{dict.colScore[lang]}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1436,8 +1474,8 @@ function LeaderboardOverlay({
                   const rankColors = ["text-[#ffd700]", "text-[#c0c0c0]", "text-[#cd7f32]"];
                   const rankColor = rankColors[index] || "text-white";
                   return (
-                    <tr 
-                      key={index} 
+                    <tr
+                      key={index}
                       className={`border-b border-white/5 last:border-b-0 py-1 ${isCurrentPlayer ? "bg-white/10 rounded" : ""}`}
                     >
                       <td className={`py-1 font-bold ${rankColor}`}>{index + 1}</td>
@@ -1445,8 +1483,8 @@ function LeaderboardOverlay({
                         {entry.username
                           ? entry.username
                           : entry.address.startsWith("0xceloGuest")
-                          ? "Guest"
-                          : `Player ${entry.address.slice(2, 6)}`}
+                          ? dict.guest[lang]
+                          : fmt(dict.playerN[lang], { n: entry.address.slice(2, 6) })}
                       </td>
                       <td className="py-1 text-right text-gray-400">{entry.round}</td>
                       <td className="py-1 text-right font-pixel-fat text-[#00f0ff]">{entry.score}</td>
@@ -1460,12 +1498,12 @@ function LeaderboardOverlay({
 
         {/* Buttons */}
         <div className="w-full mt-auto">
-          <button 
-            type="button" 
-            onClick={onClose} 
+          <button
+            type="button"
+            onClick={onClose}
             className="btn-chunky btn-blue py-1.5 text-xs w-full"
           >
-            CLOSE
+            {dict.closeCaps[lang]}
           </button>
         </div>
       </div>
@@ -1473,7 +1511,7 @@ function LeaderboardOverlay({
   );
 }
 
-function CooldownCountdown({ cooldownEnd, onExpired }: { cooldownEnd: number; onExpired: () => void }) {
+function CooldownCountdown({ cooldownEnd, onExpired, lang }: { cooldownEnd: number; onExpired: () => void; lang: Lang }) {
   const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
@@ -1486,7 +1524,7 @@ function CooldownCountdown({ cooldownEnd, onExpired }: { cooldownEnd: number; on
       const h = Math.floor(diff / (1000 * 60 * 60));
       const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const s = Math.floor((diff % (1000 * 60)) / 1000);
-      
+
       const pad = (n: number) => String(n).padStart(2, "0");
       setTimeLeft(`${pad(h)}h ${pad(m)}m ${pad(s)}s`);
     };
@@ -1498,7 +1536,45 @@ function CooldownCountdown({ cooldownEnd, onExpired }: { cooldownEnd: number; on
 
   return (
     <div className="font-pixel text-[11px] text-gray-400 mt-1">
-      Free play in: <span className="text-white font-mono">{timeLeft || "--:--:--"}</span>
+      {dict.freePlayIn[lang]} <span className="text-white font-mono">{timeLeft || "--:--:--"}</span>
+    </div>
+  );
+}
+
+/* ─── EN/ES language toggle (synthwave segmented control) ───
+   Sits in the top-right corner. Each segment is min-w-[44px] (so the
+   centered .tap-target extender only grows the height, never overlapping
+   the sibling segment). Vertical growth lands in the non-interactive stats
+   bar (above) and the timer/free area (below). */
+function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
+  const base =
+    "tap-target font-pixel-fat text-[10px] leading-none min-w-[44px] py-1 text-center transition-[transform,box-shadow] active:translate-y-[1px] border-y-2 border-black/40";
+  return (
+    <div className="absolute top-[44px] right-0 z-30 anim-pop flex" role="group" aria-label={dict.language[lang]}>
+      <button
+        type="button"
+        onClick={() => setLang("en")}
+        aria-pressed={lang === "en"}
+        className={`${base} rounded-l-lg border-l-2 ${
+          lang === "en"
+            ? "bg-[#00f0ff] text-[#04243a] shadow-[0_3px_0_#0077b6,0_0_8px_rgba(0,240,255,0.5)]"
+            : "bg-[#1a0d3a] text-[#b8aeff] shadow-[0_3px_0_#0a0420]"
+        }`}
+      >
+        {dict.langEn[lang]}
+      </button>
+      <button
+        type="button"
+        onClick={() => setLang("es")}
+        aria-pressed={lang === "es"}
+        className={`${base} rounded-r-lg border-r-2 border-l-0 ${
+          lang === "es"
+            ? "bg-[#ff9e2c] text-white shadow-[0_3px_0_#b35900,0_0_8px_rgba(255,158,44,0.5)]"
+            : "bg-[#1a0d3a] text-[#b8aeff] shadow-[0_3px_0_#0a0420]"
+        }`}
+      >
+        {dict.langEs[lang]}
+      </button>
     </div>
   );
 }

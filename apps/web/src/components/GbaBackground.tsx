@@ -1155,11 +1155,41 @@ export function GbaBackground({ blindKind, phase }: GbaBackgroundProps) {
       drawPost(t, p);
     };
 
+    // Single static frame at t=0/p=0 — used when the user prefers reduced
+    // motion. Draws the full scene once with the correct blind-theme palette
+    // (no animation), so the background never goes blank. At t=0 the
+    // breathing/pulse/shimmer coefficients resolve to their neutral values,
+    // producing a valid, representative frame.
+    const drawStaticFrame = () => {
+      const theme = themes[blindKind] || themes.small;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawSky(0, 0, theme);
+      drawSun(0, theme);
+      drawPyramids(0);
+      drawTerrain(0, 0, theme);
+      drawRoad(0, 0, theme);
+      drawPalms(0);
+      drawPost(0, 0);
+    };
+
+    // Respect prefers-reduced-motion: render one static frame and never start
+    // the rAF loop. Resize/orientation changes still redraw a single frame.
+    // Guarded for SSR (useEffect never runs during SSR, but be defensive).
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     resize();
-    animationId = requestAnimationFrame(render);
+    if (reduceMotion) {
+      drawStaticFrame();
+    } else {
+      animationId = requestAnimationFrame(render);
+    }
 
     const handleResize = () => {
       resize();
+      if (reduceMotion) drawStaticFrame();
     };
 
     const resizeObserver = new ResizeObserver(() => handleResize());

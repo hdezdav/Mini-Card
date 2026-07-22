@@ -5,6 +5,7 @@ import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
 import { GbaBackground } from "./GbaBackground";
 import { useState, useCallback } from "react";
 import { approveBoosterPack, buyBoosterPack, handlePaymentFailure } from "@/lib/web3";
+import { dict, fmt, jokerName, jokerDesc, rarityName, type Lang } from "@/lib/i18n";
 
 function getOffers(owned: OwnedJoker[], ante: number): JokerDef[] {
   return rollShopJokersWeighted(owned, 3, ante);
@@ -27,11 +28,12 @@ interface ShopProps {
   onSell: (idx: number) => void;
   onClose: () => void;
   onBoosterJoker: (jokerId: number) => void;
+  lang: Lang;
 }
 
 type PackState = "idle" | "approving" | "buying" | "success" | "error";
 
-export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoosterJoker }: ShopProps) {
+export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoosterJoker, lang }: ShopProps) {
   const ownedIds = new Set(ownedJokers.map((j) => j.def.id));
   const [offers] = useState<JokerDef[]>(() => getOffers(ownedJokers, ante));
   const [packState, setPackState] = useState<PackState>("idle");
@@ -54,7 +56,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       const approved = await approveBoosterPack();
       if (!approved) {
         setPackState("error");
-        setPackError("Approval rejected. Please confirm it in your wallet.");
+        setPackError(dict.approvalRejected[lang]);
         setTimeout(() => setPackState("idle"), 3000);
         return;
       }
@@ -67,7 +69,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       if (result.status === "reverted") {
         // Tx reverted — no funds moved, no pack opened. Safe to retry.
         setPackState("error");
-        setPackError("Could not open pack. Please try again.");
+        setPackError(dict.couldNotOpen[lang]);
         setTimeout(() => setPackState("idle"), 3000);
         return;
       }
@@ -76,7 +78,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
         // Tx SUCCEEDED — the user paid and a pack was opened on-chain, but the
         // result could not be read back. Do NOT retry (would charge twice).
         setPackState("error");
-        setPackError("Pack opened, but the result could not be read. Do not retry — check your packs later.");
+        setPackError(dict.packOpenedUnreadable[lang]);
         setTimeout(() => setPackState("idle"), 6000);
         return;
       }
@@ -87,14 +89,14 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       const def = JOKER_DEFS.find((j) => j.id === jokerId);
       if (!def) {
         setPackState("error");
-        setPackError(`Unknown joker ID: ${jokerId}`);
+        setPackError(fmt(dict.unknownJokerId[lang], { id: jokerId }));
         setTimeout(() => setPackState("idle"), 3000);
         return;
       }
 
       // Check if duplicate
       const isDuplicate = ownedIds.has(jokerId);
-      setPackResult({ name: def.name, rarity: def.rarity, duplicate: isDuplicate });
+      setPackResult({ name: jokerName(def, lang), rarity: def.rarity, duplicate: isDuplicate });
 
       // Notify parent — if duplicate, parent gives sell value as money instead
       onBoosterJoker(jokerId);
@@ -110,17 +112,17 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       if (handlePaymentFailure(err)) return;
       console.error("Booster pack error:", err);
       setPackState("error");
-      setPackError("Payment failed. Please try again.");
+      setPackError(dict.paymentFailed[lang]);
       setTimeout(() => setPackState("idle"), 3000);
     }
-  }, [isBusy, ownedIds, onBoosterJoker]);
+  }, [isBusy, ownedIds, onBoosterJoker, lang]);
 
   const packStatusLabel = () => {
     switch (packState) {
-      case "approving": return "Approving…";
-      case "buying": return "Opening…";
-      case "success": return "Opened!";
-      case "error": return "Failed";
+      case "approving": return dict.approving[lang];
+      case "buying": return dict.opening[lang];
+      case "success": return dict.opened[lang];
+      case "error": return dict.failed[lang];
       default: return "";
     }
   };
@@ -131,12 +133,12 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       {/* Dark scrim on top of the background so text stays readable */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50 pointer-events-none z-0" />
       <div className="flex-1 flex flex-col p-3 overflow-y-auto relative z-10" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>
-        <div className="font-pixel-fat text-2xl txt-chrome text-center mb-2">SHOP</div>
+        <div className="font-pixel-fat text-2xl txt-chrome text-center mb-2">{dict.shopTitle[lang]}</div>
         <div className="font-pixel text-sm text-[#ff9e2c] text-center mb-3">💰 ${money}</div>
 
       {/* For Sale header */}
       <div className="flex items-center justify-between mb-1">
-        <span className="font-pixel text-xs text-gray-400">— For Sale —</span>
+        <span className="font-pixel text-xs text-gray-400">{dict.forSale[lang]}</span>
       </div>
 
       <div className="flex flex-col gap-2 mb-4">
@@ -152,12 +154,12 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
                 <JokerArtworkFrame rarity={def.rarity} className="h-full w-full" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-pixel-fat text-sm text-white leading-none">{def.name}</div>
-                <div style={{ color: RARITY_COLOR[def.rarity] }} className="font-pixel text-[10px] leading-none mt-0.5 capitalize">{def.rarity}</div>
-                <div className="font-pixel text-[10px] text-gray-300 leading-tight mt-1">{def.desc}</div>
+                <div className="font-pixel-fat text-sm text-white leading-none">{jokerName(def, lang)}</div>
+                <div style={{ color: RARITY_COLOR[def.rarity] }} className="font-pixel text-[10px] leading-none mt-0.5 capitalize">{rarityName(def.rarity, lang)}</div>
+                <div className="font-pixel text-[10px] text-gray-300 leading-tight mt-1">{jokerDesc(def, lang)}</div>
                 {conflict && (
                   <div className="font-pixel text-[9px] text-[#ff2e88] leading-tight mt-1">
-                    conflicts with {conflict.def.name}
+                    {fmt(dict.conflictsWith[lang], { name: jokerName(conflict.def, lang) })}
                   </div>
                 )}
               </div>
@@ -178,7 +180,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
           Wrapped in a translucent purple panel so the info text stays readable
           against the animated background. */}
       <div className="mb-2 mt-1.5 rounded-xl border border-[#b026ff]/30 bg-[#1a0d3a]/70 backdrop-blur-sm p-2">
-        <div className="font-pixel text-xs text-[#c9b8ff] mb-1.5 text-center">— Booster Packs —</div>
+        <div className="font-pixel text-xs text-[#c9b8ff] mb-1.5 text-center">{dict.boosterPacks[lang]}</div>
         <div className="flex justify-center gap-4 items-center pt-1 pb-4 px-2">
 
           {PACK_THEMES.map((pack) => {
@@ -298,10 +300,10 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
             <div className="flex-1 min-w-0">
               <div className="font-pixel-fat text-sm text-white leading-none">{packResult.name}</div>
               <div style={{ color: RARITY_COLOR[packResult.rarity] }} className="font-pixel text-[10px] leading-none mt-0.5 capitalize">
-                {packResult.rarity}
+                {rarityName(packResult.rarity, lang)}
               </div>
               <div className="font-pixel text-[9px] text-gray-400 mt-0.5">
-                {packResult.duplicate ? "Duplicate — refunded sell value" : "New joker added!"}
+                {packResult.duplicate ? dict.duplicateRefund[lang] : dict.newJokerAdded[lang]}
               </div>
             </div>
           </div>
@@ -316,29 +318,29 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
 
         {/* Odds — transparent, no crypto jargon */}
         <div className="font-pixel text-[8px] text-white/55 leading-tight flex gap-3 flex-wrap justify-center mt-2">
-          <span>Common 60%</span>
-          <span>Uncommon 25%</span>
-          <span>Rare 12%</span>
-          <span>Legendary 3%</span>
+          <span>{dict.commonPct[lang]}</span>
+          <span>{dict.uncommonPct[lang]}</span>
+          <span>{dict.rarePct[lang]}</span>
+          <span>{dict.legendaryPct[lang]}</span>
         </div>
       </div>
 
       {ownedJokers.length > 0 && (
         <>
-          <div className="font-pixel text-xs text-gray-400 mb-1">— Your Jokers (click to sell) —</div>
+          <div className="font-pixel text-xs text-gray-400 mb-1">{dict.yourJokersSell[lang]}</div>
           <div className="flex gap-2 flex-wrap mb-4">
             {ownedJokers.map((oj, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => onSell(idx)}
-                className="panel rounded-lg p-1.5 flex flex-col items-center gap-1 w-[60px] text-center hover:brightness-110 active:scale-95 transition-transform"
-                title={`Sell for $${Math.floor(jokerBaseCost(oj.def) / 2)}`}
+                className="panel tap-target rounded-lg p-1.5 flex flex-col items-center gap-1 w-[60px] text-center hover:brightness-110 active:scale-95 transition-transform"
+                title={fmt(dict.sellFor[lang], { amount: Math.floor(jokerBaseCost(oj.def) / 2) })}
               >
                 <div className="w-8 h-10 rounded overflow-hidden flex items-center justify-center relative p-0.5">
                   <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
                 </div>
-                <div className="font-pixel text-[8px] text-gray-300 leading-none">{oj.def.name}</div>
+                <div className="font-pixel text-[8px] text-gray-300 leading-none">{jokerName(oj.def, lang)}</div>
                 <div className="font-pixel text-[9px] text-[#ff9e2c]">${Math.floor(jokerBaseCost(oj.def) / 2)}</div>
               </button>
             ))}
@@ -348,7 +350,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
 
       {/* Info note — no crypto/blockchain/on-chain jargon per MiniPay rules */}
       <div className="font-pixel text-[9px] text-white/60 text-center mb-2 leading-tight px-2">
-         Each pack contains 1 random joker · $0.02 USDT
+        {dict.packInfo[lang]}
       </div>
 
       </div>
@@ -356,7 +358,7 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       {/* Sticky bottom panel for Next Blind action */}
       <div className="relative z-20 px-3 pb-3 pt-1.5 border-t border-[#b026ff]/35 bg-[#120630] flex shrink-0" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
         <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base">
-          Next Blind →
+          {dict.nextBlind[lang]}
         </button>
       </div>
     </div>

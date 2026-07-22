@@ -218,6 +218,62 @@ select {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2) !important;
 }
 
+/* ─── Tap-target hit-area extenders (a11y: ≥44×44px min touch target) ───
+   Expands the tappable box to at least 44px on the minor axis WITHOUT
+   changing the visible control size or shifting siblings. The transparent
+   ::before is generated content of the control itself, so clicks on the
+   extender register as clicks on the control. Position:absolute keeps it
+   out of flow (no layout shift). Independent of the control's height, so
+   the short-viewport @media (max-height:720px) height overrides still leave
+   a 44px hit area. Variants bias the growth toward the side with room when
+   an interactive neighbor sits on the other side. */
+.tap-target,
+.tap-target-up,
+.tap-target-down {
+  position: relative;
+}
+.tap-target::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  background: transparent;
+  pointer-events: auto;
+}
+/* Interactive neighbor below → grow the hit area upward (into non-interactive
+   space above the control). Anchors to the control's bottom edge. */
+.tap-target-up::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 44px;
+  min-width: 44px;
+  background: transparent;
+  pointer-events: auto;
+}
+/* Interactive neighbor above → grow the hit area downward (into non-interactive
+   space below the control). Anchors to the control's top edge. */
+.tap-target-down::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 44px;
+  min-width: 44px;
+  background: transparent;
+  pointer-events: auto;
+}
+
 /* Stat boxes — navy recess with neon inner glow (premium glass) */
 .stat-box {
   background: linear-gradient(180deg, rgba(26, 13, 58, 0.8), rgba(18, 9, 42, 0.9));
@@ -988,6 +1044,27 @@ select {
   .joker-artwork-frame,
   .joker-artwork-frame::after,
   .edition-polychrome {
+    animation: none !important;
+  }
+  /* Decorative motion only — pop/draw/play/score/scorefly/bob idle floats,
+     pack foil sweep + pulse, deck float, and CRT flicker. Functional color
+     and state transitions are preserved (they are `transition`, not motion). */
+  .anim-pop,
+  .anim-draw-card,
+  .anim-play-card,
+  .anim-score-card,
+  .anim-scorefly,
+  .anim-bob,
+  .pack-foil::after,
+  .pack-shadow,
+  .deck-float {
+    animation: none !important;
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+  }
+  /* CRT flicker is carried by .synthwave-overlay (covered above) — listed
+     explicitly for clarity per the reduced-motion audit. */
+  .synthwave-overlay {
     animation: none !important;
   }
 }
