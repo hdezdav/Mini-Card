@@ -20,6 +20,7 @@ interface RunInfoProps {
   onSelectDeck: (type: DeckType) => void;
   onClose: () => void;
   lang: Lang;
+  setLang: (l: Lang) => void;
 }
 
 export function RunInfo({
@@ -32,6 +33,7 @@ export function RunInfo({
   onSelectDeck,
   onClose,
   lang,
+  setLang,
 }: RunInfoProps) {
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm p-3 overflow-y-auto" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
@@ -88,6 +90,44 @@ export function RunInfo({
               </button>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="font-pixel text-xs text-gray-400 mb-1">{dict.language[lang]}</div>
+      <div className="panel rounded-lg p-2 flex items-center justify-between gap-2 mb-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-pixel-fat text-[11px] text-white">
+            {lang === "es" ? "Español" : "English"}
+          </span>
+          <span className="font-pixel text-[9px] text-gray-400">
+            {lang === "es" ? "Idioma del juego" : "Game language"}
+          </span>
+        </div>
+        <div className="flex gap-1.5" role="group" aria-label={dict.language[lang]}>
+          <button
+            type="button"
+            onClick={() => setLang("en")}
+            aria-pressed={lang === "en"}
+            className={`tap-target px-3 py-1 rounded font-pixel-fat text-xs border transition-all ${
+              lang === "en"
+                ? "bg-[#00f0ff] text-[#04243a] border-[#00f0ff] shadow-[0_0_8px_rgba(0,240,255,0.5)]"
+                : "bg-[#0a0420] text-gray-400 border-gray-700 hover:border-gray-500"
+            }`}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => setLang("es")}
+            aria-pressed={lang === "es"}
+            className={`tap-target px-3 py-1 rounded font-pixel-fat text-xs border transition-all ${
+              lang === "es"
+                ? "bg-[#ff9e2c] text-white border-[#ff9e2c] shadow-[0_0_8px_rgba(255,158,44,0.5)]"
+                : "bg-[#0a0420] text-gray-400 border-gray-700 hover:border-gray-500"
+            }`}
+          >
+            ES
+          </button>
         </div>
       </div>
 

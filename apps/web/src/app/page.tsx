@@ -650,10 +650,7 @@ function HomeGame() {
         {/* Floating Music Toggle (sits below the joker slots on the left edge) */}
         <MusicToggle lang={lang} />
 
-        {/* Floating EN/ES language toggle (top-right corner; extenders grow
-            into the non-interactive stats bar above and the timer/free space
-            below, so no tappable neighbor is overlapped). */}
-        <LangToggle lang={lang} setLang={setLang} />
+
 
         {/* Floating Timer Widget (Active from Round 2+) */}
         {round > 1 && phase === "playing" && (
@@ -977,6 +974,7 @@ function HomeGame() {
             onSelectDeck={handleSelectDeck}
             onClose={() => setShowRunInfo(false)}
             lang={lang}
+            setLang={setLang}
           />
         )}
 
@@ -1541,40 +1539,4 @@ function CooldownCountdown({ cooldownEnd, onExpired, lang }: { cooldownEnd: numb
   );
 }
 
-/* ─── EN/ES language toggle (synthwave segmented control) ───
-   Sits in the top-right corner. Each segment is min-w-[44px] (so the
-   centered .tap-target extender only grows the height, never overlapping
-   the sibling segment). Vertical growth lands in the non-interactive stats
-   bar (above) and the timer/free area (below). */
-function LangToggle({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void }) {
-  const base =
-    "tap-target font-pixel-fat text-[10px] leading-none min-w-[44px] py-1 text-center transition-[transform,box-shadow] active:translate-y-[1px] border-y-2 border-black/40";
-  return (
-    <div className="absolute top-[44px] right-0 z-30 anim-pop flex" role="group" aria-label={dict.language[lang]}>
-      <button
-        type="button"
-        onClick={() => setLang("en")}
-        aria-pressed={lang === "en"}
-        className={`${base} rounded-l-lg border-l-2 ${
-          lang === "en"
-            ? "bg-[#00f0ff] text-[#04243a] shadow-[0_3px_0_#0077b6,0_0_8px_rgba(0,240,255,0.5)]"
-            : "bg-[#1a0d3a] text-[#b8aeff] shadow-[0_3px_0_#0a0420]"
-        }`}
-      >
-        {dict.langEn[lang]}
-      </button>
-      <button
-        type="button"
-        onClick={() => setLang("es")}
-        aria-pressed={lang === "es"}
-        className={`${base} rounded-r-lg border-r-2 border-l-0 ${
-          lang === "es"
-            ? "bg-[#ff9e2c] text-white shadow-[0_3px_0_#b35900,0_0_8px_rgba(255,158,44,0.5)]"
-            : "bg-[#1a0d3a] text-[#b8aeff] shadow-[0_3px_0_#0a0420]"
-        }`}
-      >
-        {dict.langEs[lang]}
-      </button>
-    </div>
-  );
-}
+

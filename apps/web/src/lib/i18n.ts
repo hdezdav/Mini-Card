@@ -29,14 +29,26 @@ export interface Localized {
   es: string;
 }
 
-/** Spanish-primary detection: English devices → "en", everything else → "es". */
+/** Automatic device language detection: checks navigator.languages and navigator.language.
+ *  Returns "en" if device primary language is English, otherwise "es". */
 export function detectLang(): Lang {
   if (typeof window === "undefined") return "es";
-  const nav =
-    navigator.language ||
-    (navigator as unknown as { userLanguage?: string }).userLanguage ||
-    "es";
-  return nav.toLowerCase().startsWith("en") ? "en" : "es";
+  const langs =
+    navigator.languages && navigator.languages.length > 0
+      ? navigator.languages
+      : [
+          navigator.language ||
+            (navigator as unknown as { userLanguage?: string }).userLanguage ||
+            "es",
+        ];
+
+  for (const l of langs) {
+    if (!l) continue;
+    const lower = l.toLowerCase();
+    if (lower.startsWith("en")) return "en";
+    if (lower.startsWith("es")) return "es";
+  }
+  return "es";
 }
 
 interface LangContextValue {
