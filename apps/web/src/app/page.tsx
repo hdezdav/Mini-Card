@@ -28,6 +28,8 @@ import {
   jokerBaseCost,
   jokerConflictsWith,
   JOKER_DEFS,
+  DECK_TYPES,
+  getMaxJokerSlots,
   shuffle,
 } from "@/lib/game";
 import { autoConnect, submitScoreToCelo, getScoresFromCelo, registerUsernameToCelo, isMiniPay, resolveUsernamesForScores, getUsernameFromCelo, checkHasUsername, payRestartWithMiniPay, handlePaymentFailure } from "@/lib/web3";
@@ -41,6 +43,8 @@ import {
   handName,
   jokerName,
   jokerDesc,
+  bossName,
+  bossDesc,
   rarityName,
   type Lang,
 } from "@/lib/i18n";
@@ -287,26 +291,34 @@ function HomeGame() {
   const { ante, blind } = useMemo(() => blindForRound(round), [round]);
 
   const startRound = useCallback(() => {
+    const deckInfo = DECK_TYPES[deckType] ?? DECK_TYPES.red;
     const fresh = shuffle(createDeck());
-    const newHand = fresh.slice(0, HAND_SIZE);
-    setDeck(fresh.slice(HAND_SIZE));
+    const baseHandSize = HAND_SIZE + deckInfo.bonusHandSize;
+    const handSize = (blind.kind === "boss" && blind.bossId === "manacle") ? baseHandSize - 1 : baseHandSize;
+    const newHand = fresh.slice(0, handSize);
+    setDeck(fresh.slice(handSize));
     setHand(newHand);
     setSelected([]);
     setPlayZone([]);
     setRoundScore(0);
-    setHandsLeft(4);
-    setDiscardsLeft(3);
+    const baseHands = 4 + deckInfo.bonusHands;
+    const hands = (blind.kind === "boss" && blind.bossId === "needle") ? 1 : baseHands;
+    setHandsLeft(hands);
+    const baseDiscards = 3 + deckInfo.bonusDiscards;
+    const discards = (blind.kind === "boss" && blind.bossId === "water") ? 0 : baseDiscards;
+    setDiscardsLeft(discards);
     setPhase("playing");
     setAnimChips(null);
     setAnimMult(null);
     setFloats([]);
     setScoringId(null);
-    setTimeLeft(60);
+    const baseTime = ante === 1 ? 60 : ante === 2 ? 75 : 90;
+    setTimeLeft(baseTime);
     // Staggered deal ticks — one per card, slightly offset, like a real deal.
     newHand.forEach((_, i) => {
       setTimeout(() => sfx.play("deal"), 120 + i * 70);
     });
-  }, [sfx]);
+  }, [sfx, deckType, blind, ante]);
 
   useEffect(() => {
     const stored = localStorage.getItem("minicard_cooldown_end");
@@ -418,6 +430,11 @@ function HomeGame() {
   const doPlay = async () => {
     if (phase !== "playing" || busy.current) return;
     if (selected.length === 0) return;
+    if (blind.kind === "boss" && blind.bossId === "psychic" && selected.length !== 5) {
+      pushFloat(selected[0] ?? "", dict.psychicWarning[lang], "#ff2e88");
+      sfx.play("deselect");
+      return;
+    }
     busy.current = true;
 
     try {
@@ -533,7 +550,9 @@ function HomeGame() {
 
       if (end >= blind.target) {
         await delay(200);
-        setMoney((current) => current + blind.reward + Math.min(newHands, 5));
+        const interestRate = deckType === "green" ? 2 : 1;
+        const interest = Math.min(4, Math.floor(money / 5) * interestRate);
+        setMoney((current) => current + blind.reward + Math.min(newHands, 5) + interest);
         saveScore(end);
         sfx.play("win");
         setPhase("shop");
@@ -560,8 +579,9 @@ function HomeGame() {
   };
 
   const handleBuyJoker = (def: JokerDef) => {
+    const maxJokerSlots = getMaxJokerSlots(deckType);
     const cost = jokerBaseCost(def);
-    if (money < cost || ownedJokers.length >= MAX_JOKER_SLOTS) return;
+    if (money < cost || ownedJokers.length >= maxJokerSlots) return;
     // Safety net: the shop UI already blocks conflicting jokers, but double-check here.
     if (jokerConflictsWith(def, ownedJokers)) return;
     setMoney(m => m - cost);
@@ -585,10 +605,11 @@ function HomeGame() {
     const def = JOKER_DEFS.find((j) => j.id === jokerId);
     if (!def) return;
 
+    const maxJokerSlots = getMaxJokerSlots(deckType);
     const isDuplicate = ownedJokers.some((oj) => oj.def.id === jokerId);
     const isConflict = jokerConflictsWith(def, ownedJokers);
 
-    if (isDuplicate || isConflict || ownedJokers.length >= MAX_JOKER_SLOTS) {
+    if (isDuplicate || isConflict || ownedJokers.length >= maxJokerSlots) {
       // Duplicate / conflict / no space — refund sell value as in-game money
       const refund = Math.floor(jokerBaseCost(def) / 2);
       setMoney(m => m + refund);
@@ -598,7 +619,7 @@ function HomeGame() {
       setOwnedJokers(prev => [...prev, { def, edition: "base", state: {} }]);
       sfx.play("buy");
     }
-  }, [ownedJokers, sfx]);
+  }, [ownedJokers, sfx, deckType]);
 
   const enterNextBlind = () => {
     const nextRound = round + 1;
@@ -607,8 +628,9 @@ function HomeGame() {
   };
 
   const restart = () => {
+    const deckInfo = DECK_TYPES[deckType] ?? DECK_TYPES.red;
     setRound(1);
-    setMoney(4);
+    setMoney(4 + deckInfo.bonusMoney);
     setOwnedJokers([]);
     levels.current = {};
     startRound();
@@ -692,6 +714,21 @@ function HomeGame() {
           <MoneyBox money={money} />
         </div>
 
+        {/* Active Boss Blind Banner */}
+        {blind.kind === "boss" && phase === "playing" && (
+          <div className="relative z-20 mx-2 my-0.5 flex items-center justify-between bg-black/85 border border-[#ff2e88]/80 rounded-lg px-2.5 py-1 shadow-[0_4px_12px_rgba(255,46,136,0.3)] anim-pop">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs animate-pulse">👁️</span>
+              <span className="font-pixel-fat text-[11px] text-[#ff2e88] tracking-wide uppercase">
+                {bossName(blind.bossId, blind.name, lang)}
+              </span>
+            </div>
+            <span className="font-pixel text-[10px] text-gray-200">
+              {bossDesc(blind.bossId, blind.effect ?? "", lang)}
+            </span>
+          </div>
+        )}
+
         {/* Floating Music Toggle (sits below the joker slots on the left edge) */}
         <MusicToggle lang={lang} />
 
@@ -712,8 +749,8 @@ function HomeGame() {
 
         {/* Joker Slots */}
         <div className="relative z-10 flex px-2 items-start mt-1">
-          <SlotGroup label={`${ownedJokers.length}/${MAX_JOKER_SLOTS}`} align="left">
-            {Array.from({ length: MAX_JOKER_SLOTS }).map((_, i) => {
+          <SlotGroup label={`${ownedJokers.length}/${getMaxJokerSlots(deckType)}`} align="left">
+            {Array.from({ length: getMaxJokerSlots(deckType) }).map((_, i) => {
               const oj = ownedJokers[i];
               return oj ? (
                 <div
