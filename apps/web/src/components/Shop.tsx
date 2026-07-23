@@ -2,7 +2,6 @@
 import { jokerBaseCost, jokerConflictsWith, rollShopJokersWeighted, JOKER_DEFS, type OwnedJoker, type JokerDef, type JokerRarity } from "@/lib/game";
 import { RARITY_COLOR } from "@/lib/rarity";
 import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
-import { GbaBackground } from "./GbaBackground";
 import { useState, useCallback } from "react";
 import { approveBoosterPack, buyBoosterPack, handlePaymentFailure } from "@/lib/web3";
 import { dict, fmt, jokerName, jokerDesc, rarityName, type Lang } from "@/lib/i18n";
@@ -129,7 +128,6 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-[3px] overflow-hidden">
-      <GbaBackground blindKind="shop" />
       {/* Dark scrim on top of the background so text stays readable */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50 pointer-events-none z-0" />
       <div className="flex-1 flex flex-col p-3 overflow-y-auto relative z-10" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)" }}>

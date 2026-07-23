@@ -37,10 +37,10 @@ export function detectLang(): Lang {
     navigator.languages && navigator.languages.length > 0
       ? navigator.languages
       : [
-          navigator.language ||
-            (navigator as unknown as { userLanguage?: string }).userLanguage ||
-            "es",
-        ];
+        navigator.language ||
+        (navigator as unknown as { userLanguage?: string }).userLanguage ||
+        "es",
+      ];
 
   for (const l of langs) {
     if (!l) continue;

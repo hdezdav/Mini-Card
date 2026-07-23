@@ -128,6 +128,7 @@ function HomeGame() {
   const [payingRestart, setPayingRestart] = useState(false);
 
   // Username gate — all players must register a username before playing
+  const [registeredUsername, setRegisteredUsername] = useState<string | null>(null);
   const [needsUsername, setNeedsUsername] = useState(false);
   const [usernameInput, setUsernameInput] = useState("");
   const [registeringUsername, setRegisteringUsername] = useState(false);
@@ -152,9 +153,15 @@ function HomeGame() {
         setWalletAddress(addr);
         // Check if this wallet already has a username on-chain
         try {
-          const has = await checkHasUsername(addr);
-          if (!has) {
-            setNeedsUsername(true);
+          const uname = await getUsernameFromCelo(addr);
+          if (uname) {
+            setRegisteredUsername(uname);
+            setNeedsUsername(false);
+          } else {
+            const has = await checkHasUsername(addr);
+            if (!has) {
+              setNeedsUsername(true);
+            }
           }
         } catch (err) {
           console.warn("Failed to check username status:", err);
@@ -656,6 +663,7 @@ function HomeGame() {
     try {
       const success = await registerUsernameToCelo(trimmed);
       if (success) {
+        setRegisteredUsername(trimmed);
         setNeedsUsername(false);
         setUsernameInput("");
       } else {
