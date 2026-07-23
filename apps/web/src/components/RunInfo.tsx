@@ -1,5 +1,5 @@
 "use client";
-import { HAND_BASE, HAND_LEVEL_BUMP, type HandType, type OwnedJoker, type DeckType } from "@/lib/game";
+import { HAND_BASE, HAND_LEVEL_BUMP, DECK_TYPES, getMaxJokerSlots, type HandType, type OwnedJoker, type DeckType } from "@/lib/game";
 import { RARITY_COLOR } from "@/lib/rarity";
 import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
 import { dict, fmt, handName, jokerName, jokerDesc, rarityName, type Lang } from "@/lib/i18n";
@@ -55,6 +55,42 @@ export function RunInfo({
       </div>
 
       <div className="font-pixel text-xs text-gray-400 mb-1">{dict.deckTheme[lang]}</div>
+
+      {/* Active Deck Info Card */}
+      {(() => {
+        const info = DECK_TYPES[deckType];
+        const maxJokers = getMaxJokerSlots(deckType);
+        const bonuses: { label: string; value: string; color: string }[] = [
+          { label: lang === "es" ? "Manos" : "Hands", value: info.bonusHands === 0 ? "4" : `4${info.bonusHands > 0 ? `+${info.bonusHands}` : info.bonusHands}`, color: info.bonusHands !== 0 ? "#00f0ff" : "#6b7280" },
+          { label: lang === "es" ? "Desc." : "Discards", value: info.bonusDiscards === 0 ? "3" : `3+${info.bonusDiscards}`, color: info.bonusDiscards !== 0 ? "#ff2e88" : "#6b7280" },
+          { label: lang === "es" ? "Dinero" : "Money", value: info.bonusMoney === 0 ? "$4" : `$${4 + info.bonusMoney}`, color: info.bonusMoney !== 0 ? "#ff9e2c" : "#6b7280" },
+          { label: lang === "es" ? "Mano" : "Hand Sz", value: info.bonusHandSize === 0 ? "7" : `${7 + info.bonusHandSize}`, color: info.bonusHandSize !== 0 ? "#a78bfa" : "#6b7280" },
+          { label: lang === "es" ? "Jokers" : "Jokers", value: `${maxJokers}`, color: maxJokers !== 5 ? "#ff9e2c" : "#6b7280" },
+        ];
+        return (
+          <div className="panel rounded-xl p-2.5 mb-2 flex flex-col gap-2" style={{ borderLeft: `3px solid ${info.color}` }}>
+            {/* Name + description */}
+            <div className="flex items-start gap-2">
+              <span className="inline-block w-2.5 h-2.5 rounded-full mt-0.5 shrink-0" style={{ backgroundColor: info.color }} />
+              <div className="flex flex-col gap-0.5">
+                <span className="font-pixel-fat text-[11px] text-white">{info.name}</span>
+                <span className="font-pixel text-[9px] leading-tight" style={{ color: info.color }}>{info.desc}</span>
+              </div>
+            </div>
+            {/* Bonus stat chips */}
+            <div className="flex gap-1 flex-wrap">
+              {bonuses.map(b => (
+                <div key={b.label} className="flex flex-col items-center bg-black/40 rounded px-1.5 py-0.5 min-w-[36px]">
+                  <span className="font-pixel-fat text-[11px] leading-none" style={{ color: b.color }}>{b.value}</span>
+                  <span className="font-pixel text-[7px] text-gray-500 leading-none mt-0.5">{b.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Deck back selector */}
       <div className="panel rounded-lg p-2 flex items-center justify-between gap-2 mb-3">
         <div className="flex flex-col gap-0.5">
           <span className="font-pixel-fat text-[11px] text-white capitalize">{fmt(dict.deckDeck[lang], { type: deckType })}</span>
@@ -78,8 +114,6 @@ export function RunInfo({
                   className="w-full h-full object-cover pixelated"
                   style={{
                     imageRendering: "pixelated",
-                    // Synthwave tint: shift the warm red/green backs toward the
-                    // magenta/cyan palette. Neutral backs (blue/yellow/black) keep hue.
                     filter: type === "red"
                       ? "hue-rotate(285deg) saturate(1.4)"
                       : type === "green"
