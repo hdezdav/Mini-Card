@@ -232,6 +232,20 @@ export const dict = {
     es: "Modo invitado: Abre la app dentro de MiniPay para pagar y saltarte la espera, o aguarda 24h.",
   },
 
+  // Boss blind strings & warnings
+  bossPsychicName: { en: "The Psychic", es: "La Psíquica" },
+  bossPsychicDesc: { en: "Must play 5 cards", es: "Debes jugar 5 cartas" },
+  bossNeedleName: { en: "The Needle", es: "La Aguja" },
+  bossNeedleDesc: { en: "Play only 1 hand", es: "Solo 1 mano esta ronda" },
+  bossWaterName: { en: "The Water", es: "El Agua" },
+  bossWaterDesc: { en: "0 Discards this round", es: "0 descartes esta ronda" },
+  bossManacleName: { en: "The Manacle", es: "Las Esposas" },
+  bossManacleDesc: { en: "-1 Hand size", es: "-1 Tamaño de mano" },
+  bossWallName: { en: "The Wall", es: "La Pared" },
+  bossWallDesc: { en: "2× Target score", es: "Puntaje objetivo ×2" },
+  psychicWarning: { en: "Must play 5 cards!", es: "¡Debes jugar 5 cartas!" },
+  playAsGuest: { en: "PLAY AS GUEST", es: "JUGAR COMO INVITADO" },
+
   // Username gate
   registerUsername: { en: "REGISTER USERNAME", es: "REGISTRAR USUARIO" },
   usernameNeeded: {
@@ -451,5 +465,29 @@ export function rarityName(rarity: JokerRarity, lang: Lang): string {
       return dict.rare[lang];
     case "legendary":
       return dict.legendary[lang];
+  }
+}
+
+export function bossName(bossId: string | undefined, defaultName: string, lang: Lang): string {
+  if (!bossId) return defaultName;
+  switch (bossId) {
+    case "psychic": return dict.bossPsychicName[lang];
+    case "needle": return dict.bossNeedleName[lang];
+    case "water": return dict.bossWaterName[lang];
+    case "manacle": return dict.bossManacleName[lang];
+    case "wall": return dict.bossWallName[lang];
+    default: return defaultName;
+  }
+}
+
+export function bossDesc(bossId: string | undefined, defaultDesc: string, lang: Lang): string {
+  if (!bossId) return defaultDesc;
+  switch (bossId) {
+    case "psychic": return dict.bossPsychicDesc[lang];
+    case "needle": return dict.bossNeedleDesc[lang];
+    case "water": return dict.bossWaterDesc[lang];
+    case "manacle": return dict.bossManacleDesc[lang];
+    case "wall": return dict.bossWallDesc[lang];
+    default: return defaultDesc;
   }
 }
