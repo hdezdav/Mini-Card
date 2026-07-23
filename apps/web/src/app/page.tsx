@@ -312,7 +312,7 @@ function HomeGame() {
     setAnimMult(null);
     setFloats([]);
     setScoringId(null);
-    const baseTime = 0; // Testing override: 0s
+    const baseTime = ante === 1 ? 60 : ante === 2 ? 75 : 90;
     setTimeLeft(baseTime);
     // Staggered deal ticks — one per card, slightly offset, like a real deal.
     newHand.forEach((_, i) => {
