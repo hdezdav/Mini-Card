@@ -97,7 +97,7 @@ function HomeGame() {
   const [roundScore, setRoundScore] = useState(0);
   const [deckType, setDeckType] = useState<DeckType>("red");
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [timeLeft, setTimeLeft] = useState<number>(60);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isTouch, setIsTouch] = useState(false);
 
   const [deck, setDeck] = useState<Card[]>([]);
@@ -312,7 +312,7 @@ function HomeGame() {
     setAnimMult(null);
     setFloats([]);
     setScoringId(null);
-    const baseTime = ante === 1 ? 60 : ante === 2 ? 75 : 90;
+    const baseTime = 0; // Testing override: 0s
     setTimeLeft(baseTime);
     // Staggered deal ticks — one per card, slightly offset, like a real deal.
     newHand.forEach((_, i) => {
