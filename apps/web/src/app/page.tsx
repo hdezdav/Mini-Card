@@ -54,6 +54,11 @@ const HAND_SIZE = 7;
 const MAX_SELECT = 5;
 const MAX_JOKER_SLOTS = 5;
 
+// ─── Dev testing bypass ───
+// Set NEXT_PUBLIC_DEV_BYPASS=true in .env.local to skip the cooldown and
+// username registration gate. Never ship this flag enabled to production.
+const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_BYPASS === "true";
+
 type Phase = "playing" | "scoring" | "won" | "lost" | "shop";
 
 interface FloatText {
@@ -321,6 +326,12 @@ function HomeGame() {
   }, [sfx, deckType, blind, ante]);
 
   useEffect(() => {
+    if (DEV_BYPASS) {
+      // Dev mode: always clear any stored cooldown and start fresh.
+      localStorage.removeItem("minicard_cooldown_end");
+      startRound();
+      return;
+    }
     const stored = localStorage.getItem("minicard_cooldown_end");
     if (stored) {
       const end = Number(stored);
@@ -345,9 +356,11 @@ function HomeGame() {
           clearInterval(timer);
           setPhase("lost");
           saveScore(roundScore);
-          const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
-          localStorage.setItem("minicard_cooldown_end", String(endCooldown));
-          setCooldownEnd(endCooldown);
+          if (!DEV_BYPASS) {
+            const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
+            localStorage.setItem("minicard_cooldown_end", String(endCooldown));
+            setCooldownEnd(endCooldown);
+          }
           return 0;
         }
         return prev - 1;
@@ -560,9 +573,11 @@ function HomeGame() {
         setPhase("lost");
         saveScore(end);
         sfx.play("lose");
-        const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
-        localStorage.setItem("minicard_cooldown_end", String(endCooldown));
-        setCooldownEnd(endCooldown);
+        if (!DEV_BYPASS) {
+          const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
+          localStorage.setItem("minicard_cooldown_end", String(endCooldown));
+          setCooldownEnd(endCooldown);
+        }
       } else {
         setPhase("playing");
       }
@@ -1072,7 +1087,7 @@ function HomeGame() {
         )}
 
         {/* Username Registration Gate — blocks play until username is set */}
-        {needsUsername && !walletAddress.startsWith("0xceloGuest") && (
+        {needsUsername && !walletAddress.startsWith("0xceloGuest") && !DEV_BYPASS && (
           <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
             <div className="panel anim-pop rounded-xl px-5 py-5 w-full max-w-[300px] flex flex-col items-center gap-3">
               <div className="font-pixel-fat text-2xl txt-chrome text-center">
