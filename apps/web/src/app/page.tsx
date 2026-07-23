@@ -44,6 +44,7 @@ import {
   rarityName,
   type Lang,
 } from "@/lib/i18n";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const HAND_SIZE = 7;
 const MAX_SELECT = 5;
@@ -60,11 +61,25 @@ interface FloatText {
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const GUEST_KEY = "minicard_guest_id";
+
+function getOrCreateGuestId(): string {
+  if (typeof window === "undefined") return "0xceloGuest0000";
+  let guestId = localStorage.getItem(GUEST_KEY);
+  if (!guestId || !guestId.startsWith("0xceloGuest")) {
+    guestId = "0xceloGuest" + Math.floor(Math.random() * 900000 + 100000);
+    localStorage.setItem(GUEST_KEY, guestId);
+  }
+  return guestId;
+}
+
 export default function HomePage() {
   return (
-    <LangProvider>
-      <HomeGame />
-    </LangProvider>
+    <ErrorBoundary>
+      <LangProvider>
+        <HomeGame />
+      </LangProvider>
+    </ErrorBoundary>
   );
 }
 
@@ -92,7 +107,12 @@ function HomeGame() {
   const [animChips, setAnimChips] = useState<number | null>(null);
   const [animMult, setAnimMult] = useState<number | null>(null);
   const [jokerFlash, setJokerFlash] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [walletAddress, setWalletAddress] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(GUEST_KEY) || getOrCreateGuestId();
+    }
+    return "";
+  });
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRunInfo, setShowRunInfo] = useState(false);
   const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
@@ -140,7 +160,8 @@ function HomeGame() {
           console.warn("Failed to check username status:", err);
         }
       } else {
-        setWalletAddress(addr ?? "0xceloGuest" + Math.floor(Math.random() * 9000 + 1000));
+        const guestId = getOrCreateGuestId();
+        setWalletAddress(guestId);
       }
     });
     setDetectedMiniPay(isMiniPay());
@@ -201,8 +222,13 @@ function HomeGame() {
         list = [];
       }
     }
+    const guestId = getOrCreateGuestId();
+    const effectiveAddress = (walletAddress && !walletAddress.startsWith("0xceloGuest"))
+      ? walletAddress
+      : guestId;
+
     const entry: LeaderboardEntry = {
-      address: walletAddress || "0xceloGuest",
+      address: effectiveAddress,
       score,
       round,
       date: new Date().toLocaleDateString(),
@@ -387,134 +413,143 @@ function HomeGame() {
     if (selected.length === 0) return;
     busy.current = true;
 
-    const played = hand.filter((card) => selected.includes(card.id));
-    const remaining = hand.filter((card) => !selected.includes(card.id));
-    const ev = evaluate(played);
-    const base = handScore(ev.type, levels.current);
+    try {
+      const played = hand.filter((card) => selected.includes(card.id));
+      const remaining = hand.filter((card) => !selected.includes(card.id));
+      const ev = evaluate(played);
+      const base = handScore(ev.type, levels.current);
 
-    // Level up the played hand type
-    levels.current = {
-      ...levels.current,
-      [ev.type]: (levels.current[ev.type] ?? 1) + 1,
-    };
+      // Level up the played hand type
+      levels.current = {
+        ...levels.current,
+        [ev.type]: (levels.current[ev.type] ?? 1) + 1,
+      };
 
-    setPhase("scoring");
-    setPlayZone(played);
-    setHand(remaining); // Immediately remove played cards from the player's hand
-    setSelected([]);
-    setScoringId(null);
-    setAnimChips(base.chips);
-    setAnimMult(base.mult);
-    sfx.play("play");
+      setPhase("scoring");
+      setPlayZone(played);
+      setHand(remaining); // Immediately remove played cards from the player's hand
+      setSelected([]);
+      setScoringId(null);
+      setAnimChips(base.chips);
+      setAnimMult(base.mult);
+      sfx.play("play");
 
-    await delay(300);
+      await delay(300);
 
-    let chips = base.chips;
-    let mult = base.mult;
+      let chips = base.chips;
+      let mult = base.mult;
 
-    // Score each card
-    for (const card of played) {
-      if (!ev.scoringIds.includes(card.id)) continue;
-      const add = RANK_CHIPS[card.rank];
-      chips += add;
-      setScoringId(card.id);
+      // Score each card
+      for (const card of played) {
+        if (!ev.scoringIds.includes(card.id)) continue;
+        const add = RANK_CHIPS[card.rank];
+        chips += add;
+        setScoringId(card.id);
+        setAnimChips(chips);
+        pushFloat(card.id, `+${add}`, "#00f0ff");
+        sfx.play("chip");
+        await delay(280);
+      }
+      setScoringId(null);
+
+      // Apply joker effects
+      const jokerCtxBase: JokerCtx = {
+        chips,
+        mult,
+        playedCards: played,
+        handType: ev.type,
+        scoringIds: ev.scoringIds,
+        money,
+        handsLeft,
+        discardsLeft,
+        state: {},
+      };
+
+      let jokerCtx = { ...jokerCtxBase };
+      let moneyDelta = 0;
+      for (const oj of ownedJokers) {
+        const ctx: JokerCtx = { ...jokerCtx, state: oj.state };
+        const result = oj.def.effect(ctx);
+        const prevMult = jokerCtx.mult;
+        jokerCtx = { ...jokerCtx, chips: result.chips, mult: result.xMult ? jokerCtx.mult * result.xMult : result.mult };
+        if (result.money) {
+          moneyDelta += result.money;
+        }
+        if (result.mult !== prevMult || result.xMult) {
+          setJokerFlash(true);
+          pushFloat(played[0]?.id ?? "", result.xMult ? `x${result.xMult}` : `+${result.mult - prevMult}`, "#ff2e88");
+          setAnimMult(jokerCtx.mult);
+          sfx.play("joker");
+          await delay(300);
+          setJokerFlash(false);
+        }
+      }
+      chips = jokerCtx.chips;
+      // Floor mult at 1 so downside jokers (e.g. Cursed Coin x0.75) never invert the score.
+      mult = Math.max(1, jokerCtx.mult);
       setAnimChips(chips);
-      pushFloat(card.id, `+${add}`, "#00f0ff");
-      sfx.play("chip");
-      await delay(280);
-    }
-    setScoringId(null);
-
-    // Apply joker effects
-    const jokerCtxBase: JokerCtx = {
-      chips,
-      mult,
-      playedCards: played,
-      handType: ev.type,
-      scoringIds: ev.scoringIds,
-      money,
-      handsLeft,
-      discardsLeft,
-      state: {},
-    };
-
-    let jokerCtx = { ...jokerCtxBase };
-    let moneyDelta = 0;
-    for (const oj of ownedJokers) {
-      const ctx: JokerCtx = { ...jokerCtx, state: oj.state };
-      const result = oj.def.effect(ctx);
-      const prevMult = jokerCtx.mult;
-      jokerCtx = { ...jokerCtx, chips: result.chips, mult: result.xMult ? jokerCtx.mult * result.xMult : result.mult };
-      if (result.money) {
-        moneyDelta += result.money;
-      }
-      if (result.mult !== prevMult || result.xMult) {
-        setJokerFlash(true);
-        pushFloat(played[0]?.id ?? "", result.xMult ? `x${result.xMult}` : `+${result.mult - prevMult}`, "#ff2e88");
-        setAnimMult(jokerCtx.mult);
-        sfx.play("joker");
-        await delay(300);
-        setJokerFlash(false);
-      }
-    }
-    chips = jokerCtx.chips;
-    // Floor mult at 1 so downside jokers (e.g. Cursed Coin x0.75) never invert the score.
-    mult = Math.max(1, jokerCtx.mult);
-    setAnimChips(chips);
-    setAnimMult(mult);
-    await delay(200);
-
-    // Apply joker money effects (Blood Pact, Diamond Debt, Cursed Coin, Glass Cannon).
-    if (moneyDelta !== 0) {
-      setMoney((current) => Math.max(0, current + moneyDelta));
-      pushFloat(
-        played[0]?.id ?? "",
-        `${moneyDelta > 0 ? "+" : ""}$${moneyDelta}`,
-        moneyDelta > 0 ? "#ff9e2c" : "#ff2e88"
-      );
-      await delay(280);
-    }
-
-    const gained = Math.floor(chips * mult);
-    const start = roundScore;
-    const end = start + gained;
-    const steps = 16;
-    for (let i = 1; i <= steps; i++) {
-      setRoundScore(Math.round(start + ((end - start) * i) / steps));
-      await delay(22);
-    }
-
-    await delay(250);
-
-    const playedIds = new Set(played.map((card) => card.id));
-    const { newHand, rest } = refillInPlace(hand, playedIds, deck);
-    const newHands = handsLeft - 1;
-
-    setPlayZone([]);
-    setHand(newHand);
-    setDeck(rest);
-    setHandsLeft(newHands);
-    setAnimChips(null);
-    setAnimMult(null);
-
-    if (end >= blind.target) {
+      setAnimMult(mult);
       await delay(200);
-      setMoney((current) => current + blind.reward + Math.min(newHands, 5));
-      saveScore(end);
-      sfx.play("win");
-      setPhase("shop");
-    } else if (newHands <= 0) {
-      setPhase("lost");
-      saveScore(end);
-      sfx.play("lose");
-      const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
-      localStorage.setItem("minicard_cooldown_end", String(endCooldown));
-      setCooldownEnd(endCooldown);
-    } else {
-      setPhase("playing");
-    }
 
-    busy.current = false;
+      // Apply joker money effects (Blood Pact, Diamond Debt, Cursed Coin, Glass Cannon).
+      if (moneyDelta !== 0) {
+        setMoney((current) => Math.max(0, current + moneyDelta));
+        pushFloat(
+          played[0]?.id ?? "",
+          `${moneyDelta > 0 ? "+" : ""}$${moneyDelta}`,
+          moneyDelta > 0 ? "#ff9e2c" : "#ff2e88"
+        );
+        await delay(280);
+      }
+
+      const gained = Math.floor(chips * mult);
+      const start = roundScore;
+      const end = start + gained;
+      const steps = 16;
+      for (let i = 1; i <= steps; i++) {
+        setRoundScore(Math.round(start + ((end - start) * i) / steps));
+        await delay(22);
+      }
+
+      await delay(250);
+
+      const playedIds = new Set(played.map((card) => card.id));
+      const { newHand, rest } = refillInPlace(hand, playedIds, deck);
+      const newHands = handsLeft - 1;
+
+      setPlayZone([]);
+      setHand(newHand);
+      setDeck(rest);
+      setHandsLeft(newHands);
+      setAnimChips(null);
+      setAnimMult(null);
+
+      if (end >= blind.target) {
+        await delay(200);
+        setMoney((current) => current + blind.reward + Math.min(newHands, 5));
+        saveScore(end);
+        sfx.play("win");
+        setPhase("shop");
+      } else if (newHands <= 0) {
+        setPhase("lost");
+        saveScore(end);
+        sfx.play("lose");
+        const endCooldown = Date.now() + 24 * 60 * 60 * 1000;
+        localStorage.setItem("minicard_cooldown_end", String(endCooldown));
+        setCooldownEnd(endCooldown);
+      } else {
+        setPhase("playing");
+      }
+    } catch (err) {
+      console.error("Error during doPlay evaluation/scoring:", err);
+      setPlayZone([]);
+      setAnimChips(null);
+      setAnimMult(null);
+      setScoringId(null);
+      setPhase("playing");
+    } finally {
+      busy.current = false;
+    }
   };
 
   const handleBuyJoker = (def: JokerDef) => {
@@ -637,7 +672,9 @@ function HomeGame() {
   return (
     <main className="flex h-[100dvh] w-full justify-center overflow-hidden bg-[#0a0420]">
       <div className="felt-bg relative flex h-full w-full max-w-[480px] flex-col overflow-hidden">
-        <GbaBackground blindKind={phase === "shop" ? "shop" : phase === "lost" ? "lost" : blind.kind} phase={phase} />
+        <ErrorBoundary fallback={<div className="absolute inset-0 bg-[#0a0420]" />}>
+          <GbaBackground blindKind={phase === "shop" ? "shop" : phase === "lost" ? "lost" : blind.kind} phase={phase} />
+        </ErrorBoundary>
         {/* Top Stats Bar */}
         <div className="relative z-10 flex gap-[5px] px-2 pb-1 pt-1.5 items-stretch">
           <StatBox label={dict.hands[lang]} value={handsLeft} color="#00f0ff" />
@@ -655,11 +692,10 @@ function HomeGame() {
         {/* Floating Timer Widget (Active from Round 2+) */}
         {round > 1 && phase === "playing" && (
           <div className="absolute top-[76px] right-0 z-30 anim-pop">
-            <div className={`flex flex-col items-center justify-center min-w-[48px] px-2 py-1 rounded-l-lg border-y-2 border-l-2 border-black/50 text-center shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${
-              timeLeft <= 15
+            <div className={`flex flex-col items-center justify-center min-w-[48px] px-2 py-1 rounded-l-lg border-y-2 border-l-2 border-black/50 text-center shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${timeLeft <= 15
                 ? "bg-[#ff2e88] text-white animate-pulse scale-105 border-[#a01657]"
                 : "bg-black text-[#ff2e88] border-[#ff2e88]/85"
-            }`}>
+              }`}>
               <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">{dict.time[lang]}</span>
               <span className="font-pixel-fat text-sm leading-none mt-0.5">{timeLeft}s</span>
             </div>
@@ -689,11 +725,10 @@ function HomeGame() {
                       <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
                     </div>
                   </button>
-                  <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-36 bg-black/95 border border-white/20 rounded-lg p-2 text-left pointer-events-none flex flex-col gap-0.5 shadow-xl transition-all duration-200 origin-bottom transform ${
-                    activeTooltipIdx === i
+                  <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-36 bg-black/95 border border-white/20 rounded-lg p-2 text-left pointer-events-none flex flex-col gap-0.5 shadow-xl transition-all duration-200 origin-bottom transform ${activeTooltipIdx === i
                       ? "opacity-100 scale-100 translate-y-0 visible"
                       : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
-                  }`}>
+                    }`}>
                     <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{jokerName(oj.def, lang)}</div>
                     <div className="font-pixel text-[8px] capitalize leading-none mb-1" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{rarityName(oj.def.rarity, lang)}</div>
                     <div className="font-pixel text-[9px] text-gray-300 leading-tight">{jokerDesc(oj.def, lang)}</div>
@@ -734,8 +769,8 @@ function HomeGame() {
                         transform: isScoring
                           ? "translateY(-18px) scale(1.1)"
                           : inHand
-                          ? "translateY(-10px) scale(1.05)"
-                          : "none",
+                            ? "translateY(-10px) scale(1.05)"
+                            : "none",
                         transition: "transform 0.15s ease",
                         animationDelay: isScoring ? "0ms" : `${idx * 90}ms`,
                       }}
@@ -746,7 +781,7 @@ function HomeGame() {
             </div>
           )}
         </div>
- 
+
         {/* Player Hand */}
         <div className="relative z-10 flex flex-col items-center px-2 pb-1.5 pt-2">
           <div className="flex min-h-[96px] items-end justify-center w-full pl-[16px]">
@@ -828,7 +863,7 @@ function HomeGame() {
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
               {/* Round Score */}
               <div className="bg-[#0a0420] border border-white/10 rounded-md h-8 flex items-center justify-between px-2 shadow-sm">
-                <span className="text-xs leading-none text-left font-pixel text-gray-300">{dict.roundScoreL1[lang]}<br/>{dict.roundScoreL2[lang]}</span>
+                <span className="text-xs leading-none text-left font-pixel text-gray-300">{dict.roundScoreL1[lang]}<br />{dict.roundScoreL2[lang]}</span>
                 <span className="text-lg font-pixel-fat flex items-center gap-1"><span className="text-gray-400 text-sm">✺</span> {roundScore}</span>
               </div>
 
@@ -853,8 +888,8 @@ function HomeGame() {
               </div>
 
               <div className="flex justify-center">
-                <Link 
-                  href="/stats" 
+                <Link
+                  href="/stats"
                   className="font-sans text-[9px] font-bold uppercase tracking-wider text-[#00f0ff] hover:text-[#ff9e2c] transition-all select-none flex items-center gap-1.5 hover:underline"
                 >
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-pulse" />
@@ -1112,12 +1147,12 @@ function DeckPile({ count, total, deckType = "red", lang }: { count: number; tot
     deckType === "black"
       ? "black"
       : deckType === "blue"
-      ? "blue"
-      : deckType === "green"
-      ? "green"
-      : deckType === "yellow"
-      ? "yellow"
-      : "red";
+        ? "blue"
+        : deckType === "green"
+          ? "green"
+          : deckType === "yellow"
+            ? "yellow"
+            : "red";
 
   return (
     <div className="flex flex-col items-center justify-center gap-[3px] py-[2px]">
@@ -1142,8 +1177,8 @@ function DeckPile({ count, total, deckType = "red", lang }: { count: number; tot
                 filter: empty
                   ? "grayscale(1) brightness(0.4)"
                   : i < layers - 1
-                  ? `brightness(${brightness})`
-                  : undefined,
+                    ? `brightness(${brightness})`
+                    : undefined,
                 zIndex: i,
               }}
             >
@@ -1158,8 +1193,8 @@ function DeckPile({ count, total, deckType = "red", lang }: { count: number; tot
                     filter: backColor === "red"
                       ? "hue-rotate(285deg) saturate(1.4)"
                       : backColor === "green"
-                      ? "hue-rotate(170deg) saturate(1.3)"
-                      : undefined,
+                        ? "hue-rotate(170deg) saturate(1.3)"
+                        : undefined,
                   }}
                 />
               )}
@@ -1346,10 +1381,10 @@ function LeaderboardOverlay({
         list = [];
       }
     }
-    
+
     // Sort and slice local scores
     list.sort((a, b) => b.score - a.score);
-    
+
     // Resolve usernames for local scores from contract
     const resolvedList = await resolveUsernamesForScores(list.slice(0, 10));
     setScores(resolvedList);
@@ -1481,8 +1516,8 @@ function LeaderboardOverlay({
                         {entry.username
                           ? entry.username
                           : entry.address.startsWith("0xceloGuest")
-                          ? dict.guest[lang]
-                          : fmt(dict.playerN[lang], { n: entry.address.slice(2, 6) })}
+                            ? dict.guest[lang]
+                            : fmt(dict.playerN[lang], { n: entry.address.slice(2, 6) })}
                       </td>
                       <td className="py-1 text-right text-gray-400">{entry.round}</td>
                       <td className="py-1 text-right font-pixel-fat text-[#00f0ff]">{entry.score}</td>
