@@ -354,8 +354,8 @@ export function Shop({ money, ownedJokers, ante, onBuy, onSell, onClose, onBoost
       </div>
 
       {/* Sticky bottom panel for Next Blind action */}
-      <div className="relative z-20 px-3 pb-3 pt-1.5 border-t border-[#b026ff]/35 bg-[#120630] flex shrink-0" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
-        <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base">
+      <div className="relative z-20 px-3 pb-3 pt-2 border-t border-[#b026ff]/35 bg-[#120630] flex shrink-0" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
+        <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-3 text-lg font-pixel-fat tracking-wide min-h-[48px] flex items-center justify-center">
           {dict.nextBlind[lang]}
         </button>
       </div>

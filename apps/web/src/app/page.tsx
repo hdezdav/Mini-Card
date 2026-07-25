@@ -824,7 +824,7 @@ function HomeGame() {
                       dimmed={!inHand}
                       deckType={deckType}
                       lang={lang}
-                      className={`h-[88px] w-[62px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
+                      className={`h-[84px] w-[58px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
                       style={{
                         transform: isScoring
                           ? "translateY(-18px) scale(1.1)"
@@ -843,23 +843,23 @@ function HomeGame() {
         </div>
 
         {/* Player Hand */}
-        <div className="relative z-10 flex flex-col items-center px-2 pb-1.5 pt-2">
-          <div className="flex min-h-[108px] items-end justify-center w-full pl-[16px]">
+        <div className="relative z-10 flex flex-col items-center px-1 pb-1.5 pt-2">
+          <div className="flex min-h-[102px] items-end justify-center w-full">
             {hand.map((card, idx) => {
               const isSelected = selected.includes(card.id);
               const isHovered = hoveredIdx === idx;
               const x = idx - (hand.length - 1) / 2;
-              const rot = x * 2.8; // Fan rotation angle factor
-              const fanY = Math.abs(x) * 1.5;
-              const selectY = isSelected ? -16 : 0;
-              const hoverY = (isHovered && !isTouch) ? -12 : 0;
+              const rot = x * 2.4; // Fan rotation angle factor
+              const fanY = Math.abs(x) * 1.2;
+              const selectY = isSelected ? -14 : 0;
+              const hoverY = (isHovered && !isTouch) ? -10 : 0;
               const translateY = fanY + selectY + hoverY;
 
               return (
                 <div
                   key={card.id}
                   style={{
-                    marginLeft: idx > 0 ? "-10px" : "0px",
+                    marginLeft: idx > 0 ? "-14px" : "0px",
                     transform: `rotate(${rot}deg) translateY(${translateY}px)`,
                     transformOrigin: "bottom center",
                     zIndex: isHovered ? 100 : isSelected ? 50 + idx : 10 + idx,
@@ -874,7 +874,7 @@ function HomeGame() {
                     onMouseLeave={() => setHoveredIdx(null)}
                     deckType={deckType}
                     lang={lang}
-                    className="h-[88px] w-[62px] anim-draw-card"
+                    className="h-[84px] w-[58px] anim-draw-card"
                     style={{
                       animationDelay: `${idx * 80}ms`,
                     }}
