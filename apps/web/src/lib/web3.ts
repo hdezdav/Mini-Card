@@ -483,7 +483,7 @@ export async function resolveUsernamesForScores(entries: LeaderboardEntry[]): Pr
 
   try {
     const publicClient = getPublicClient();
-    
+
     // Extract non-guest addresses
     const playerAddresses = Array.from(
       new Set(
@@ -511,7 +511,7 @@ export async function resolveUsernamesForScores(entries: LeaderboardEntry[]): Pr
 
     return entries.map((entry) => ({
       ...entry,
-      username: !entry.address.startsWith("0xceloGuest") 
+      username: !entry.address.startsWith("0xceloGuest")
         ? (usernameMap[entry.address.toLowerCase()] || undefined)
         : undefined,
     }));

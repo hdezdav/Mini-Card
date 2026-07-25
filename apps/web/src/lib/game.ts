@@ -778,6 +778,7 @@ export function calculateInterest(money: number): number {
 // ─── Blinds (expanded from GBA blind.c - ante_lut[] and _blind_type_map[]) ───
 
 export type BlindKind = "small" | "big" | "boss";
+export type BossId = "psychic" | "needle" | "water" | "manacle" | "wall";
 
 export interface Blind {
   kind: BlindKind;
@@ -785,45 +786,25 @@ export interface Blind {
   target: number;
   reward: number;
   effect?: string; // Boss blind debuff description
+  bossId?: BossId;
+}
+
+export function getMaxJokerSlots(deckType: DeckType): number {
+  if (deckType === "black") return 6;
+  if (deckType === "painted") return 4;
+  return 5;
 }
 
 // Matching GBA ante_lut[] = {100, 300, 800, 2000, 5000, 11000, 20000, 35000, 50000}
 export const ANTE_BASE: number[] = [300, 800, 2000, 5000, 11000, 20000, 35000, 50000];
 
-// Boss blind names from GBA BlindType enum
-const BOSS_NAMES: { name: string; effect: string }[] = [
-  { name: "The Hook", effect: "Discards 2 random cards per hand played" },
-  { name: "The Ox", effect: "Playing a #1 hand sets money to $0" },
-  { name: "The House", effect: "First hand is drawn face down" },
-  { name: "The Wall", effect: "Extra large blind (x2 target)" },
-  { name: "The Wheel", effect: "1 in 7 cards are drawn face down" },
-  { name: "The Arm", effect: "Decreases level of played poker hand" },
-  { name: "The Club", effect: "All ♣ cards are debuffed" },
-  { name: "The Fish", effect: "Cards drawn face down after each hand" },
-  { name: "The Psychic", effect: "Must play 5 cards" },
-  { name: "The Goad", effect: "All ♠ cards are debuffed" },
-  { name: "The Water", effect: "Start with 0 discards" },
-  { name: "The Window", effect: "All ♦ cards are debuffed" },
-  { name: "The Manacle", effect: "-1 Hand size" },
-  { name: "The Eye", effect: "No repeat hand types this round" },
-  { name: "The Mouth", effect: "Only play 1 hand type this round" },
-  { name: "The Plant", effect: "All face cards are debuffed" },
-  { name: "The Serpent", effect: "After Play or Discard, always draw 3 cards" },
-  { name: "The Pillar", effect: "Cards played previously are debuffed" },
-  { name: "The Needle", effect: "Play only 1 hand" },
-  { name: "The Head", effect: "All ♥ cards are debuffed" },
-  { name: "The Tooth", effect: "Lose $1 per card played" },
-  { name: "The Flint", effect: "Base Chips and Mult are halved" },
-  { name: "The Mark", effect: "All face cards are drawn face down" },
-];
-
-// Showdown blinds (GBA ante 8+)
-const SHOWDOWN_NAMES: { name: string; effect: string }[] = [
-  { name: "Amber Acorn", effect: "Flips and shuffles all Jokers" },
-  { name: "Verdant Leaf", effect: "All cards debuffed until 1 sold" },
-  { name: "Violet Vessel", effect: "Very large blind (x6 target)" },
-  { name: "Crimson Heart", effect: "One random Joker disabled per hand" },
-  { name: "Cerulean Bell", effect: "Forces 1 card to always be selected" },
+// The 5 Core Boss Blinds implemented in Phase 1
+export const CORE_BOSSES: { name: string; effect: string; bossId: BossId }[] = [
+  { name: "The Psychic", effect: "Must play 5 cards", bossId: "psychic" },
+  { name: "The Needle", effect: "Play only 1 hand", bossId: "needle" },
+  { name: "The Water", effect: "0 Discards this round", bossId: "water" },
+  { name: "The Manacle", effect: "-1 Hand size", bossId: "manacle" },
+  { name: "The Wall", effect: "2× Target score", bossId: "wall" },
 ];
 
 export function blindForRound(round: number): { ante: number; blind: Blind } {
@@ -848,19 +829,19 @@ export function blindForRound(round: number): { ante: number; blind: Blind } {
     };
   }
 
-  // Boss blind - pick from pool based on ante
-  const isShowdown = ante >= 8;
-  const pool = isShowdown ? SHOWDOWN_NAMES : BOSS_NAMES;
-  const boss = pool[(ante - 1) % pool.length];
+  // Boss blind - pick from core 5 boss pool
+  const boss = CORE_BOSSES[(ante - 1) % CORE_BOSSES.length];
+  const isWall = boss.bossId === "wall";
 
   return {
     ante,
     blind: {
       kind: "boss",
       name: boss.name,
-      target: base * 2,
+      target: isWall ? base * 2 : Math.round(base * 1.5),
       reward: 5,
       effect: boss.effect,
+      bossId: boss.bossId,
     },
   };
 }
