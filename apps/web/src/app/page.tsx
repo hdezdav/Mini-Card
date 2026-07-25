@@ -709,7 +709,7 @@ function HomeGame() {
         {/* Play Zone */}
         <div className="relative z-10 flex flex-1 min-h-0 items-center justify-center py-2">
           {playZone.length > 0 && (
-            <div className="flex items-end gap-[4px]">
+            <div className="flex items-end gap-[8px]">
               {playZone.map((card, idx) => {
                 const isScoring = scoringId === card.id;
                 const ev = evaluate(playZone);
@@ -729,7 +729,7 @@ function HomeGame() {
                       dimmed={!inHand}
                       deckType={deckType}
                       lang={lang}
-                      className={`h-[80px] w-[56px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
+                      className={`h-[88px] w-[62px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
                       style={{
                         transform: isScoring
                           ? "translateY(-18px) scale(1.1)"
@@ -749,7 +749,7 @@ function HomeGame() {
  
         {/* Player Hand */}
         <div className="relative z-10 flex flex-col items-center px-2 pb-1.5 pt-2">
-          <div className="flex min-h-[96px] items-end justify-center w-full pl-[16px]">
+          <div className="flex min-h-[108px] items-end justify-center w-full pl-[16px]">
             {hand.map((card, idx) => {
               const isSelected = selected.includes(card.id);
               const isHovered = hoveredIdx === idx;
@@ -764,7 +764,7 @@ function HomeGame() {
                 <div
                   key={card.id}
                   style={{
-                    marginLeft: idx > 0 ? "-14px" : "0px",
+                    marginLeft: idx > 0 ? "-10px" : "0px",
                     transform: `rotate(${rot}deg) translateY(${translateY}px)`,
                     transformOrigin: "bottom center",
                     zIndex: isHovered ? 100 : isSelected ? 50 + idx : 10 + idx,
@@ -779,7 +779,7 @@ function HomeGame() {
                     onMouseLeave={() => setHoveredIdx(null)}
                     deckType={deckType}
                     lang={lang}
-                    className="h-[80px] w-[56px] anim-draw-card"
+                    className="h-[88px] w-[62px] anim-draw-card"
                     style={{
                       animationDelay: `${idx * 80}ms`,
                     }}
