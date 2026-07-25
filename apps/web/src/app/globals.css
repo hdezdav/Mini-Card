@@ -838,15 +838,12 @@ select {
   .anim-play-card,
   .anim-score-card {
     height: 78px !important;
-    width: 55px !important;
+    width: 54px !important;
   }
 
   /* Shrink hand margins to fit */
   .min-h-\[108px\] {
     min-height: 94px !important;
-  }
-  .pl-\[16px\] {
-    padding-left: 10px !important;
   }
   
   /* Scale down Joker slots and empty slots */
