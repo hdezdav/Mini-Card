@@ -44,3 +44,5 @@ yarn-error.log*
 skills-lock.json
 waves.html
 apps/web/dev_out.log
+.atl/.skill-registry.cache.json
+.atl/skill-registry.md

@@ -720,146 +720,160 @@ function HomeGame() {
         <ErrorBoundary fallback={<div className="absolute inset-0 bg-[#0a0420]" />}>
           <GbaBackground blindKind={phase === "shop" ? "shop" : phase === "lost" ? "lost" : blind.kind} phase={phase} />
         </ErrorBoundary>
-        {/* Top Stats Bar */}
-        <div className="relative z-10 flex gap-[5px] px-2 pb-1 pt-1.5 items-stretch">
-          <StatBox label={dict.hands[lang]} value={handsLeft} color="#00f0ff" />
-          <StatBox label={dict.discards[lang]} value={discardsLeft} color="#ff2e88" />
-          <AnteBox ante={ante} lang={lang} />
-          <StatBox label={dict.round[lang]} value={round} color="#ff9e2c" />
-          <MoneyBox money={money} />
-        </div>
+        {/* Upper Board Area (stats, jokers, play zone) - Tapping here deselects hand cards */}
+        <div
+          className="relative z-10 flex flex-col flex-1 min-h-0 cursor-pointer"
+          onClick={() => {
+            if (selected.length > 0) {
+              setSelected([]);
+              sfx.play("deselect");
+            }
+          }}
+        >
+          {/* Top Stats Bar */}
+          <div className="relative z-10 flex gap-[5px] px-2 pb-1 pt-1.5 items-stretch">
+            <StatBox label={dict.hands[lang]} value={handsLeft} color="#00f0ff" />
+            <StatBox label={dict.discards[lang]} value={discardsLeft} color="#ff2e88" />
+            <AnteBox ante={ante} lang={lang} />
+            <StatBox label={dict.round[lang]} value={round} color="#ff9e2c" />
+            <MoneyBox money={money} />
+          </div>
 
-        {/* Active Boss Blind Banner */}
-        {blind.kind === "boss" && phase === "playing" && (
-          <div className="relative z-20 mx-2 my-0.5 flex items-center justify-between bg-black/85 border border-[#ff2e88]/80 rounded-lg px-2.5 py-1 shadow-[0_4px_12px_rgba(255,46,136,0.3)] anim-pop">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs animate-pulse">👁️</span>
-              <span className="font-pixel-fat text-[11px] text-[#ff2e88] tracking-wide uppercase">
-                {bossName(blind.bossId, blind.name, lang)}
+          {/* Active Boss Blind Banner */}
+          {blind.kind === "boss" && phase === "playing" && (
+            <div className="relative z-20 mx-2 my-0.5 flex items-center justify-between bg-black/85 border border-[#ff2e88]/80 rounded-lg px-2.5 py-1 shadow-[0_4px_12px_rgba(255,46,136,0.3)] anim-pop">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs animate-pulse">👁️</span>
+                <span className="font-pixel-fat text-[11px] text-[#ff2e88] tracking-wide uppercase">
+                  {bossName(blind.bossId, blind.name, lang)}
+                </span>
+              </div>
+              <span className="font-pixel text-[10px] text-gray-200">
+                {bossDesc(blind.bossId, blind.effect ?? "", lang)}
               </span>
             </div>
-            <span className="font-pixel text-[10px] text-gray-200">
-              {bossDesc(blind.bossId, blind.effect ?? "", lang)}
-            </span>
-          </div>
-        )}
+          )}
 
-        {/* Floating Music Toggle (sits below the joker slots on the left edge) */}
-        <MusicToggle lang={lang} />
+          {/* Floating Music Toggle (sits below the joker slots on the left edge) */}
+          <MusicToggle lang={lang} />
 
-
-
-        {/* Floating Timer Widget (Active from Round 2+) */}
-        {round > 1 && phase === "playing" && (
-          <div className="absolute top-[76px] right-0 z-30 anim-pop">
-            <div className={`flex flex-col items-center justify-center min-w-[48px] px-2 py-1 rounded-l-lg border-y-2 border-l-2 border-black/50 text-center shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${timeLeft <= 15
-                ? "bg-[#ff2e88] text-white animate-pulse scale-105 border-[#a01657]"
-                : "bg-black text-[#ff2e88] border-[#ff2e88]/85"
-              }`}>
-              <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">{dict.time[lang]}</span>
-              <span className="font-pixel-fat text-sm leading-none mt-0.5">{timeLeft}s</span>
-            </div>
-          </div>
-        )}
-
-        {/* Joker Slots */}
-        <div className="relative z-10 flex px-2 items-start mt-1">
-          <SlotGroup label={`${ownedJokers.length}/${getMaxJokerSlots(deckType)}`} align="left">
-            {Array.from({ length: getMaxJokerSlots(deckType) }).map((_, i) => {
-              const oj = ownedJokers[i];
-              return oj ? (
-                <div
-                  key={i}
-                  className="relative h-[54px] w-[38px] group tap-target"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveTooltipIdx(activeTooltipIdx === i ? null : i);
-                  }}
-                >
-                  <button
-                    type="button"
-                    aria-label={jokerName(oj.def, lang)}
-                    className="relative overflow-hidden rounded-[9px] h-full w-full outline-none focus:ring-1 focus:ring-[#00f0ff]/50"
-                  >
-                    <div className="absolute inset-[10%] flex items-center justify-center">
-                      <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
-                    </div>
-                  </button>
-                  <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-36 bg-black/95 border border-white/20 rounded-lg p-2 text-left pointer-events-none flex flex-col gap-0.5 shadow-xl transition-all duration-200 origin-bottom transform ${activeTooltipIdx === i
-                      ? "opacity-100 scale-100 translate-y-0 visible"
-                      : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
-                    }`}>
-                    <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{jokerName(oj.def, lang)}</div>
-                    <div className="font-pixel text-[8px] capitalize leading-none mb-1" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{rarityName(oj.def.rarity, lang)}</div>
-                    <div className="font-pixel text-[9px] text-gray-300 leading-tight">{jokerDesc(oj.def, lang)}</div>
-                  </div>
-                </div>
-              ) : (
-                <EmptySlot key={i} className="h-[54px] w-[38px]" />
-              );
-            })}
-          </SlotGroup>
-        </div>
-
-        {/* Play Zone */}
-        <div className="relative z-10 flex flex-1 min-h-0 items-center justify-center py-2">
-          {playZone.length > 0 && (
-            <div className="flex items-end gap-[4px]">
-              {playZone.map((card, idx) => {
-                const isScoring = scoringId === card.id;
-                const ev = evaluate(playZone);
-                const inHand = ev.scoringIds.includes(card.id);
-                const float = floats.find((item) => item.cardId === card.id);
-
-                return (
-                  <div key={card.id} className="relative">
-                    {float && (
-                      <div className="txt-outline absolute -top-8 left-1/2 z-20 -translate-x-1/2 font-pixel-fat text-2xl anim-scorefly" style={{ color: float.color }}>
-                        {float.value}
-                      </div>
-                    )}
-                    <PlayingCard
-                      card={card}
-                      scoring={inHand}
-                      dimmed={!inHand}
-                      deckType={deckType}
-                      lang={lang}
-                      className={`h-[80px] w-[56px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
-                      style={{
-                        transform: isScoring
-                          ? "translateY(-18px) scale(1.1)"
-                          : inHand
-                            ? "translateY(-10px) scale(1.05)"
-                            : "none",
-                        transition: "transform 0.15s ease",
-                        animationDelay: isScoring ? "0ms" : `${idx * 90}ms`,
-                      }}
-                    />
-                  </div>
-                );
-              })}
+          {/* Floating Timer Widget (Active from Round 2+) */}
+          {round > 1 && phase === "playing" && (
+            <div className={`absolute right-0 z-30 anim-pop transition-all duration-300 ${blind.kind === "boss" ? "top-[112px]" : "top-[76px]"}`}>
+              <div className={`flex flex-col items-center justify-center min-w-[48px] px-2.5 py-1 rounded-l-xl border-y border-l border-black/50 text-center shadow-lg transition-all duration-300 ${timeLeft <= 15
+                  ? "bg-[#ff2e88] text-white animate-pulse scale-105 border-[#a01657]"
+                  : "bg-black/90 backdrop-blur-md text-[#ff2e88] border-[#ff2e88]/80"
+                }`}>
+                <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">{dict.time[lang]}</span>
+                <span className="font-pixel-fat text-sm leading-none mt-0.5">{timeLeft}s</span>
+              </div>
             </div>
           )}
+
+          {/* Joker Slots */}
+          <div className="relative z-10 flex px-2 items-start mt-1">
+            <SlotGroup label={`${ownedJokers.length}/${getMaxJokerSlots(deckType)}`} align="left">
+              {Array.from({ length: getMaxJokerSlots(deckType) }).map((_, i) => {
+                const oj = ownedJokers[i];
+                return oj ? (
+                  <div
+                    key={i}
+                    className="relative h-[54px] w-[38px] group tap-target"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveTooltipIdx(activeTooltipIdx === i ? null : i);
+                    }}
+                  >
+                    <button
+                      type="button"
+                      aria-label={jokerName(oj.def, lang)}
+                      className="relative overflow-hidden rounded-[9px] h-full w-full outline-none focus:ring-1 focus:ring-[#00f0ff]/50"
+                    >
+                      <div className="absolute inset-[10%] flex items-center justify-center">
+                        <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
+                      </div>
+                    </button>
+                    <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-36 bg-black/95 border border-white/20 rounded-lg p-2 text-left pointer-events-none flex flex-col gap-0.5 shadow-xl transition-all duration-200 origin-bottom transform ${activeTooltipIdx === i
+                        ? "opacity-100 scale-100 translate-y-0 visible"
+                        : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
+                      }`}>
+                      <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{jokerName(oj.def, lang)}</div>
+                      <div className="font-pixel text-[8px] capitalize leading-none mb-1" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{rarityName(oj.def.rarity, lang)}</div>
+                      <div className="font-pixel text-[9px] text-gray-300 leading-tight">{jokerDesc(oj.def, lang)}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <EmptySlot key={i} className="h-[54px] w-[38px]" />
+                );
+              })}
+            </SlotGroup>
+          </div>
+
+          {/* Play Zone */}
+          <div className="relative z-10 flex flex-1 min-h-0 items-center justify-center py-2">
+            {playZone.length > 0 && (
+              <div className="flex items-end gap-[8px]">
+                {playZone.map((card, idx) => {
+                  const isScoring = scoringId === card.id;
+                  const ev = evaluate(playZone);
+                  const inHand = ev.scoringIds.includes(card.id);
+                  const float = floats.find((item) => item.cardId === card.id);
+
+                  return (
+                    <div key={card.id} className="relative">
+                      {float && (
+                        <div className="txt-outline absolute -top-8 left-1/2 z-20 -translate-x-1/2 font-pixel-fat text-2xl anim-scorefly" style={{ color: float.color }}>
+                          {float.value}
+                        </div>
+                      )}
+                      <PlayingCard
+                        card={card}
+                        scoring={inHand}
+                        dimmed={!inHand}
+                        deckType={deckType}
+                        lang={lang}
+                        className={`h-[88px] w-[60px] ${isScoring ? "anim-score-card" : "anim-play-card"}`}
+                        style={{
+                          transform: isScoring
+                            ? "translateY(-18px) scale(1.1)"
+                            : inHand
+                              ? "translateY(-10px) scale(1.05)"
+                              : "none",
+                          transition: "transform 0.15s ease",
+                          animationDelay: isScoring ? "0ms" : `${idx * 90}ms`,
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Player Hand */}
-        <div className="relative z-10 flex flex-col items-center px-2 pb-1.5 pt-2">
-          <div className="flex min-h-[96px] items-end justify-center w-full pl-[16px]">
+        <div className="relative z-10 flex flex-col items-center px-1 pb-1.5 pt-2 w-full overflow-hidden">
+          <div className="flex min-h-[102px] items-end justify-center w-full max-w-[390px] mx-auto px-1">
             {hand.map((card, idx) => {
               const isSelected = selected.includes(card.id);
               const isHovered = hoveredIdx === idx;
-              const x = idx - (hand.length - 1) / 2;
-              const rot = x * 2.8; // Fan rotation angle factor
-              const fanY = Math.abs(x) * 1.5;
-              const selectY = isSelected ? -16 : 0;
-              const hoverY = (isHovered && !isTouch) ? -12 : 0;
+              const count = hand.length;
+              const x = idx - (count - 1) / 2;
+              const rotFactor = count >= 8 ? 1.6 : count >= 7 ? 1.9 : 2.4;
+              const rot = x * rotFactor; // Fan rotation angle factor
+              const fanY = Math.abs(x) * 1.0;
+              const selectY = isSelected ? -14 : 0;
+              const hoverY = (isHovered && !isTouch) ? -10 : 0;
               const translateY = fanY + selectY + hoverY;
+
+              // Dynamic overlap margin: wider spacing for touch-friendly selection
+              const overlap = count >= 8 ? -12 : count >= 7 ? -9 : -6;
 
               return (
                 <div
                   key={card.id}
                   style={{
-                    marginLeft: idx > 0 ? "-14px" : "0px",
+                    marginLeft: idx > 0 ? `${overlap}px` : "0px",
                     transform: `rotate(${rot}deg) translateY(${translateY}px)`,
                     transformOrigin: "bottom center",
                     zIndex: isHovered ? 100 : isSelected ? 50 + idx : 10 + idx,
@@ -874,7 +888,7 @@ function HomeGame() {
                     onMouseLeave={() => setHoveredIdx(null)}
                     deckType={deckType}
                     lang={lang}
-                    className="h-[80px] w-[56px] anim-draw-card"
+                    className="h-[88px] w-[60px] anim-draw-card"
                     style={{
                       animationDelay: `${idx * 80}ms`,
                     }}

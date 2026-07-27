@@ -124,7 +124,7 @@ export function MusicToggle({ lang = "es" }: { lang?: Lang }) {
   if (!ready) return null;
 
   return (
-    <div className="absolute top-[150px] left-0 z-30 anim-pop flex flex-col items-start gap-1.5">
+    <div className="absolute top-[148px] left-2.5 z-30 anim-pop flex flex-col items-start gap-1.5">
       <button
         type="button"
         onClick={handleToggle}
@@ -133,33 +133,42 @@ export function MusicToggle({ lang = "es" }: { lang?: Lang }) {
         aria-pressed={on}
         aria-label={on ? dict.muteMusic[lang] : dict.playMusic[lang]}
         title={on ? dict.muteMusic[lang] : dict.playMusic[lang]}
-        className={`flex items-center gap-1 min-w-[40px] px-2.5 py-1.5 rounded-r-lg rounded-l-none border-y-2 border-r-2 border-black/40 text-center transition-[transform,box-shadow] duration-75 active:translate-y-[2px] ${
+        className={`group flex items-center justify-center gap-1.5 h-9 px-3 rounded-full border backdrop-blur-xl transition-all duration-200 active:scale-95 ${
           on
-            ? "bg-[#ff9e2c] text-white shadow-[0_4px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3),0_0_12px_rgba(255,158,44,0.5)] active:shadow-[0_2px_0_#b35900,inset_0_2px_0_rgba(255,255,255,0.3),0_0_8px_rgba(255,158,44,0.4)]"
-            : "bg-[#1a0d3a] text-[#b8aeff] shadow-[0_3px_0_#0a0420,inset_0_1px_0_rgba(255,255,255,0.15),0_0_8px_rgba(176,38,255,0.25)] active:shadow-[0_1px_0_#0a0420,inset_0_1px_0_rgba(255,255,255,0.15)]"
+            ? "bg-[#ff9e2c]/90 hover:bg-[#ff9e2c] text-white border-[#ffe09e]/50 shadow-[0_4px_16px_rgba(255,158,44,0.5),0_0_12px_rgba(255,158,44,0.3)]"
+            : "bg-[#1a0d3a]/85 hover:bg-[#261356] text-[#b8aeff] hover:text-white border-[#b026ff]/40 shadow-[0_4px_14px_rgba(176,38,255,0.35)]"
         }`}
       >
-        <span className="font-pixel-fat text-base leading-none txt-shadow">
-          {on ? "♪" : "♪̸"}
-        </span>
-        {on && <span className="inline-flex gap-[1px] items-end h-3 ml-0.5">
-          <span className="w-[2px] bg-white animate-pulse" style={{ height: "40%", animationDelay: "0ms" }} />
-          <span className="w-[2px] bg-white animate-pulse" style={{ height: "75%", animationDelay: "120ms" }} />
-          <span className="w-[2px] bg-white animate-pulse" style={{ height: "55%", animationDelay: "240ms" }} />
-        </span>}
+        {on ? (
+          <svg className="w-4 h-4 fill-current drop-shadow-sm" viewBox="0 0 24 24">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4 fill-current opacity-80 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24">
+            <path d="M4.27 3L3 4.27l9 9v.28c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4v-1.73l4.27 4.27c-.85.47-1.84.73-2.9.73-3.31 0-6-2.69-6-6 0-1.06.26-2.05.73-2.9L1.39 2.22 2.66 1 20.78 19.12l-1.27 1.27L4.27 3zM14 7h4V3h-6v5.18l2 2V7z" />
+          </svg>
+        )}
+
+        {on && (
+          <span className="inline-flex gap-[2px] items-end h-3 ml-0.5">
+            <span className="w-[2.5px] bg-white rounded-full animate-pulse" style={{ height: "45%", animationDelay: "0ms" }} />
+            <span className="w-[2.5px] bg-white rounded-full animate-pulse" style={{ height: "85%", animationDelay: "140ms" }} />
+            <span className="w-[2.5px] bg-white rounded-full animate-pulse" style={{ height: "60%", animationDelay: "280ms" }} />
+          </span>
+        )}
       </button>
 
       {on && (
         <div
           onMouseEnter={() => { cancelHide(); setVolOpen(true); }}
           onMouseLeave={() => on && armHide()}
-          className={`bg-[#0a0420] border-y-2 border-r-2 border-black/40 rounded-r-lg rounded-l-none px-2 py-1.5 flex items-center gap-1.5 shadow-[0_3px_0_#0a0420,inset_0_2px_4px_rgba(0,0,0,0.7),inset_0_0_8px_rgba(0,240,255,0.08)] transition-all duration-300 origin-top ${
+          className={`backdrop-blur-xl bg-[#0a0420]/90 border border-[#00f0ff]/35 rounded-full px-3 py-1.5 flex items-center gap-2 shadow-[0_8px_24px_rgba(0,0,0,0.6),0_0_12px_rgba(0,240,255,0.15)] transition-all duration-300 origin-top-left ${
             volOpen
               ? "opacity-100 scale-100 max-h-10 mt-0"
-              : "opacity-0 scale-90 max-h-0 -mt-1.5 pointer-events-none overflow-hidden"
+              : "opacity-0 scale-90 max-h-0 -mt-2 pointer-events-none overflow-hidden"
           }`}
         >
-          <span className="font-pixel text-[7px] text-gray-400 leading-none uppercase tracking-wider">{dict.vol[lang]}</span>
+          <span className="font-pixel text-[8px] text-[#00f0ff] leading-none uppercase tracking-wider">{dict.vol[lang]}</span>
           <input
             type="range"
             min={0}
@@ -170,7 +179,7 @@ export function MusicToggle({ lang = "es" }: { lang?: Lang }) {
             onPointerDown={() => cancelHide()}
             onPointerUp={() => armHide()}
             aria-label={dict.musicVolume[lang]}
-            className="music-slider w-16 h-1 accent-[#00f0ff]"
+            className="music-slider w-16 h-1 accent-[#00f0ff] cursor-pointer"
           />
         </div>
       )}
