@@ -759,10 +759,10 @@ function HomeGame() {
 
           {/* Floating Timer Widget (Active from Round 2+) */}
           {round > 1 && phase === "playing" && (
-            <div className="absolute top-[76px] right-0 z-30 anim-pop">
-              <div className={`flex flex-col items-center justify-center min-w-[48px] px-2 py-1 rounded-l-lg border-y-2 border-l-2 border-black/50 text-center shadow-[0_4px_10px_rgba(0,0,0,0.5)] transition-all duration-300 ${timeLeft <= 15
+            <div className={`absolute right-0 z-30 anim-pop transition-all duration-300 ${blind.kind === "boss" ? "top-[112px]" : "top-[76px]"}`}>
+              <div className={`flex flex-col items-center justify-center min-w-[48px] px-2.5 py-1 rounded-l-xl border-y border-l border-black/50 text-center shadow-lg transition-all duration-300 ${timeLeft <= 15
                   ? "bg-[#ff2e88] text-white animate-pulse scale-105 border-[#a01657]"
-                  : "bg-black text-[#ff2e88] border-[#ff2e88]/85"
+                  : "bg-black/90 backdrop-blur-md text-[#ff2e88] border-[#ff2e88]/80"
                 }`}>
                 <span className="font-pixel text-[8px] uppercase tracking-wider leading-none text-gray-400">{dict.time[lang]}</span>
                 <span className="font-pixel-fat text-sm leading-none mt-0.5">{timeLeft}s</span>
