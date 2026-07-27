@@ -21,6 +21,7 @@ interface RunInfoProps {
   onClose: () => void;
   lang: Lang;
   setLang: (l: Lang) => void;
+  onOpenTutorial?: () => void;
 }
 
 export function RunInfo({
@@ -34,6 +35,7 @@ export function RunInfo({
   onClose,
   lang,
   setLang,
+  onOpenTutorial,
 }: RunInfoProps) {
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-black/90 backdrop-blur-sm p-3 overflow-y-auto" style={{ paddingTop: "calc(env(safe-area-inset-top) + 12px)", paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
@@ -205,7 +207,20 @@ export function RunInfo({
         })}
       </div>
 
-      <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base mt-auto">
+      {onOpenTutorial && (
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onOpenTutorial();
+          }}
+          className="btn-chunky btn-orange w-full py-1.5 text-xs mb-2 mt-auto"
+        >
+          {lang === "es" ? "📖 CÓMO JUGAR (TUTORIAL)" : "📖 HOW TO PLAY (TUTORIAL)"}
+        </button>
+      )}
+
+      <button type="button" onClick={onClose} className="btn-chunky btn-blue w-full py-2 text-base">
         {dict.close[lang]}
       </button>
     </div>

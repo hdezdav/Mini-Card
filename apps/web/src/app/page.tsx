@@ -7,6 +7,7 @@ import { DeckBack, EmptySlot } from "@/components/Specials";
 import { GbaBackground } from "@/components/GbaBackground";
 import { Shop } from "@/components/Shop";
 import { RunInfo } from "@/components/RunInfo";
+import { Tutorial } from "@/components/Tutorial";
 import { MusicToggle } from "@/components/MusicToggle";
 import { JokerArtworkFrame } from "@/components/JokerArtworkFrame";
 import { RARITY_COLOR } from "@/lib/rarity";
@@ -124,6 +125,7 @@ function HomeGame() {
   });
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showRunInfo, setShowRunInfo] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [ownedJokers, setOwnedJokers] = useState<OwnedJoker[]>([]);
   const [detectedMiniPay, setDetectedMiniPay] = useState(false);
   const [activeTooltipIdx, setActiveTooltipIdx] = useState<number | null>(null);
@@ -191,6 +193,11 @@ function HomeGame() {
     // on too; otherwise the app is silent. (Both share the "audio on" toggle.)
     const musicOn = localStorage.getItem("minicard_music_enabled") === "1";
     sfx.setEnabled(musicOn);
+
+    const seenTutorial = localStorage.getItem("minicard_tutorial_seen");
+    if (!seenTutorial) {
+      setShowTutorial(true);
+    }
   }, []);
 
   // Global click listener to close Joker tooltips when clicking elsewhere
@@ -1084,7 +1091,12 @@ function HomeGame() {
             onClose={() => setShowRunInfo(false)}
             lang={lang}
             setLang={setLang}
+            onOpenTutorial={() => setShowTutorial(true)}
           />
+        )}
+
+        {showTutorial && (
+          <Tutorial lang={lang} onClose={() => setShowTutorial(false)} />
         )}
 
         {showLeaderboard && (
