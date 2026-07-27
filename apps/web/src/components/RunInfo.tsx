@@ -169,17 +169,17 @@ export function RunInfo({
 
       {jokers.length > 0 && (
         <>
-          <div className="font-pixel text-xs text-gray-400 mb-1">{dict.activeJokers[lang]}</div>
-          <div className="flex flex-col gap-1.5 mb-3">
+          <div className="font-pixel text-sm font-bold text-gray-300 mb-1.5">{dict.activeJokers[lang]}</div>
+          <div className="flex flex-col gap-2 mb-3">
             {jokers.map((oj, i) => (
-              <div key={i} className="panel rounded-lg p-2 flex items-center gap-2">
-                <div className="w-8 h-10 shrink-0 rounded overflow-hidden flex items-center justify-center relative p-0.5">
+              <div key={i} className="panel rounded-xl p-2.5 flex items-center gap-2.5">
+                <div className="w-10 h-13 shrink-0 rounded overflow-hidden flex items-center justify-center relative p-0.5">
                   <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
                 </div>
-                <div>
-                  <div className="font-pixel-fat text-xs text-white">{jokerName(oj.def, lang)}</div>
-                  <div style={{ color: RARITY_COLOR[oj.def.rarity] }} className="font-pixel text-[9px] capitalize">{rarityName(oj.def.rarity, lang)}</div>
-                  <div className="font-pixel text-[9px] text-gray-300">{jokerDesc(oj.def, lang)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-pixel-fat text-sm text-white leading-none">{jokerName(oj.def, lang)}</div>
+                  <div style={{ color: RARITY_COLOR[oj.def.rarity] }} className="font-pixel text-xs font-bold capitalize mt-1 leading-none">{rarityName(oj.def.rarity, lang)}</div>
+                  <div className="font-pixel text-xs text-gray-200 leading-snug mt-1">{jokerDesc(oj.def, lang)}</div>
                 </div>
               </div>
             ))}

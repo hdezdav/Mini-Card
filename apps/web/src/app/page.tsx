@@ -800,13 +800,13 @@ function HomeGame() {
                         <JokerArtworkFrame rarity={oj.def.rarity} className="h-full w-full" />
                       </div>
                     </button>
-                    <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-36 bg-black/95 border border-white/20 rounded-lg p-2 text-left pointer-events-none flex flex-col gap-0.5 shadow-xl transition-all duration-200 origin-bottom transform ${activeTooltipIdx === i
+                    <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 w-44 bg-black/95 border border-white/20 rounded-xl p-2.5 text-left pointer-events-none flex flex-col gap-1 shadow-xl transition-all duration-200 origin-bottom transform ${activeTooltipIdx === i
                         ? "opacity-100 scale-100 translate-y-0 visible"
                         : "opacity-0 scale-90 translate-y-1 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:translate-y-0 group-hover:visible"
                       }`}>
-                      <div className="font-pixel-fat text-[10px] text-white leading-none mb-0.5">{jokerName(oj.def, lang)}</div>
-                      <div className="font-pixel text-[8px] capitalize leading-none mb-1" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{rarityName(oj.def.rarity, lang)}</div>
-                      <div className="font-pixel text-[9px] text-gray-300 leading-tight">{jokerDesc(oj.def, lang)}</div>
+                      <div className="font-pixel-fat text-xs text-white leading-none">{jokerName(oj.def, lang)}</div>
+                      <div className="font-pixel text-[10px] font-bold capitalize leading-none" style={{ color: RARITY_COLOR[oj.def.rarity] }}>{rarityName(oj.def.rarity, lang)}</div>
+                      <div className="font-pixel text-xs text-gray-200 leading-snug">{jokerDesc(oj.def, lang)}</div>
                     </div>
                   </div>
                 ) : (
