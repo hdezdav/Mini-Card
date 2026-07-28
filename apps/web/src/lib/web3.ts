@@ -219,6 +219,25 @@ const ERC20_APPROVE_ABI = [
 // USDT contract address: 0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e
 const USDT_ADDRESS = "0x48065fbbe25f71c9282ddf5e1cd6d6a887483d5e";
 
+// USDT fee-currency adapter (6→18 decimals) for CIP-64 fee abstraction.
+// MiniPay hides CELO from users entirely: EVERY write transaction must carry
+// `feeCurrency` so the network fee is paid in a stablecoin, otherwise the
+// wallet cannot build/confirm the tx and the dApp hangs on the payment sheet.
+// Use ONLY in the `feeCurrency` field — never as a transfer target. Passing the
+// token address (USDT_ADDRESS) here would make the transaction fail.
+const USDT_FEE_CURRENCY_ADAPTER = "0x0E2A3e05bc9A16F5292A6170456A710cb89C6f72";
+
+/**
+ * Fee abstraction params for write transactions. Only applied inside MiniPay
+ * (Celo-native wallet with CIP-64 support); other injected wallets (MetaMask)
+ * validate tx params strictly and pay gas in CELO, so they get a plain tx.
+ */
+function feeCurrencyParam(): { feeCurrency?: `0x${string}` } {
+  return isMiniPay()
+    ? { feeCurrency: USDT_FEE_CURRENCY_ADAPTER as `0x${string}` }
+    : {};
+}
+
 // MiniPay Deposit deeplink — redirect here when a payment fails due to
 // insufficient stablecoin balance (MiniPay submission requirement §6).
 // Canonical list: https://docs.minipay.xyz/technical-references/deeplinks.html
@@ -371,6 +390,7 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "submitScore",
       args: [BigInt(score), BigInt(round)],
+      ...feeCurrencyParam(),
     });
 
     console.info("Score TX submitted:", hash);
@@ -598,6 +618,7 @@ export async function registerUsernameToCelo(username: string): Promise<boolean>
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "setUsername",
       args: [username],
+      ...feeCurrencyParam(),
     });
 
     console.info("Username TX submitted:", hash);
@@ -648,6 +669,7 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
       abi: ERC20_TRANSFER_ABI,
       functionName: "transfer",
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
+      ...feeCurrencyParam(),
     });
 
     console.info("Reroll payment TX:", hash);
@@ -695,6 +717,7 @@ export async function payRestartWithMiniPay(): Promise<boolean> {
       abi: ERC20_TRANSFER_ABI,
       functionName: "transfer",
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
+      ...feeCurrencyParam(),
     });
 
     console.info("Restart payment TX:", hash);
@@ -741,6 +764,7 @@ export async function approveBoosterPack(): Promise<boolean> {
       abi: ERC20_APPROVE_ABI,
       functionName: "approve",
       args: [BOOSTER_PACK_CONTRACT_ADDRESS as `0x${string}`, BigInt(20000)],
+      ...feeCurrencyParam(),
     });
 
     console.info("BoosterPack approve TX:", hash);
@@ -804,6 +828,7 @@ export async function buyBoosterPack(): Promise<BoosterPackResult> {
       address: BOOSTER_PACK_CONTRACT_ADDRESS as `0x${string}`,
       abi: BOOSTER_PACK_ABI,
       functionName: "buyPack",
+      ...feeCurrencyParam(),
     });
 
     console.info("BoosterPack buy TX:", hash);
