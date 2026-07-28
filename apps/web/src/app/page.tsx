@@ -686,6 +686,13 @@ function HomeGame() {
       // Insufficient balance → redirect to MiniPay Deposit deeplink.
       if (handlePaymentFailure(e)) return;
       console.error("Paid restart failed:", e);
+      // User cancelled the wallet confirmation → friendly rejection copy.
+      const code = (e as any)?.code ?? (e as any)?.cause?.code;
+      const name = String((e as any)?.name ?? "");
+      if (code === 4001 || code === "ACTION_REJECTED" || name === "UserRejectedRequestError") {
+        setRestartError(dict.paymentRejected[lang]);
+        return;
+      }
       // Include the raw wallet/RPC message so the real cause is diagnosable
       // on-device (MiniPay has no devtools console visible to users).
       const detail = String((e as any)?.shortMessage ?? (e as any)?.message ?? e ?? "");

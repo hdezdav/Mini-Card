@@ -1,4 +1,5 @@
 import { createPublicClient, createWalletClient, custom, http, parseEventLogs } from "viem";
+import type { Abi } from "viem";
 import { celo } from "viem/chains";
 
 // ─── Celo Mainnet Configuration ───
@@ -238,6 +239,74 @@ function feeCurrencyParam(): { feeCurrency?: `0x${string}` } {
     : {};
 }
 
+// ─── Shared write-transaction plumbing ───
+// Every write below follows the same steps: connect wallet → ensure Celo →
+// send with fee abstraction → wait for the receipt. These helpers keep that
+// boilerplate in one place instead of repeating it per function.
+
+// NOTE: context types are inferred from the client factories (ReturnType)
+// instead of viem's generic WalletClient/PublicClient — the workspace has two
+// viem type instances (pnpm nested node_modules) and the generics don't unify.
+type CeloWalletContext = {
+  walletClient: NonNullable<ReturnType<typeof getWalletClient>>;
+  address: `0x${string}`;
+  publicClient: ReturnType<typeof getPublicClient>;
+};
+
+/**
+ * Connects the injected wallet, ensures Celo mainnet, and returns ready-to-use
+ * clients. Returns null when no wallet/address is available (guest mode).
+ * Wallet errors (e.g. rejected requests) propagate to the caller.
+ */
+async function getCeloWalletContext(): Promise<CeloWalletContext | null> {
+  const walletClient = getWalletClient();
+  if (!walletClient) return null;
+
+  const [address] = await walletClient.requestAddresses();
+  if (!address) return null;
+
+  // Switch network to Celo Mainnet if necessary
+  try {
+    const chainId = await walletClient.getChainId();
+    if (chainId !== celo.id) {
+      await walletClient.switchChain({ id: celo.id });
+    }
+  } catch (switchErr) {
+    console.warn("Network switch skipped/failed:", switchErr);
+  }
+
+  return { walletClient, address, publicClient: getPublicClient() };
+}
+
+type ContractWrite = {
+  address: `0x${string}`;
+  abi: Abi;
+  functionName: string;
+  args?: readonly unknown[];
+};
+
+/**
+ * Sends a contract write with CIP-64 fee abstraction (inside MiniPay) and
+ * waits for the receipt. Callers MUST check receipt.status — a mined tx can
+ * still be reverted on-chain.
+ */
+async function sendAndConfirm(
+  ctx: CeloWalletContext,
+  label: string,
+  params: ContractWrite
+) {
+  // viem's conditional write types can't express a generic ABI in a helper;
+  // each caller passes matching ABI/functionName/args literals, so cast once.
+  const hash = await ctx.walletClient.writeContract({
+    account: ctx.address,
+    ...(params as any),
+    ...feeCurrencyParam(),
+  });
+
+  console.info(`${label} TX:`, hash);
+  return ctx.publicClient.waitForTransactionReceipt({ hash });
+}
+
 // MiniPay Deposit deeplink — redirect here when a payment fails due to
 // insufficient stablecoin balance (MiniPay submission requirement §6).
 // Canonical list: https://docs.minipay.xyz/technical-references/deeplinks.html
@@ -360,42 +429,17 @@ export async function autoConnect(): Promise<string | null> {
  * Submits the score to MiniCardLeaderboard contract on Celo mainnet.
  */
 export async function submitScoreToCelo(score: number, round: number): Promise<boolean> {
-  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
-    console.info("Leaderboard contract not deployed yet. Falling back to local storage.");
-    return false;
-  }
-
-  const walletClient = getWalletClient();
-  if (!walletClient) return false;
-
   try {
-    const [address] = await walletClient.requestAddresses();
-    if (!address) return false;
+    const ctx = await getCeloWalletContext();
+    if (!ctx) return false;
 
-    // Switch network to Celo Mainnet if necessary
-    try {
-      const chainId = await walletClient.getChainId();
-      if (chainId !== celo.id) {
-        await walletClient.switchChain({ id: celo.id });
-      }
-    } catch (switchErr) {
-      console.warn("Network switch skipped/failed:", switchErr);
-    }
-
-    const publicClient = getPublicClient();
-
-    const hash = await walletClient.writeContract({
-      account: address,
+    const receipt = await sendAndConfirm(ctx, "Score", {
       address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "submitScore",
       args: [BigInt(score), BigInt(round)],
-      ...feeCurrencyParam(),
     });
-
-    console.info("Score TX submitted:", hash);
-    await publicClient.waitForTransactionReceipt({ hash });
-    return true;
+    return receipt.status === "success";
   } catch (err) {
     console.error("Failed to submit score:", err);
     return false;
@@ -407,10 +451,6 @@ export async function submitScoreToCelo(score: number, round: number): Promise<b
  * Fetches in chunks of 100 to avoid gas/size limits as the scores array grows.
  */
 export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
-  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
-    return [];
-  }
-
   try {
     const publicClient = getPublicClient();
 
@@ -497,7 +537,7 @@ export async function getScoresFromCelo(): Promise<LeaderboardEntry[]> {
  * Resolves usernames for a list of leaderboard entries by querying the smart contract.
  */
 export async function resolveUsernamesForScores(entries: LeaderboardEntry[]): Promise<LeaderboardEntry[]> {
-  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000" || !entries || entries.length === 0) {
+  if (!entries || entries.length === 0) {
     return entries;
   }
 
@@ -545,7 +585,7 @@ export async function resolveUsernamesForScores(entries: LeaderboardEntry[]): Pr
  * Fetches the registered username for a given wallet address.
  */
 export async function getUsernameFromCelo(address: string): Promise<string> {
-  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000" || !address || address.startsWith("0xceloGuest")) {
+  if (!address || address.startsWith("0xceloGuest")) {
     return "";
   }
 
@@ -569,7 +609,7 @@ export async function getUsernameFromCelo(address: string): Promise<string> {
  * Checks whether a wallet address has set a username on-chain.
  */
 export async function checkHasUsername(address: string): Promise<boolean> {
-  if (LEADERBOARD_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000" || !address || address.startsWith("0xceloGuest")) {
+  if (!address || address.startsWith("0xceloGuest")) {
     return false;
   }
 
@@ -593,151 +633,59 @@ export async function checkHasUsername(address: string): Promise<boolean> {
  * Sets the username on-chain for the connected player address.
  */
 export async function registerUsernameToCelo(username: string): Promise<boolean> {
-  const walletClient = getWalletClient();
-  if (!walletClient) return false;
-
   try {
-    const [address] = await walletClient.requestAddresses();
-    if (!address) return false;
+    const ctx = await getCeloWalletContext();
+    if (!ctx) return false;
 
-    // Switch network to Celo Mainnet if necessary
-    try {
-      const chainId = await walletClient.getChainId();
-      if (chainId !== celo.id) {
-        await walletClient.switchChain({ id: celo.id });
-      }
-    } catch (switchErr) {
-      console.warn("Network switch skipped/failed:", switchErr);
-    }
-
-    const publicClient = getPublicClient();
-
-    const hash = await walletClient.writeContract({
-      account: address,
+    const receipt = await sendAndConfirm(ctx, "Username", {
       address: LEADERBOARD_CONTRACT_ADDRESS as `0x${string}`,
       abi: MINICARD_LEADERBOARD_ABI,
       functionName: "setUsername",
       args: [username],
-      ...feeCurrencyParam(),
     });
-
-    console.info("Username TX submitted:", hash);
-    await publicClient.waitForTransactionReceipt({ hash });
-    return true;
+    return receipt.status === "success";
   } catch (err) {
     console.error("Failed to register username:", err);
     return false;
   }
 }
 
-// ─── Reroll Payment ($0.01 USDm) ───
-
-/**
- * Pays $0.01 USDm (USDT) to reroll shop offers.
- * Inside MiniPay this opens the native payment confirmation.
- * If no wallet is present (guest mode), returns true for free reroll.
- *
- * Throws the underlying error so the caller can detect insufficient balance
- * and redirect to the MiniPay Deposit deeplink (see handlePaymentFailure).
- */
-export async function payRerollWithMiniPay(): Promise<boolean> {
-  const walletClient = getWalletClient();
-  if (!walletClient) {
-    // No wallet — do not allow free rerolls anymore
-    return false;
-  }
-
-  try {
-    const [address] = await walletClient.requestAddresses();
-    if (!address) return false;
-
-    // Switch network to Celo Mainnet if necessary
-    try {
-      const chainId = await walletClient.getChainId();
-      if (chainId !== celo.id) {
-        await walletClient.switchChain({ id: celo.id });
-      }
-    } catch (switchErr) {
-      console.warn("Network switch skipped/failed:", switchErr);
-    }
-
-    const publicClient = getPublicClient();
-
-    const hash = await walletClient.writeContract({
-      account: address,
-      address: USDT_ADDRESS as `0x${string}`,
-      abi: ERC20_TRANSFER_ABI,
-      functionName: "transfer",
-      args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
-      ...feeCurrencyParam(),
-    });
-
-    console.info("Reroll payment TX:", hash);
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    // A reverted tx moved no USDT — do NOT treat it as a paid reroll.
-    if (receipt.status === "reverted") {
-      console.warn("Reroll payment tx reverted:", hash);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    // Re-throw so callers can detect insufficient balance and redirect to Deposit.
-    if (isInsufficientBalanceError(err)) throw err;
-    console.warn("Reroll payment failed:", err);
-    return false;
-  }
-}
+// ─── Restart Payment ($0.01 USDT) ───
 
 /**
  * Pays $0.01 USDT to restart the game immediately (bypassing the 24h cooldown).
+ * This is a plain ERC20 transfer to the fee receiver — no smart contract is
+ * involved because the cooldown is enforced client-side (localStorage).
  *
- * Throws the underlying error on insufficient balance so the caller can
- * redirect to the MiniPay Deposit deeplink (see handlePaymentFailure).
+ * Throws the underlying error so the caller can redirect to the MiniPay
+ * Deposit deeplink on insufficient balance, or surface the reason inline.
  */
 export async function payRestartWithMiniPay(): Promise<boolean> {
-  const walletClient = getWalletClient();
-  if (!walletClient) {
-    return false;
-  }
-
   try {
-    const [address] = await walletClient.requestAddresses();
-    if (!address) return false;
+    const ctx = await getCeloWalletContext();
+    if (!ctx) return false;
 
-    // Switch network to Celo Mainnet if necessary
-    try {
-      const chainId = await walletClient.getChainId();
-      if (chainId !== celo.id) {
-        await walletClient.switchChain({ id: celo.id });
-      }
-    } catch (switchErr) {
-      console.warn("Network switch skipped/failed:", switchErr);
-    }
-
-    const publicClient = getPublicClient();
-
-    const hash = await walletClient.writeContract({
-      account: address,
+    const receipt = await sendAndConfirm(ctx, "Restart payment", {
       address: USDT_ADDRESS as `0x${string}`,
       abi: ERC20_TRANSFER_ABI,
       functionName: "transfer",
       args: [REROLL_FEE_RECEIVER as `0x${string}`, REROLL_FEE_AMOUNT],
-      ...feeCurrencyParam(),
     });
 
-    console.info("Restart payment TX:", hash);
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    // A reverted tx moved no USDT — the cooldown must stay in place.
+    // A reverted tx moved no USDT — the cooldown must stay in place. Throw so
+    // the caller can surface the real reason inline (console is invisible on
+    // the MiniPay WebView).
     if (receipt.status === "reverted") {
-      console.warn("Restart payment tx reverted:", hash);
-      return false;
+      throw new Error(
+        `Payment reverted on-chain (tx ${receipt.transactionHash}). No USDT moved — the balance must cover $0.01 plus the network fee.`
+      );
     }
     return true;
   } catch (err) {
-    // Re-throw so callers can detect insufficient balance and redirect to Deposit.
-    if (isInsufficientBalanceError(err)) throw err;
+    // Re-throw everything (user rejection, RPC errors, insufficient balance):
+    // the caller decides between the Deposit deeplink and an inline message.
     console.warn("Restart payment failed:", err);
-    return false;
+    throw err;
   }
 }
 
@@ -748,38 +696,18 @@ export async function payRestartWithMiniPay(): Promise<boolean> {
  * Required before calling buyPack(). Approves exactly PACK_PRICE ($0.02).
  */
 export async function approveBoosterPack(): Promise<boolean> {
-  const walletClient = getWalletClient();
-  if (!walletClient) return false;
-  if (BOOSTER_PACK_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") return false;
-
   try {
-    const [address] = await walletClient.requestAddresses();
-    if (!address) return false;
-
-    try {
-      const chainId = await walletClient.getChainId();
-      if (chainId !== celo.id) {
-        await walletClient.switchChain({ id: celo.id });
-      }
-    } catch (switchErr) {
-      console.warn("Network switch skipped/failed:", switchErr);
-    }
-
-    const publicClient = getPublicClient();
+    const ctx = await getCeloWalletContext();
+    if (!ctx) return false;
 
     // Approve PACK_PRICE = 20000 (0.02 USDT, 6 decimals)
-    const hash = await walletClient.writeContract({
-      account: address,
+    const receipt = await sendAndConfirm(ctx, "BoosterPack approve", {
       address: USDT_ADDRESS as `0x${string}`,
       abi: ERC20_APPROVE_ABI,
       functionName: "approve",
       args: [BOOSTER_PACK_CONTRACT_ADDRESS as `0x${string}`, BigInt(20000)],
-      ...feeCurrencyParam(),
     });
-
-    console.info("BoosterPack approve TX:", hash);
-    await publicClient.waitForTransactionReceipt({ hash });
-    return true;
+    return receipt.status === "success";
   } catch (err) {
     if (isInsufficientBalanceError(err)) throw err;
     console.error("Failed to approve BoosterPack:", err);
@@ -812,41 +740,19 @@ export type BoosterPackResult =
  * Throws on insufficient balance so the caller can redirect to Deposit deeplink.
  */
 export async function buyBoosterPack(): Promise<BoosterPackResult> {
-  const walletClient = getWalletClient();
-  if (!walletClient) return { status: "reverted" };
-  if (BOOSTER_PACK_CONTRACT_ADDRESS === "0x0000000000000000000000000000000000000000") {
-    return { status: "reverted" };
-  }
-
   try {
-    const [address] = await walletClient.requestAddresses();
-    if (!address) return { status: "reverted" };
+    const ctx = await getCeloWalletContext();
+    if (!ctx) return { status: "reverted" };
 
-    try {
-      const chainId = await walletClient.getChainId();
-      if (chainId !== celo.id) {
-        await walletClient.switchChain({ id: celo.id });
-      }
-    } catch (switchErr) {
-      console.warn("Network switch skipped/failed:", switchErr);
-    }
-
-    const publicClient = getPublicClient();
-
-    const hash = await walletClient.writeContract({
-      account: address,
+    const receipt = await sendAndConfirm(ctx, "BoosterPack buy", {
       address: BOOSTER_PACK_CONTRACT_ADDRESS as `0x${string}`,
       abi: BOOSTER_PACK_ABI,
       functionName: "buyPack",
-      ...feeCurrencyParam(),
     });
-
-    console.info("BoosterPack buy TX:", hash);
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
     // A reverted tx moved no funds and opened no pack — safe to retry.
     if (receipt.status === "reverted") {
-      console.warn("BoosterPack buy tx reverted:", hash);
+      console.warn("BoosterPack buy tx reverted:", receipt.transactionHash);
       return { status: "reverted" };
     }
 
@@ -866,7 +772,7 @@ export async function buyBoosterPack(): Promise<BoosterPackResult> {
 
     // Tx SUCCEEDED but no PackOpened log was parsed. The user paid and a pack
     // was opened on-chain, but the frontend cannot read the result. Do NOT retry.
-    console.error("BoosterPack tx succeeded but PackOpened event not found:", hash);
+    console.error("BoosterPack tx succeeded but PackOpened event not found:", receipt.transactionHash);
     return { status: "unreadable" };
   } catch (err) {
     if (isInsufficientBalanceError(err)) throw err;
