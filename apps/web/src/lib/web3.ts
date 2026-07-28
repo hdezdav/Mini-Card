@@ -673,7 +673,12 @@ export async function payRerollWithMiniPay(): Promise<boolean> {
     });
 
     console.info("Reroll payment TX:", hash);
-    await publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    // A reverted tx moved no USDT — do NOT treat it as a paid reroll.
+    if (receipt.status === "reverted") {
+      console.warn("Reroll payment tx reverted:", hash);
+      return false;
+    }
     return true;
   } catch (err) {
     // Re-throw so callers can detect insufficient balance and redirect to Deposit.
@@ -721,7 +726,12 @@ export async function payRestartWithMiniPay(): Promise<boolean> {
     });
 
     console.info("Restart payment TX:", hash);
-    await publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    // A reverted tx moved no USDT — the cooldown must stay in place.
+    if (receipt.status === "reverted") {
+      console.warn("Restart payment tx reverted:", hash);
+      return false;
+    }
     return true;
   } catch (err) {
     // Re-throw so callers can detect insufficient balance and redirect to Deposit.

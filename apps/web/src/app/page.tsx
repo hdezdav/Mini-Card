@@ -137,6 +137,7 @@ function HomeGame() {
   const [submittingScore, setSubmittingScore] = useState<boolean>(false);
   const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
   const [payingRestart, setPayingRestart] = useState(false);
+  const [restartError, setRestartError] = useState("");
 
   // Username gate — all players must register a username before playing
   const [registeredUsername, setRegisteredUsername] = useState<string | null>(null);
@@ -667,6 +668,7 @@ function HomeGame() {
   const handlePaidRestart = async () => {
     if (payingRestart) return;
     setPayingRestart(true);
+    setRestartError("");
     try {
       const success = await payRestartWithMiniPay();
       if (success) {
@@ -676,13 +678,18 @@ function HomeGame() {
       } else {
         // Rejected or no wallet — keep the user in-app. (Insufficient balance
         // throws and is handled in the catch block via the Deposit deeplink.)
-        alert(dict.paymentRejected[lang]);
+        // NOTE: alert() is unreliable inside the MiniPay WebView — always
+        // surface payment failures inline.
+        setRestartError(dict.paymentRejected[lang]);
       }
     } catch (e) {
       // Insufficient balance → redirect to MiniPay Deposit deeplink.
       if (handlePaymentFailure(e)) return;
-      console.error(e);
-      alert(dict.paymentFailed[lang]);
+      console.error("Paid restart failed:", e);
+      // Include the raw wallet/RPC message so the real cause is diagnosable
+      // on-device (MiniPay has no devtools console visible to users).
+      const detail = String((e as any)?.shortMessage ?? (e as any)?.message ?? e ?? "");
+      setRestartError(`${dict.paymentFailed[lang]}${detail ? ` (${detail.slice(0, 140)})` : ""}`);
     } finally {
       setPayingRestart(false);
     }
@@ -1059,6 +1066,11 @@ function HomeGame() {
                       </>
                     )}
                   </button>
+                  {restartError && (
+                    <div className="font-pixel text-[9px] text-[#ff8b85] leading-tight break-words">
+                      {restartError}
+                    </div>
+                  )}
                   <CooldownCountdown
                     cooldownEnd={cooldownEnd}
                     onExpired={() => setCooldownEnd(null)}
